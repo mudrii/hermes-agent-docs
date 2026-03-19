@@ -1,6 +1,6 @@
 # Installation
 
-This guide covers every installation method for Hermes Agent, from the one-line quick installer to fully manual source builds. Covers v0.2.0 (v2026.3.12) and v0.3.0 (v2026.3.17).
+This guide covers every installation method for Hermes Agent, from the one-line quick installer to fully manual source builds.
 
 ---
 
@@ -8,7 +8,7 @@ This guide covers every installation method for Hermes Agent, from the one-line 
 
 ### Required
 
-- **Git** — the only prerequisite you must install yourself. The installer handles everything else.
+- **Git** -- the only prerequisite you must install yourself. The installer handles everything else.
 
   Verify: `git --version`
 
@@ -20,42 +20,83 @@ The one-line and `setup-hermes.sh` installers detect what is missing and install
 |------------|---------|---------|
 | **uv** | latest | Fast Python package manager |
 | **Python** | 3.11 | Runtime (installed via uv, no sudo needed) |
-| **Node.js** | v22 | Browser automation and WhatsApp bridge |
+| **Node.js** | v22 LTS | Browser automation and WhatsApp bridge |
 | **ripgrep** | latest | Fast file search (falls back to grep if missing) |
-| **ffmpeg** | latest | Audio format conversion for TTS |
+| **ffmpeg** | latest | Audio format conversion for TTS voice messages |
 
 ### Supported platforms
 
 | Platform | Support |
 |----------|---------|
-| Linux (any distro) | Fully supported |
-| macOS | Fully supported |
+| Linux (any distro) | Fully supported (apt, dnf, pacman auto-detected) |
+| macOS (Intel and Apple Silicon) | Fully supported |
 | WSL2 | Fully supported |
-| Windows (native) | **Not supported** — use WSL2 |
+| Windows (native PowerShell) | Supported via `install.ps1` (installs to `%LOCALAPPDATA%\hermes`) |
 
 ---
 
 ## Method 1: One-Line Installer (Recommended)
 
-The fastest way to get started on Linux, macOS, or WSL2:
+### Linux / macOS / WSL2
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/NousResearch/hermes-agent/main/scripts/install.sh | bash
 ```
 
-The installer:
+### Windows (PowerShell)
 
-1. Installs `uv` if not present
+```powershell
+irm https://raw.githubusercontent.com/NousResearch/hermes-agent/main/scripts/install.ps1 | iex
+```
+
+Or download and run with options:
+
+```powershell
+.\install.ps1 -NoVenv -SkipSetup
+```
+
+The Windows installer installs to `%LOCALAPPDATA%\hermes\hermes-agent` by default and sets the `HERMES_HOME` user environment variable. It uses winget, chocolatey, or scoop to install optional dependencies (ripgrep, ffmpeg).
+
+### What the installer does
+
+1. Installs `uv` if not present (via `https://astral.sh/uv/install.sh`)
 2. Installs Python 3.11 via uv (no sudo required)
-3. Clones the repository with submodules
-4. Creates a Python virtual environment
-5. Installs all dependencies including submodule packages
-6. Creates the `~/.hermes/` directory structure
-7. Copies the example config to `~/.hermes/config.yaml`
-8. Symlinks the `hermes` command into `~/.local/bin`
-9. Adds `~/.local/bin` to your shell's PATH
-10. Installs bundled skills to `~/.hermes/skills/`
-11. Prompts you to run the setup wizard
+3. Checks for Git (required)
+4. Installs Node.js v22 LTS if not present (binary download to `~/.hermes/node/`)
+5. Installs ripgrep and ffmpeg via package manager (optional, asks for sudo if needed)
+6. Clones the repository (tries SSH first, falls back to HTTPS)
+7. Initializes the `mini-swe-agent` submodule (terminal tool backend)
+8. Creates a Python virtual environment with `uv venv venv --python 3.11`
+9. Installs all dependencies with `uv pip install -e ".[all]"`, falling back to base install
+10. Installs `mini-swe-agent` as editable package
+11. Installs Node.js dependencies and Playwright Chromium for browser tools
+12. Symlinks the `hermes` command into `~/.local/bin`
+13. Adds `~/.local/bin` to your shell's PATH if not already there
+14. Creates the `~/.hermes/` directory structure with config templates
+15. Copies `.env.example` to `~/.hermes/.env` and `cli-config.yaml.example` to `~/.hermes/config.yaml`
+16. Creates `~/.hermes/SOUL.md` persona template
+17. Syncs bundled skills to `~/.hermes/skills/`
+18. Prompts you to run the setup wizard
+19. Optionally installs the gateway as a background service
+
+### Installer options (Linux/macOS)
+
+```
+--no-venv      Don't create virtual environment
+--skip-setup   Skip interactive setup wizard
+--branch NAME  Git branch to install (default: main)
+--dir PATH     Installation directory (default: ~/.hermes/hermes-agent)
+```
+
+### Installer options (Windows PowerShell)
+
+```
+-NoVenv        Don't create virtual environment
+-SkipSetup     Skip interactive setup wizard
+-Branch NAME   Git branch to install (default: main)
+-HermesHome    Override home directory (default: %LOCALAPPDATA%\hermes)
+-InstallDir    Override install directory (default: %LOCALAPPDATA%\hermes\hermes-agent)
+```
 
 After installation, reload your shell and start chatting:
 
@@ -68,7 +109,7 @@ hermes
 
 ## Method 2: setup-hermes.sh Script
 
-For developers who clone the repository manually, `setup-hermes.sh` in the repo root performs the same steps as the one-line installer without fetching from the internet:
+For developers who clone the repository manually, `setup-hermes.sh` in the repo root performs the same dependency setup without fetching the repo from the internet:
 
 ```bash
 git clone --recurse-submodules https://github.com/NousResearch/hermes-agent.git
@@ -78,8 +119,8 @@ cd hermes-agent
 
 The script performs these steps in order:
 
-1. Checks for `uv` in `PATH`, `~/.local/bin/uv`, and `~/.cargo/bin/uv` — installs via `curl -LsSf https://astral.sh/uv/install.sh | sh` if missing
-2. Checks for Python 3.11 via `uv python find 3.11` — installs via `uv python install 3.11` if missing
+1. Checks for `uv` in `PATH`, `~/.local/bin/uv`, and `~/.cargo/bin/uv` -- installs via `curl -LsSf https://astral.sh/uv/install.sh | sh` if missing
+2. Checks for Python 3.11 via `uv python find 3.11` -- installs via `uv python install 3.11` if missing
 3. Removes any existing `venv` directory and creates a fresh one with `uv venv venv --python 3.11`
 4. Sets `VIRTUAL_ENV` so uv installs into the correct venv
 5. Installs all extras with `uv pip install -e ".[all]"`, falling back to `uv pip install -e "."` on failure
@@ -115,7 +156,14 @@ cd hermes-agent
 If you already cloned without the flag:
 
 ```bash
-git submodule update --init --recursive
+git submodule update --init mini-swe-agent
+```
+
+Note: `tinker-atropos` (RL training) is optional and heavy. To install it later:
+
+```bash
+git submodule update --init tinker-atropos
+uv pip install -e ./tinker-atropos
 ```
 
 ### Step 2: Install uv
@@ -152,7 +200,7 @@ Available extras you can combine with `[extra1,extra2]`:
 
 | Extra | What it adds | Install |
 |-------|-------------|---------|
-| `all` | All extras combined | `uv pip install -e ".[all]"` |
+| `all` | All extras combined (excludes `rl` and `yc-bench`) | `uv pip install -e ".[all]"` |
 | `messaging` | Telegram, Discord, Slack gateway | `uv pip install -e ".[messaging]"` |
 | `cron` | Cron expression parsing | `uv pip install -e ".[cron]"` |
 | `cli` | Terminal menu UI for setup wizard | `uv pip install -e ".[cli]"` |
@@ -161,12 +209,15 @@ Available extras you can combine with `[extra1,extra2]`:
 | `tts-premium` | ElevenLabs premium TTS voices | `uv pip install -e ".[tts-premium]"` |
 | `voice` | CLI microphone input and audio playback | `uv pip install -e ".[voice]"` |
 | `pty` | PTY terminal support | `uv pip install -e ".[pty]"` |
-| `honcho` | Honcho AI-native memory | `uv pip install -e ".[honcho]"` |
-| `mcp` | Model Context Protocol support | `uv pip install -e ".[mcp]"` |
+| `honcho` | Honcho AI-native memory (`honcho-ai>=2.0.1`) | `uv pip install -e ".[honcho]"` |
+| `mcp` | Model Context Protocol support (`mcp>=1.2.0`) | `uv pip install -e ".[mcp]"` |
 | `homeassistant` | Home Assistant integration | `uv pip install -e ".[homeassistant]"` |
-| `acp` | ACP editor integration | `uv pip install -e ".[acp]"` |
+| `sms` | SMS messaging | `uv pip install -e ".[sms]"` |
+| `acp` | ACP editor integration (`agent-client-protocol>=0.8.1,<1.0`) | `uv pip install -e ".[acp]"` |
 | `slack` | Slack messaging | `uv pip install -e ".[slack]"` |
-| `dev` | pytest and test utilities | `uv pip install -e ".[dev]"` |
+| `matrix` | Matrix messaging (`matrix-nio[e2e]>=0.24.0`) | `uv pip install -e ".[matrix]"` |
+| `dev` | pytest, pytest-asyncio, pytest-xdist, mcp | `uv pip install -e ".[dev]"` |
+| `rl` | RL training (Atropos, Tinker, FastAPI, WandB) | `uv pip install -e ".[rl]"` |
 
 Combine extras: `uv pip install -e ".[messaging,cron,honcho]"`
 
@@ -203,10 +254,10 @@ touch ~/.hermes/.env
 Open `~/.hermes/.env` and add at least one LLM provider key:
 
 ```bash
-# Required — at least one LLM provider:
+# Required -- at least one LLM provider:
 OPENROUTER_API_KEY=sk-or-v1-your-key-here
 
-# Optional — enable additional tools:
+# Optional -- enable additional tools:
 FIRECRAWL_API_KEY=fc-your-key          # Web search and scraping
 FAL_KEY=your-fal-key                   # Image generation (FLUX)
 ```
@@ -253,7 +304,7 @@ After any installation method, run the interactive setup wizard to configure you
 hermes setup
 ```
 
-The wizard is modular — you can run individual sections at any time:
+The wizard is modular -- you can run individual sections at any time:
 
 ```bash
 hermes model          # Choose LLM provider and model
@@ -262,13 +313,13 @@ hermes gateway setup  # Set up messaging platforms
 hermes config set     # Set individual config values
 ```
 
-Wizard sections:
+Wizard sections (defined in `hermes_cli/setup.py`):
 
-1. **Model and Provider** — choose your AI provider and model
-2. **Terminal Backend** — where the agent runs commands (`local`, `docker`, `ssh`, `modal`, `daytona`, `singularity`)
-3. **Messaging Platforms** — connect Telegram, Discord, Slack, WhatsApp, Signal, Email, or Home Assistant
-4. **Tools** — configure TTS, web search, image generation, and other tool-specific settings
-5. **Agent Settings** — max iterations, context compression, session reset behavior
+1. **Model and Provider** -- choose your AI provider and model
+2. **Terminal Backend** -- where the agent runs commands (`local`, `docker`, `ssh`, `modal`, `daytona`, `singularity`)
+3. **Messaging Platforms** -- connect Telegram, Discord, Slack, WhatsApp, Signal, Email, or Home Assistant
+4. **Tools** -- configure TTS, web search, image generation, and other tool-specific settings
+5. **Agent Settings** -- max iterations, context compression, session reset behavior
 
 ---
 
@@ -279,16 +330,21 @@ Wizard sections:
 | Provider | Auth Method | Credential |
 |----------|-------------|-----------|
 | **Nous Portal** | OAuth device code via `hermes model` | Stored in `~/.hermes/auth.json` |
-| **OpenAI Codex** | OAuth device code via `hermes model` | Stored in `~/.hermes/auth.json` |
-| **Anthropic** | Claude Code auto-discovery or API key | `ANTHROPIC_API_KEY` or `ANTHROPIC_TOKEN` |
+| **OpenAI Codex** | OAuth external via `hermes model` | Stored in `~/.hermes/auth.json` |
+| **Anthropic** | Claude Code auto-discovery or API key | `ANTHROPIC_API_KEY`, `ANTHROPIC_TOKEN`, or `CLAUDE_CODE_OAUTH_TOKEN` |
 | **GitHub Copilot** | GitHub token | `COPILOT_GITHUB_TOKEN`, `GH_TOKEN`, or `GITHUB_TOKEN` |
+| **GitHub Copilot ACP** | External process (editor-managed) | `COPILOT_ACP_BASE_URL` |
 | **OpenRouter** | API key | `OPENROUTER_API_KEY` |
-| **Z.AI / GLM** | API key | `GLM_API_KEY` or `ZAI_API_KEY` |
+| **Z.AI / GLM** | API key | `GLM_API_KEY`, `ZAI_API_KEY`, or `Z_AI_API_KEY` |
 | **Kimi / Moonshot** | API key | `KIMI_API_KEY` |
 | **MiniMax** | API key | `MINIMAX_API_KEY` |
 | **MiniMax China** | API key | `MINIMAX_CN_API_KEY` |
-| **Alibaba Cloud** | API key | `DASHSCOPE_API_KEY` |
+| **DeepSeek** | API key | `DEEPSEEK_API_KEY` |
+| **Alibaba Cloud (DashScope)** | API key | `DASHSCOPE_API_KEY` |
+| **AI Gateway** | API key | `AI_GATEWAY_API_KEY` |
 | **Kilo Code** | API key | `KILOCODE_API_KEY` |
+| **OpenCode Zen** | API key | `OPENCODE_ZEN_API_KEY` |
+| **OpenCode Go** | API key | `OPENCODE_GO_API_KEY` |
 | **Custom Endpoint** | Base URL plus API key | `OPENAI_BASE_URL` and `OPENAI_API_KEY` |
 
 For local models (Ollama, vLLM, llama.cpp, SGLang):
@@ -301,7 +357,7 @@ hermes config set HERMES_MODEL llama3.1
 
 ### Credential Priority Order
 
-The runtime provider resolver (`hermes_cli/runtime_provider.py`) resolves credentials in this order:
+The runtime provider resolver resolves credentials in this order:
 
 1. Explicit CLI argument (`--provider`, `--api-key`)
 2. `model.provider` in `~/.hermes/config.yaml`
@@ -312,16 +368,28 @@ For OpenRouter, when the resolved base URL contains `openrouter.ai`, `OPENROUTER
 
 ---
 
+## Entry Points
+
+The `pyproject.toml` defines three entry points:
+
+| Command | Entry point | Purpose |
+|---------|-------------|---------|
+| `hermes` | `hermes_cli.main:main` | Main CLI (chat, setup, config, gateway, etc.) |
+| `hermes-agent` | `run_agent:main` | Direct agent invocation |
+| `hermes-acp` | `acp_adapter.entry:main` | ACP editor server |
+
+---
+
 ## Verifying the Installation
 
 ```bash
 hermes version    # Print the installed version
-hermes doctor     # Run diagnostics — reports what is working or missing
+hermes doctor     # Run diagnostics -- reports what is working or missing
 hermes status     # Show current configuration summary
 hermes chat -q "Hello! What tools do you have available?"
 ```
 
-`hermes doctor` checks for missing config keys, unavailable tools, provider connectivity, and other common issues. It also validates Honcho configuration when enabled.
+`hermes doctor` checks for missing config keys, unavailable tools, provider connectivity, submodule status, Skills Hub state, and Honcho configuration. Use `hermes doctor --fix` to auto-fix what is possible (creates missing directories, config files, etc.).
 
 ---
 
@@ -369,7 +437,9 @@ hermes
 hermes update
 ```
 
-This pulls the latest code, updates dependencies, and prompts you to configure any new options added since your last update. If you skipped the post-update prompt:
+This pulls the latest code, updates dependencies, and prompts you to configure any new options added since your last update. The installer script handles existing installations gracefully -- it detects the `.git` directory, stashes local changes, pulls updates, and offers to restore the stash.
+
+If you skipped the post-update prompt:
 
 ```bash
 hermes config check    # Show missing config options
@@ -383,11 +453,10 @@ cd /path/to/hermes-agent
 export VIRTUAL_ENV="$(pwd)/venv"
 
 git pull origin main
-git submodule update --init --recursive
+git submodule update --init mini-swe-agent
 
 uv pip install -e ".[all]"
 uv pip install -e "./mini-swe-agent"
-uv pip install -e "./tinker-atropos"
 
 hermes config check
 hermes config migrate
@@ -402,16 +471,43 @@ You can also update from a connected messaging platform by sending `/update` to 
 | Problem | Solution |
 |---------|----------|
 | `hermes: command not found` | Reload shell: `source ~/.bashrc` or `source ~/.zshrc`. Verify `~/.local/bin` is on PATH with `echo $PATH`. |
-| Python version too old | Run `uv python install 3.11`. Hermes requires Python 3.11+. |
+| Python version too old | Run `uv python install 3.11`. Hermes requires Python 3.11+ (`requires-python = ">=3.11"` in pyproject.toml). |
 | `uv: command not found` | Run `curl -LsSf https://astral.sh/uv/install.sh \| sh && source ~/.bashrc` |
 | Permission denied during install | Do not use `sudo`. The installer writes to `~/.local/bin` and requires no root access. |
 | `API key not set` | Run `hermes model` to configure your provider, or `hermes config set OPENROUTER_API_KEY your_key` |
 | Missing config after update | Run `hermes config check` then `hermes config migrate` |
-| Submodule directory is empty | Run `git submodule update --init --recursive` inside the repo root |
-| Node.js not found | Install Node.js v22 from nodejs.org, or re-run the installer which installs it automatically |
-| `mini-swe-agent` install fails | Run `git submodule update --init --recursive`, then retry `uv pip install -e "./mini-swe-agent"` |
+| Submodule directory is empty | Run `git submodule update --init mini-swe-agent` inside the repo root |
+| Node.js not found | Install Node.js v22 from nodejs.org, or re-run the installer which installs it automatically to `~/.hermes/node/` |
+| `mini-swe-agent` install fails | Run `git submodule update --init mini-swe-agent`, then retry `uv pip install -e "./mini-swe-agent"` |
+| Windows git `copy-fd` error | The PowerShell installer sets `windows.appendAtomically=false` automatically. If cloning manually, run `git config --global windows.appendAtomically false` |
+| Windows: git clone fails entirely | The PowerShell installer has a ZIP fallback. Download the repo ZIP from GitHub and extract it manually. |
 
-For detailed diagnostics, run `hermes doctor` — it reports exactly what is missing and how to fix it.
+For detailed diagnostics, run `hermes doctor` -- it reports exactly what is missing and how to fix it.
+
+---
+
+## Directory Structure After Installation
+
+```
+~/.hermes/                        # HERMES_HOME
+  .env                            # API keys and secrets
+  config.yaml                     # Agent configuration
+  auth.json                       # OAuth credentials (Nous Portal, Codex)
+  SOUL.md                         # Agent persona customization
+  state.db                        # SQLite session database
+  cron/                           # Scheduled job data
+  sessions/                       # JSON session logs
+  logs/                           # Gateway and service logs
+  memories/                       # MEMORY.md, USER.md
+  skills/                         # Active skills (bundled + hub-installed)
+  pairing/                        # Gateway DM pairing data
+  hooks/                          # Lifecycle hooks
+  image_cache/                    # Cached generated images
+  audio_cache/                    # Cached TTS audio
+  whatsapp/session/               # WhatsApp bridge credentials
+  skins/                          # Custom UI themes (YAML)
+  hermes-agent/                   # Source code (installer installs here)
+```
 
 ---
 
@@ -428,7 +524,7 @@ Manual uninstall:
 ```bash
 rm -f ~/.local/bin/hermes
 rm -rf /path/to/hermes-agent
-rm -rf ~/.hermes    # Optional — keep if you plan to reinstall
+rm -rf ~/.hermes    # Optional -- keep if you plan to reinstall
 ```
 
 If the gateway is installed as a system service, stop it first:

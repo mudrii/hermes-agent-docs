@@ -153,6 +153,8 @@ unauthorized_dm_behavior: pair    # pair | ignore
 | `MATTERMOST_ALLOWED_USERS` | Recommended | Comma-separated 26-character User IDs |
 | `MATTERMOST_REPLY_MODE` | No | `thread` or `off` (default: `off`) |
 | `MATTERMOST_HOME_CHANNEL` | No | Channel ID for cron job delivery |
+| `MATTERMOST_HOME_CHANNEL_NAME` | No | Display name for the home channel (default: `Home`) |
+| `MATTERMOST_ALLOW_ALL_USERS` | No | Allow all users (not recommended) |
 
 ---
 
@@ -169,6 +171,12 @@ MATTERMOST_HOME_CHANNEL=abc123def456ghi789jkl012mn
 ```
 
 Replace the ID with the actual channel ID (click the channel name → View Info → copy the ID).
+
+---
+
+## Message Length Limit
+
+Mattermost posts are limited to 4,000 characters (the server default is 16,383 but 4,000 is the practical limit for readable messages). Longer responses are split at natural boundaries.
 
 ---
 

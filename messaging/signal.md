@@ -138,7 +138,9 @@ Signal-specific settings (`SIGNAL_GROUP_ALLOWED_USERS`, etc.) are environment va
 | `SIGNAL_ALLOWED_USERS` | No | — | Comma-separated phone numbers/UUIDs |
 | `SIGNAL_GROUP_ALLOWED_USERS` | No | — | Group IDs to monitor, or `*` for all (omit to disable groups) |
 | `SIGNAL_HOME_CHANNEL` | No | — | Default delivery target for cron jobs |
+| `SIGNAL_HOME_CHANNEL_NAME` | No | `Home` | Display name for the home channel |
 | `SIGNAL_IGNORE_STORIES` | No | `true` | Whether to ignore Signal stories |
+| `SIGNAL_ALLOW_ALL_USERS` | No | `false` | Allow all DM senders (not recommended) |
 
 ---
 
@@ -172,6 +174,10 @@ The adapter supports sending and receiving:
 - **Documents** — PDF, ZIP, and other file types
 
 Attachment size limit: 100 MB.
+
+### Message Length Limit
+
+Signal messages are limited to 8,000 characters. Longer responses are split at natural boundaries.
 
 ### Typing Indicators
 

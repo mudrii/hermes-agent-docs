@@ -97,7 +97,7 @@ By default, **no events are forwarded**. You must configure at least one of `wat
 
 This default-closed behavior was added in v0.3.0. Previous versions may have forwarded all events.
 
-Configure which events the agent sees in `~/.hermes/gateway.json` under the Home Assistant platform's `extra` section:
+Configure which events the agent sees in `~/.hermes/gateway.json` (or under the `platforms` key in `~/.hermes/config.yaml`) under the Home Assistant platform's `extra` section:
 
 ```json
 {
@@ -140,7 +140,7 @@ State changes are formatted as human-readable messages based on domain:
 
 ### Agent Responses
 
-Outbound messages from the agent are delivered as **Home Assistant persistent notifications** (via `persistent_notification.create`). These appear in the HA notification panel with the title "Hermes Agent".
+Outbound messages from the agent are delivered as **Home Assistant persistent notifications** (via `persistent_notification.create`). These appear in the HA notification panel with the title "Hermes Agent". Messages are limited to 4,096 characters.
 
 ### Connection Management
 

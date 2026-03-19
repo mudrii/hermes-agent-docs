@@ -40,7 +40,7 @@ Three kinds of toolsets exist:
 | `skills` | `skill_manage`, `skill_view`, `skills_list` | Access, create, edit, and manage skill documents |
 | `terminal` | `process`, `terminal` | Terminal/command execution and process management |
 | `todo` | `todo` | Task planning and tracking for multi-step work |
-| `tts` | `text_to_speech` | Text-to-speech — convert text to audio with Edge TTS (free), ElevenLabs, or OpenAI |
+| `tts` | `text_to_speech` | Text-to-speech — convert text to audio with Edge TTS (free), ElevenLabs, OpenAI, or NeuTTS (local, free) |
 | `vision` | `vision_analyze` | Image analysis and vision tools |
 | `web` | `web_extract`, `web_search` | Web research and content extraction tools |
 

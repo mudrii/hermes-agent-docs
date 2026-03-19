@@ -115,6 +115,26 @@ sudo hermes gateway install --system   # Linux only: system service
 
 ## config.yaml Section
 
+Unlike platforms such as Telegram or Discord, DingTalk does not auto-enable from environment variables alone. You must enable it in `~/.hermes/gateway.json` or `~/.hermes/config.yaml`:
+
+```json
+{
+  "platforms": {
+    "dingtalk": {
+      "enabled": true,
+      "extra": {
+        "client_id": "your-app-key",
+        "client_secret": "your-secret"
+      }
+    }
+  }
+}
+```
+
+Or use `hermes gateway setup`, which writes the configuration automatically.
+
+Global settings in `config.yaml`:
+
 ```yaml
 group_sessions_per_user: true
 
@@ -130,6 +150,7 @@ unauthorized_dm_behavior: pair    # pair | ignore
 | `DINGTALK_CLIENT_ID` | Yes | Client ID (AppKey) from the DingTalk Developer Console |
 | `DINGTALK_CLIENT_SECRET` | Yes | Client Secret (AppSecret) from the DingTalk Developer Console |
 | `DINGTALK_ALLOWED_USERS` | Recommended | Comma-separated DingTalk User IDs |
+| `DINGTALK_ALLOW_ALL_USERS` | No | Allow all users (not recommended) |
 
 ---
 

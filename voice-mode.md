@@ -235,7 +235,8 @@ voice:
 
 # Speech-to-Text
 stt:
-  provider: "local"                  # "local" (free) | "groq" | "openai"
+  enabled: true                      # Set to false to disable STT entirely
+  provider: "local"                  # "local" (free) | "local_command" | "groq" | "openai"
   local:
     model: "base"                    # tiny, base, small, medium, large-v3
 
@@ -246,7 +247,8 @@ tts:
     voice: "en-US-AriaNeural"      # 322 voices, 74 languages
   elevenlabs:
     voice_id: "pNInz6obpgDQGcFmaJgB"    # Adam
-    model_id: "eleven_multilingual_v2"
+    model_id: "eleven_multilingual_v2"   # Used for file generation
+    streaming_model_id: "eleven_flash_v2_5"  # Used for real-time streaming TTS
   openai:
     model: "gpt-4o-mini-tts"
     voice: "alloy"                 # alloy, echo, fable, onyx, nova, shimmer
@@ -263,10 +265,16 @@ tts:
 # Speech-to-Text providers (local needs no key)
 GROQ_API_KEY=...                    # Groq Whisper (fast, free tier)
 VOICE_TOOLS_OPENAI_KEY=...         # OpenAI Whisper (paid)
+# Falls back to OPENAI_API_KEY if VOICE_TOOLS_OPENAI_KEY is not set
 
 # STT model overrides (optional)
 STT_GROQ_MODEL=whisper-large-v3-turbo
 STT_OPENAI_MODEL=whisper-1
+
+# Custom local STT command template (optional, for local_command provider)
+# Uses {input_path}, {output_dir}, {model}, {language} placeholders
+HERMES_LOCAL_STT_COMMAND=
+HERMES_LOCAL_STT_LANGUAGE=en        # Language for local STT (default: en)
 
 # Text-to-Speech providers (Edge TTS and NeuTTS need no key)
 ELEVENLABS_API_KEY=***             # ElevenLabs (premium quality)
@@ -281,15 +289,20 @@ DISCORD_ALLOWED_USERS=...
 
 | Provider | Model | Speed | Quality | Cost | API Key |
 |----------|-------|-------|---------|------|---------|
-| **Local** | `base` | Fast (CPU/GPU) | Good | Free | No |
-| **Local** | `small` | Medium | Better | Free | No |
-| **Local** | `large-v3` | Slow | Best | Free | No |
+| **Local** (faster-whisper) | `base` | Fast (CPU/GPU) | Good | Free | No |
+| **Local** (faster-whisper) | `small` | Medium | Better | Free | No |
+| **Local** (faster-whisper) | `large-v3` | Slow | Best | Free | No |
+| **Local command** | system `whisper` CLI | Varies | Varies | Free | No |
 | **Groq** | `whisper-large-v3-turbo` | Very fast (~0.5s) | Good | Free tier | Yes |
 | **Groq** | `whisper-large-v3` | Fast (~1s) | Better | Free tier | Yes |
+| **Groq** | `distil-whisper-large-v3-en` | Fast | Good (English) | Free tier | Yes |
 | **OpenAI** | `whisper-1` | Fast (~1s) | Good | Paid | Yes |
+| **OpenAI** | `gpt-4o-mini-transcribe` | Fast | Good | Paid | Yes |
 | **OpenAI** | `gpt-4o-transcribe` | Medium (~2s) | Best | Paid | Yes |
 
-Provider priority for automatic fallback: **local** > **groq** > **openai**
+Provider auto-detection priority (when `stt.provider` is not explicitly set): **local** (faster-whisper) > **local_command** (system whisper CLI) > **groq** > **openai**
+
+When `stt.provider` is explicitly set in config.yaml, that choice is respected -- no silent cloud fallback occurs. If the chosen provider is unavailable, STT is disabled rather than falling back.
 
 If `faster-whisper` is installed, voice mode works with zero API keys for STT. The model (~150 MB for `base`) downloads automatically on first use.
 
@@ -303,6 +316,10 @@ If `faster-whisper` is installed, voice mode works with zero API keys for STT. T
 | **NeuTTS** | Good | Free | Depends on CPU/GPU | No |
 
 Edge TTS default voice is `en-US-AriaNeural` (322 voices, 74 languages available). NeuTTS is a local on-device provider run via subprocess from `tools/neutts_synth.py` using the `neuphonic/neutts-air-q4-gguf` model by default.
+
+For **streaming TTS** in CLI voice mode (sentence-by-sentence), ElevenLabs uses the `eleven_flash_v2_5` model by default (faster than `eleven_multilingual_v2`). This can be overridden via `tts.elevenlabs.streaming_model_id` in config.yaml. Streaming TTS outputs PCM audio at 24kHz and plays through sounddevice. If sounddevice is unavailable, it falls back to a temporary WAV file played through system audio players.
+
+Text is automatically cleaned before TTS: markdown formatting, code blocks, URLs, and `<think>...</think>` blocks are stripped. Maximum text length per TTS call is 4000 characters.
 
 ## Recommended Setup by Use Case
 

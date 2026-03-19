@@ -209,7 +209,7 @@ RL training tools for running reinforcement learning on Tinker-Atropos. Requires
 
 | Tool | Description |
 |------|-------------|
-| `text_to_speech` | Convert text to speech audio. Returns a MEDIA: path that the platform delivers as a voice message. On Telegram it plays as a voice bubble; on Discord/WhatsApp as an audio attachment; in CLI mode, saves to `~/voice-memos/`. Voice and provider are configurable. |
+| `text_to_speech` | Convert text to speech audio. Supports four providers: Edge TTS (default, free), ElevenLabs (premium), OpenAI TTS, and NeuTTS (local, free). Returns a MEDIA: path that the platform delivers as a voice message. On Telegram it plays as a voice bubble; on Discord/WhatsApp as an audio attachment; in CLI mode, saves to `~/voice-memos/`. Voice and provider are configurable. |
 
 ### `vision` toolset
 
@@ -221,8 +221,8 @@ RL training tools for running reinforcement learning on Tinker-Atropos. Requires
 
 | Tool | Description | Requires |
 |------|-------------|---------|
-| `web_extract` | Extract content from web page URLs. Returns page content in markdown format. Also works with PDF URLs — pass the PDF link directly and it converts to markdown text. Pages under 5000 chars return full markdown; larger pages are LLM-summarized. | `PARALLEL_API_KEY` or `FIRECRAWL_API_KEY` or `TAVILY_API_KEY` |
-| `web_search` | Search the web for information on any topic. Returns up to 5 relevant results with titles, URLs, and descriptions. | `PARALLEL_API_KEY` or `FIRECRAWL_API_KEY` or `TAVILY_API_KEY` |
+| `web_extract` | Extract content from web page URLs. Returns page content in markdown format. Also works with PDF URLs — pass the PDF link directly and it converts to markdown text. Pages under 5000 chars return full markdown; larger pages are LLM-summarized. | `PARALLEL_API_KEY` or `FIRECRAWL_API_KEY` or `TAVILY_API_KEY` (any one) |
+| `web_search` | Search the web for information on any topic. Returns up to 5 relevant results with titles, URLs, and descriptions. | `PARALLEL_API_KEY` or `FIRECRAWL_API_KEY` or `TAVILY_API_KEY` (any one) |
 
 ## Terminal Backends
 

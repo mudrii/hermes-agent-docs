@@ -2,9 +2,9 @@
 
 **The self-improving AI agent built by [Nous Research](https://nousresearch.com).**
 
-Hermes Agent is an autonomous AI agent with a built-in learning loop. It creates skills from experience, improves them during use, searches its own past conversations for context, and builds a deepening model of who you are across sessions. It runs on a $5 VPS, a GPU cluster, or serverless infrastructure — not tied to your laptop.
+Hermes Agent is an autonomous AI agent with a built-in learning loop. It creates skills from experience, improves them during use, searches its own past conversations for context, and builds a deepening model of who you are across sessions. It runs on a $5 VPS, a GPU cluster, or serverless infrastructure -- not tied to your laptop.
 
-Current version: **v0.3.0 (v2026.3.17)** — released March 17, 2026.
+Current version: **v0.3.0 (v2026.3.17)** -- released March 17, 2026.
 
 ---
 
@@ -12,7 +12,7 @@ Current version: **v0.3.0 (v2026.3.17)** — released March 17, 2026.
 
 Hermes Agent is not a coding copilot or a chatbot wrapper. It is a multi-platform, multi-provider autonomous agent that:
 
-- Executes tool calls sequentially or concurrently via `ThreadPoolExecutor`
+- Executes tool calls sequentially or concurrently via `ThreadPoolExecutor` (up to 8 parallel workers)
 - Manages long-running conversations with context compression and session lineage
 - Persists memory, skills, and session history in SQLite across restarts
 - Streams responses token-by-token from the model to the user interface (v0.3.0)
@@ -20,7 +20,7 @@ Hermes Agent is not a coding copilot or a chatbot wrapper. It is a multi-platfor
 - Delegates work to isolated subagents and spawns scheduled cron jobs
 - Exports training trajectories for SFT data generation and RL fine-tuning
 
-The agent core is `AIAgent` in `run_agent.py`. All other subsystems — gateway, CLI, ACP server, cron scheduler — use this single agent core, so behavior is consistent across all platforms.
+The agent core is `AIAgent` in `run_agent.py`. All other subsystems -- gateway, CLI, ACP server, cron scheduler -- use this single agent core, so behavior is consistent across all platforms.
 
 ---
 
@@ -28,19 +28,19 @@ The agent core is `AIAgent` in `run_agent.py`. All other subsystems — gateway,
 
 ### Unified Streaming (v0.3.0)
 
-Real-time token-by-token delivery in the CLI and all gateway platforms. Responses stream as they are generated instead of arriving as a single block. Supported on Telegram, Discord, Slack, WhatsApp, Signal, and the interactive CLI.
+Real-time token-by-token delivery in the CLI and all gateway platforms. Responses stream as they are generated instead of arriving as a single block. Supported on Telegram, Discord, Slack, and the interactive CLI. WhatsApp, Signal, Email, and Home Assistant fall back to non-streaming automatically (no message-edit API). Implemented in `_interruptible_streaming_api_call()` with graceful fallback to non-streaming on any error.
 
 ### Closed Learning Loop
 
-- **Persistent memory** — agent-curated facts written to `MEMORY.md` with periodic nudges to persist durable knowledge
-- **Autonomous skill creation** — after complex tasks (5+ tool calls), the agent creates reusable skill documents
-- **Skill self-improvement** — skills are patched during use when they are outdated, incomplete, or wrong
-- **FTS5 session search** — full-text search across all past sessions with LLM summarization for cross-session recall
-- **Honcho integration** — dialectic user modeling that builds a persistent model of who you are across sessions
+- **Persistent memory** -- agent-curated facts written to `MEMORY.md` with periodic nudges to persist durable knowledge
+- **Autonomous skill creation** -- after complex tasks (5+ tool calls), the agent creates reusable skill documents
+- **Skill self-improvement** -- skills are patched during use when they are outdated, incomplete, or wrong
+- **FTS5 session search** -- full-text search across all past sessions with LLM summarization for cross-session recall
+- **Honcho integration** -- dialectic user modeling that builds a persistent model of who you are across sessions
 
 ### Multi-Platform Messaging Gateway
 
-Telegram, Discord, Slack, WhatsApp, Signal, Email (IMAP/SMTP), and Home Assistant — all from a single gateway process. Unified session management, media attachments, voice transcription, and per-platform tool configuration.
+Telegram, Discord, Slack, WhatsApp, Signal, Email (IMAP/SMTP), and Home Assistant -- all from a single gateway process. Unified session management, media attachments, voice transcription, and per-platform tool configuration.
 
 ### Plugin Architecture (v0.3.0)
 
@@ -50,31 +50,31 @@ Drop Python files into `~/.hermes/plugins/` to extend Hermes with custom tools, 
 
 Use any model without code changes. Supported providers:
 
-- **Nous Portal** — first-class provider; Claude, GPT-5, Gemini via Nous inference
-- **OpenRouter** — 200+ models
-- **Anthropic** (native, v0.3.0) — direct API with Claude Code credential auto-discovery, OAuth PKCE flows, and native prompt caching
-- **OpenAI** — GPT-5 variants via chat completions or Codex Responses API
-- **Vercel AI Gateway** (v0.3.0) — access Vercel's model catalog and infrastructure
-- **z.ai/GLM**, **Kimi/Moonshot**, **MiniMax** — direct API-key providers
-- **Custom endpoints** — any OpenAI-compatible API
+- **Nous Portal** -- first-class provider; Claude, GPT-5, Gemini via Nous inference (`https://inference-api.nousresearch.com/v1`)
+- **OpenRouter** -- 200+ models (`https://openrouter.ai/api/v1`)
+- **Anthropic** (native, v0.3.0) -- direct API with Claude Code credential auto-discovery, OAuth PKCE flows, and native prompt caching
+- **OpenAI** -- GPT-5 variants via chat completions or Codex Responses API
+- **Vercel AI Gateway** (v0.3.0) -- access Vercel's model catalog and infrastructure (`https://ai-gateway.vercel.sh/v1`)
+- **z.ai/GLM**, **Kimi/Moonshot**, **MiniMax** -- direct API-key providers
+- **Custom endpoints** -- any OpenAI-compatible API
 
-Switch with `hermes model` — no code changes, no lock-in.
+Switch with `hermes model` -- no code changes, no lock-in.
 
 ### Concurrent Tool Execution (v0.3.0)
 
-Multiple independent tool calls run in parallel via `ThreadPoolExecutor`, significantly reducing latency for multi-tool turns. Message and result ordering is preserved when reinserting tool responses into conversation history.
+Multiple independent tool calls run in parallel via `ThreadPoolExecutor` (max 8 workers), significantly reducing latency for multi-tool turns. Interactive tools (e.g. `clarify`) force sequential execution. Path-scoped tools (`read_file`, `write_file`, `patch`) run concurrently only when targeting independent paths. Message and result ordering is preserved when reinserting tool responses into conversation history.
 
 ### Context Compression
 
-`ContextCompressor` monitors token usage and compresses context when approaching the model's context limit (default threshold: 50% of the context window). The algorithm protects the first `protect_first_n` turns (default: 3) and the last `protect_last_n` turns (default: 4), summarizes the middle section via an auxiliary model call, and sanitizes orphaned tool-call/result pairs. Session lineage is preserved via `parent_session_id` chains in the SQLite state store.
+`ContextCompressor` monitors token usage and compresses context when approaching the model's context limit (default threshold: 50% of the context window). The algorithm protects the first `protect_first_n` turns (default: 3) and the last `protect_last_n` turns (default: 4), summarizes the middle section via an auxiliary model call (`call_llm(task="compression")`), and sanitizes orphaned tool-call/result pairs. Session lineage is preserved via `parent_session_id` chains in the SQLite state store.
 
 ### Six Terminal Backends
 
-Local, Docker, SSH, Daytona, Singularity, and Modal. Daytona and Modal offer serverless persistence — the environment hibernates when idle and wakes on demand, costing nearly nothing between sessions.
+Local, Docker, SSH, Daytona, Singularity, and Modal. Daytona and Modal offer serverless persistence -- the environment hibernates when idle and wakes on demand, costing nearly nothing between sessions.
 
 ### Persistent Shell Mode (v0.3.0)
 
-Local and SSH terminal backends maintain shell state across tool calls — `cd`, environment variables, and aliases persist within a session.
+Local and SSH terminal backends maintain shell state across tool calls -- `cd`, environment variables, and aliases persist within a session.
 
 ### Smart Approvals (v0.3.0)
 
@@ -95,6 +95,10 @@ VS Code, Zed, and JetBrains connect to Hermes as an agent backend over stdio/JSO
 ### PII Redaction (v0.3.0)
 
 When `privacy.redact_pii` is enabled, personally identifiable information is automatically scrubbed before sending context to LLM providers.
+
+### Secret Redaction
+
+`agent/redact.py` provides regex-based secret redaction for logs and tool output. It masks API keys (OpenAI, GitHub, Slack, Google, AWS, Stripe, SendGrid, HuggingFace, and others), env variable assignments containing secret names, JSON secret fields, Authorization headers, Telegram bot tokens, private key blocks, database connection string passwords, and E.164 phone numbers. Short tokens (< 18 chars) are fully masked; longer tokens preserve the first 6 and last 4 characters. Controlled via `security.redact_secrets` in config.yaml or `HERMES_REDACT_SECRETS` env var. A `RedactingFormatter` log handler applies redaction to all log output.
 
 ### Research-Ready
 
@@ -164,7 +168,7 @@ hermes              # start chatting
 ## Getting Started
 
 ```bash
-hermes              # Interactive CLI — start a conversation
+hermes              # Interactive CLI -- start a conversation
 hermes model        # Choose your LLM provider and model
 hermes tools        # Configure which tools are enabled (curses UI)
 hermes setup        # Run the full setup wizard (configures everything at once)
@@ -176,62 +180,81 @@ hermes update       # Update to the latest version (with auto-restart for gatewa
 
 ---
 
-## Documentation in This Directory
+## Documentation Index
 
 ### Core
 
 | Document | Contents |
 |----------|----------|
-| [README.md](README.md) | This file — overview, features, requirements, install |
-| [architecture.md](architecture.md) | Component diagram, agent loop, subsystems, internal design |
+| [architecture.md](architecture.md) | Component diagram, agent loop, context compression, session storage, internal design |
 | [changelog.md](changelog.md) | v0.3.0 and v0.2.0 release notes with full feature lists |
-| [installation.md](installation.md) | Detailed installation and upgrade instructions |
-| [configuration.md](configuration.md) | Full config.yaml reference, env vars, precedence rules |
-| [cli-reference.md](cli-reference.md) | All CLI commands, slash commands, and flags |
-| [providers.md](providers.md) | All 17 providers, credential resolution, routing, custom providers |
-| [security.md](security.md) | Approval system, PII redaction, OAuth, secrets, container isolation |
-| [contributing.md](contributing.md) | Development setup, test suite, PR process, code style |
+| [streaming.md](streaming.md) | Unified streaming infrastructure, token delivery, platform support (v0.3.0) |
+
+### Setup & Configuration
+
+| Document | Contents |
+|----------|----------|
+| [installation.md](installation.md) | Install methods (one-liner, manual, Windows), prerequisites, setup wizard |
+| [configuration.md](configuration.md) | Complete config.yaml reference, env vars, precedence rules |
+| [cli-reference.md](cli-reference.md) | All CLI commands, slash commands, flags, environment variables |
+| [providers.md](providers.md) | All 17 LLM providers, credential resolution, routing, OAuth flows |
 
 ### Features
 
 | Document | Contents |
 |----------|----------|
-| [streaming.md](streaming.md) | Unified streaming infrastructure, token delivery, platform support (v0.3.0) |
-| [plugins.md](plugins.md) | Plugin architecture, custom tools/commands/hooks, distribution (v0.3.0) |
-| [hooks.md](hooks.md) | Hook types, gateway hooks, plugin hooks, lifecycle |
-| [skills.md](skills.md) | Full skills catalog, SKILL.md format, Skills Hub, creating skills |
-| [tools.md](tools.md) | All built-in tools, parameters, security notes, custom tools |
-| [toolsets.md](toolsets.md) | Toolset definitions, distributions, per-platform config |
-| [mcp.md](mcp.md) | MCP client, transports, server config, sampling, reconnection |
-| [memory.md](memory.md) | Built-in memory, Honcho integration, recall modes, multi-user isolation |
-| [acp.md](acp.md) | ACP IDE integration, VS Code/Zed/JetBrains setup, Copilot auth (v0.3.0) |
-| [voice-mode.md](voice-mode.md) | Voice mode, TTS/STT providers, push-to-talk, Discord VC (v0.3.0) |
-| [browser.md](browser.md) | Browser tool, CDP connect, web automation, Browserbase (v0.3.0) |
+| [plugins.md](plugins.md) | Plugin architecture, discovery, registration, custom tools (v0.3.0) |
+| [hooks.md](hooks.md) | Gateway and plugin lifecycle hooks, event types |
+| [browser.md](browser.md) | Browser automation, Browserbase, Browser Use, CDP connect |
 | [checkpoints.md](checkpoints.md) | Filesystem checkpoints, rollback, git worktree isolation |
-| [cron.md](cron.md) | Cron job scheduling, schedule formats, delivery, monitoring |
-| [batch-processing.md](batch-processing.md) | Batch runner, JSONL datasets, datagen config, trajectory output |
-| [delegation.md](delegation.md) | Task delegation, subagent hierarchy, budget sharing |
-| [api-server.md](api-server.md) | API server endpoints, streaming, auth, compatible frontends |
-| [skins.md](skins.md) | CLI themes, built-in skins, custom skin creation |
+| [cron.md](cron.md) | Scheduled task system, schedule formats, job management |
+| [voice-mode.md](voice-mode.md) | Voice interaction, STT/TTS providers, Discord voice channels (v0.3.0) |
+| [batch-processing.md](batch-processing.md) | Batch trajectory generation for SFT/RL training data |
+| [delegation.md](delegation.md) | Subagent spawning, task isolation, parallel workstreams |
+| [api-server.md](api-server.md) | OpenAI-compatible HTTP API, endpoints, compatible frontends |
+| [skins.md](skins.md) | CLI themes, custom skins, banner configuration |
+
+### Skills & Tools
+
+| Document | Contents |
+|----------|----------|
+| [skills.md](skills.md) | Skills system, SKILL.md format, 94 bundled + 12 optional skills catalog |
+| [tools.md](tools.md) | All 40+ built-in tools reference with parameters and toolsets |
+| [toolsets.md](toolsets.md) | Toolset definitions, compositions, per-platform configuration |
+| [mcp.md](mcp.md) | MCP client integration, stdio/HTTP transports, sampling, tool filtering |
+
+### Security & Memory
+
+| Document | Contents |
+|----------|----------|
+| [security.md](security.md) | Five-layer security model, PII redaction, approvals, tirith scanning, OAuth |
+| [memory.md](memory.md) | MEMORY.md/USER.md system, Honcho integration, session storage |
+| [acp.md](acp.md) | ACP server for IDE integration (VS Code, Zed, JetBrains) |
 
 ### Gateway & Messaging
 
 | Document | Contents |
 |----------|----------|
-| [gateway.md](gateway.md) | Gateway architecture, session management, approval system |
-| [messaging/README.md](messaging/README.md) | Platform overview and comparison table |
-| [messaging/telegram.md](messaging/telegram.md) | Telegram bot setup and configuration |
-| [messaging/discord.md](messaging/discord.md) | Discord bot setup and configuration |
-| [messaging/slack.md](messaging/slack.md) | Slack app setup and configuration |
-| [messaging/whatsapp.md](messaging/whatsapp.md) | WhatsApp via Baileys setup |
-| [messaging/signal.md](messaging/signal.md) | Signal via signal-cli setup |
-| [messaging/email.md](messaging/email.md) | Email (IMAP/SMTP) setup |
-| [messaging/matrix.md](messaging/matrix.md) | Matrix via matrix-nio setup |
-| [messaging/mattermost.md](messaging/mattermost.md) | Mattermost bot setup |
-| [messaging/dingtalk.md](messaging/dingtalk.md) | DingTalk Stream Mode setup |
-| [messaging/homeassistant.md](messaging/homeassistant.md) | Home Assistant integration |
-| [messaging/open-webui.md](messaging/open-webui.md) | Open WebUI API server mode |
-| [messaging/sms.md](messaging/sms.md) | SMS via Twilio setup |
+| [gateway.md](gateway.md) | Gateway architecture, session management, authorization, streaming |
+| [messaging/](messaging/) | Per-platform setup guides for all 12 messaging platforms |
+| [messaging/telegram.md](messaging/telegram.md) | Telegram Bot API setup, forum topics, voice notes |
+| [messaging/discord.md](messaging/discord.md) | Discord bot setup, voice channels, threads |
+| [messaging/slack.md](messaging/slack.md) | Slack Bolt + Socket Mode setup |
+| [messaging/whatsapp.md](messaging/whatsapp.md) | WhatsApp Baileys bridge setup |
+| [messaging/signal.md](messaging/signal.md) | Signal via signal-cli-rest-api |
+| [messaging/email.md](messaging/email.md) | Email via IMAP/SMTP |
+| [messaging/matrix.md](messaging/matrix.md) | Matrix with E2E encryption |
+| [messaging/mattermost.md](messaging/mattermost.md) | Mattermost team chat |
+| [messaging/dingtalk.md](messaging/dingtalk.md) | DingTalk enterprise messaging |
+| [messaging/homeassistant.md](messaging/homeassistant.md) | Home Assistant smart home |
+| [messaging/open-webui.md](messaging/open-webui.md) | Open WebUI / API server frontend |
+| [messaging/sms.md](messaging/sms.md) | SMS via Twilio |
+
+### Contributing
+
+| Document | Contents |
+|----------|----------|
+| [contributing.md](contributing.md) | Dev setup, contribution guide, PR process, priorities |
 
 Official documentation: **[hermes-agent.nousresearch.com/docs](https://hermes-agent.nousresearch.com/docs/)**
 
@@ -248,6 +271,6 @@ Official documentation: **[hermes-agent.nousresearch.com/docs](https://hermes-ag
 
 ## License
 
-MIT — see [LICENSE](https://github.com/NousResearch/hermes-agent/blob/main/LICENSE).
+MIT -- see [LICENSE](https://github.com/NousResearch/hermes-agent/blob/main/LICENSE).
 
 Built by [Nous Research](https://nousresearch.com).

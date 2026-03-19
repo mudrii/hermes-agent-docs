@@ -125,6 +125,9 @@ unauthorized_dm_behavior: pair    # pair | ignore
 | `TELEGRAM_ALLOWED_USERS` | Recommended | Comma-separated numeric user IDs |
 | `TELEGRAM_HOME_CHANNEL` | No | Chat ID for cron job delivery |
 | `TELEGRAM_HOME_CHANNEL_NAME` | No | Display name for the home channel (default: `Home`) |
+| `TELEGRAM_ALLOW_ALL_USERS` | No | Allow all users (not recommended) |
+| `HERMES_TELEGRAM_MEDIA_BATCH_DELAY_SECONDS` | No | Album merge delay in seconds (default: `0.8`) |
+| `HERMES_TELEGRAM_TEXT_BATCH_DELAY_SECONDS` | No | Text message batch delay in seconds (default: `0.6`) |
 
 ---
 

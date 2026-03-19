@@ -73,7 +73,8 @@ On gateway startup, `HookRegistry.discover_and_load()` scans `~/.hermes/hooks/`.
 |-------|---------------|--------------|
 | `gateway:startup` | Gateway process starts | `platforms` (list of active platform names) |
 | `session:start` | New messaging session created | `platform`, `user_id`, `session_id`, `session_key` |
-| `session:reset` | User ran `/new` or `/reset` | `platform`, `user_id`, `session_key` |
+| `session:end` | Session ends (user ran `/new` or `/reset`) | `platform`, `user_id`, `session_key` |
+| `session:reset` | Session reset completed (new session entry created) | `platform`, `user_id`, `session_key` |
 | `agent:start` | Agent begins processing a message | `platform`, `user_id`, `session_id`, `message` |
 | `agent:step` | Each iteration of the tool-calling loop | `platform`, `user_id`, `session_id`, `iteration`, `tool_names` |
 | `agent:end` | Agent finishes processing | `platform`, `user_id`, `session_id`, `message`, `response` |

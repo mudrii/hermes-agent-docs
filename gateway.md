@@ -118,6 +118,16 @@ The gateway creates and looks up sessions by a session key computed from the inc
 
 This means each distinct (platform, chat, user, thread) combination gets its own isolated session with its own conversation history.
 
+Session key format:
+- DMs: `agent:main:<platform>:dm:<chat_id>[:<thread_id>]`
+- Groups/channels: `agent:main:<platform>:<chat_type>:<chat_id>[:<thread_id>][:<user_id>]`
+
+The `user_id` component is included only when `group_sessions_per_user` is enabled (default). For Signal, the adapter uses the UUID (`user_id_alt`) in preference to the phone number for session keying.
+
+### Session Storage
+
+Sessions are stored in SQLite (via `hermes_state.SessionDB`) as the primary store, with legacy JSONL files as a fallback. The session index lives at `~/.hermes/sessions/sessions.json`. Transcripts are stored both in the SQLite database and as `~/.hermes/sessions/<session_id>.jsonl` files for backward compatibility.
+
 ### Session Persistence
 
 Sessions persist across messages until they reset. The agent remembers your conversation context between messages without any action required on your part.
@@ -174,6 +184,10 @@ group_sessions_per_user: true
 ```
 
 This became the enforced default in v0.3.0 (previously it could fall back to shared sessions in some circumstances).
+
+### PII Redaction in System Prompts
+
+When `redact_pii` is enabled, the dynamic system prompt that the agent receives has user IDs and chat IDs replaced with deterministic hashes. This prevents the LLM from seeing raw phone numbers or numeric IDs. Redaction is applied only on platforms where the LLM does not need raw IDs for mentions: WhatsApp, Signal, and Telegram. Discord is excluded because its mention syntax (`<@user_id>`) requires the real user ID.
 
 ---
 
@@ -288,6 +302,9 @@ stt:
   enabled: true
 
 # Real-time token streaming to messaging platforms (v0.3.0)
+# Supported platforms: Telegram, Discord, Slack, WhatsApp, Mattermost, Matrix
+# Platforms without edit_message support (Signal, Email, Home Assistant, DingTalk,
+# SMS) gracefully fall back to sending the final response in one message.
 streaming:
   enabled: false
   transport: edit           # "edit" = progressive editMessageText
@@ -341,6 +358,8 @@ For Home Assistant event filtering, `gateway.json` is currently the required loc
 
 Environment variables are set in `~/.hermes/.env`. They override all config file settings.
 
+Note: DingTalk and Home Assistant do not auto-enable from environment variables alone. They must be enabled in `~/.hermes/gateway.json` or `~/.hermes/config.yaml` under the `platforms` section (or via `hermes gateway setup`).
+
 | Platform | Key Variables |
 |----------|---------------|
 | Telegram | `TELEGRAM_BOT_TOKEN`, `TELEGRAM_ALLOWED_USERS`, `TELEGRAM_HOME_CHANNEL` |
@@ -353,6 +372,7 @@ Environment variables are set in `~/.hermes/.env`. They override all config file
 | Home Assistant | `HASS_TOKEN`, `HASS_URL` |
 | Email | `EMAIL_ADDRESS`, `EMAIL_PASSWORD`, `EMAIL_IMAP_HOST`, `EMAIL_SMTP_HOST`, `EMAIL_ALLOWED_USERS` |
 | SMS | `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_PHONE_NUMBER`, `SMS_ALLOWED_USERS` |
+| DingTalk | `DINGTALK_CLIENT_ID`, `DINGTALK_CLIENT_SECRET`, `DINGTALK_ALLOWED_USERS` |
 | API Server | `API_SERVER_ENABLED`, `API_SERVER_KEY`, `API_SERVER_PORT`, `API_SERVER_HOST` |
 
 ---
@@ -360,6 +380,15 @@ Environment variables are set in `~/.hermes/.env`. They override all config file
 ## Authorization
 
 By default, the gateway denies all users not in an allowlist or paired via DM. This is the safe default for a bot with terminal access.
+
+Authorization checks run in this order (first match wins):
+1. Home Assistant events are always authorized (authenticated by `HASS_TOKEN`)
+2. Per-platform allow-all flag (e.g., `DISCORD_ALLOW_ALL_USERS=true`)
+3. DM pairing approved list (checked regardless of allowlists)
+4. Platform-specific allowlist (e.g., `TELEGRAM_ALLOWED_USERS`)
+5. Global allowlist (`GATEWAY_ALLOWED_USERS`)
+6. Global allow-all (`GATEWAY_ALLOW_ALL_USERS=true`)
+7. Default: deny
 
 ### Allowlists
 
@@ -382,7 +411,22 @@ Or use a gateway-wide allowlist:
 GATEWAY_ALLOWED_USERS=123456789,987654321
 ```
 
-Or explicitly allow all users (not recommended for bots with terminal access):
+Per-platform allow-all flags bypass the allowlist for a single platform:
+
+```bash
+TELEGRAM_ALLOW_ALL_USERS=true
+DISCORD_ALLOW_ALL_USERS=true
+SLACK_ALLOW_ALL_USERS=true
+WHATSAPP_ALLOW_ALL_USERS=true
+SIGNAL_ALLOW_ALL_USERS=true
+EMAIL_ALLOW_ALL_USERS=true
+SMS_ALLOW_ALL_USERS=true
+MATTERMOST_ALLOW_ALL_USERS=true
+MATRIX_ALLOW_ALL_USERS=true
+DINGTALK_ALLOW_ALL_USERS=true
+```
+
+Or explicitly allow all users on all platforms (not recommended for bots with terminal access):
 
 ```bash
 GATEWAY_ALLOW_ALL_USERS=true
@@ -403,7 +447,16 @@ hermes pairing list
 hermes pairing revoke telegram 123456789
 ```
 
-Pairing codes expire after 1 hour, are rate-limited, and use cryptographic randomness.
+Pairing security features:
+- 8-character codes from a 32-character unambiguous alphabet (no 0/O/1/I)
+- Cryptographic randomness via `secrets.choice()`
+- Codes expire after 1 hour
+- Maximum 3 pending codes per platform
+- Rate limiting: 1 request per user per 10 minutes
+- Lockout after 5 failed approval attempts (1 hour cooldown)
+- All pairing data files are stored with chmod `0600`
+- Codes are never logged to stdout
+- Storage: `~/.hermes/pairing/`
 
 DM pairing behavior is controlled by `unauthorized_dm_behavior`:
 - `pair` (default) — unknown DM senders receive a pairing code
@@ -621,6 +674,52 @@ After the flush completes, queued Honcho writes are drained and the gateway-leve
 
 ---
 
+## Event Hooks
+
+The gateway fires event hooks at key lifecycle points. Hooks are Python scripts discovered from `~/.hermes/hooks/` directories:
+
+```
+~/.hermes/hooks/
+  my-hook/
+    HOOK.yaml      # name, description, events list
+    handler.py     # async def handle(event_type, context)
+```
+
+Available events:
+- `gateway:startup` -- Gateway process starts
+- `session:start` -- New session created
+- `session:end` -- Session ends (user ran `/new` or `/reset`)
+- `session:reset` -- Session reset completed
+- `agent:start` -- Agent begins processing a message
+- `agent:step` -- Each turn in the tool-calling loop
+- `agent:end` -- Agent finishes processing
+- `command:*` -- Any slash command executed (wildcard match)
+
+Errors in hooks are caught and logged but never block the main pipeline.
+
+---
+
+## Delivery System
+
+The delivery router (`gateway/delivery.py`) handles outbound message routing for cron job outputs and proactive notifications. Delivery targets can be:
+
+- `"origin"` -- back to the chat where the job was created
+- `"local"` -- save to `~/.hermes/cron/output/` as a file
+- `"telegram"` -- to the platform's home channel
+- `"telegram:123456"` -- to a specific chat ID on a platform
+
+Oversized cron output (over 4,000 characters) is truncated for platform delivery, with the full output saved to disk at `~/.hermes/cron/output/`.
+
+### Channel Directory
+
+The gateway maintains a cached channel directory at `~/.hermes/channel_directory.json`, refreshed periodically. It is used by the `send_message` tool to resolve human-friendly channel names to numeric IDs. Discord and Slack channels are enumerated via their APIs; Telegram, WhatsApp, Signal, Email, and SMS channels are discovered from session history.
+
+### Session Mirroring
+
+When a message is delivered to a platform via `send_message` or cron delivery, the mirror system (`gateway/mirror.py`) appends a record to the target session's transcript so the agent has context about what was sent from outside the session.
+
+---
+
 ## Key Files Reference
 
 | File | Purpose |
@@ -634,6 +733,7 @@ After the flush completes, queued Honcho writes are drained and the gateway-leve
 | `gateway/hooks.py` | Gateway lifecycle hook callbacks |
 | `gateway/mirror.py` | Session mirroring for remote deliveries |
 | `gateway/status.py` | PID file, runtime status, scoped locks |
+| `gateway/stream_consumer.py` | Progressive message editing for real-time streaming |
 | `gateway/platforms/base.py` | BasePlatformAdapter, MessageEvent, SendResult |
 | `gateway/platforms/telegram.py` | TelegramAdapter |
 | `gateway/platforms/discord.py` | Discord adapter with VoiceReceiver |

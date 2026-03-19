@@ -10,10 +10,18 @@ Hermes maintains two local memory files that persist across sessions:
 
 | File | Purpose | Character Limit |
 |------|---------|----------------|
-| **MEMORY.md** | Agent's personal notes — environment facts, conventions, lessons learned | 2,200 chars (~800 tokens) |
-| **USER.md** | User profile — preferences, communication style, expectations | 1,375 chars (~500 tokens) |
+| **MEMORY.md** | Agent's personal notes -- environment facts, conventions, lessons learned | 2,200 chars (~800 tokens) |
+| **USER.md** | User profile -- preferences, communication style, expectations | 1,375 chars (~500 tokens) |
 
 Both files are stored in `~/.hermes/memories/` and are injected into the system prompt as a frozen snapshot at session start. The agent manages its own memory via the `memory` tool.
+
+The character limits are defined in `tools/memory_tool.py` as defaults to `MemoryStore.__init__()`:
+
+```python
+def __init__(self, memory_char_limit: int = 2200, user_char_limit: int = 1375):
+```
+
+The entry delimiter between entries is `\n§\n` (section sign on its own line).
 
 ---
 
@@ -23,7 +31,7 @@ At session start, memory entries are loaded from disk and rendered into the syst
 
 ```
 ══════════════════════════════════════════════
-MEMORY (your personal notes) [67% — 1,474/2,200 chars]
+MEMORY (your personal notes) [67% -- 1,474/2,200 chars]
 ══════════════════════════════════════════════
 User's project is a Rust web service at ~/code/myapi using Axum + SQLx
 §
@@ -33,14 +41,17 @@ User prefers concise responses, dislikes verbose explanations
 ```
 
 The format includes:
-- A header with the store name (MEMORY or USER PROFILE)
-- Usage percentage and character counts so the agent knows remaining capacity
-- Individual entries separated by `§` (section sign) delimiters
+- A separator line of `═` characters (46 characters)
+- A header with the store name (`MEMORY` or `USER PROFILE`) and usage stats
+- Another separator line
+- Individual entries separated by `§` (section sign) delimiters on their own lines
 - Entries can span multiple lines
 
 ### Frozen Snapshot Pattern
 
-The system prompt injection is captured once at session start and never changes mid-session. This is intentional — it preserves the LLM's prefix cache for performance. When the agent adds, removes, or replaces memory entries during a session, the changes are persisted to disk immediately, but they do not appear in the system prompt until the next session starts. Tool call responses always show the live state.
+The system prompt injection is captured once at session start via `load_from_disk()` and stored in `_system_prompt_snapshot`. This snapshot never changes mid-session. This is intentional -- it preserves the LLM's prefix cache for performance.
+
+When the agent adds, removes, or replaces memory entries during a session, the changes are persisted to disk immediately (under file lock, with atomic rename via `os.replace()`), but they do not appear in the system prompt until the next session starts. Tool call responses always reflect the live state via `_entries_for()`.
 
 ---
 
@@ -54,7 +65,7 @@ The agent uses the `memory` tool with these actions:
 | `replace` | Replace an existing entry using substring matching |
 | `remove` | Remove an entry using substring matching |
 
-There is no `read` action — memory content is automatically injected into the system prompt. The agent sees its memories as part of its conversation context at the start of each session.
+There is no `read` action -- memory content is automatically injected into the system prompt. The agent sees its memories as part of its conversation context at the start of each session.
 
 ### Substring Matching
 
@@ -67,23 +78,22 @@ memory(action="replace", target="memory",
        content="User prefers light mode in VS Code, dark mode in terminal")
 ```
 
-If the substring matches multiple entries, an error is returned asking for a more specific match.
+If the substring matches multiple entries with different content, an error is returned asking for a more specific match. If all matching entries are identical (exact duplicates), the operation applies to the first one.
 
 ---
 
 ## Two Memory Targets
 
-### `memory` — Agent's Personal Notes
+### `memory` -- Agent's Personal Notes
 
 For information the agent needs to remember about the environment, workflows, and lessons learned:
 
 - Environment facts (OS, installed tools, project structure)
 - Project conventions and configuration
 - Tool quirks and workarounds discovered
-- Completed task diary entries
 - Skills and techniques that worked
 
-### `user` — User Profile
+### `user` -- User Profile
 
 For information about the user's identity, preferences, and communication style:
 
@@ -97,7 +107,7 @@ For information about the user's identity, preferences, and communication style:
 
 ## What to Save vs. Skip
 
-The agent saves information proactively — you do not need to ask. It saves when it learns:
+The agent saves information proactively -- you do not need to ask. It saves when it learns:
 
 | Category | Examples | Target |
 |----------|---------|--------|
@@ -105,7 +115,6 @@ The agent saves information proactively — you do not need to ask. It saves whe
 | Environment facts | "This server runs Debian 12 with PostgreSQL 16" | `memory` |
 | Corrections | "Don't use `sudo` for Docker commands, user is in docker group" | `memory` |
 | Conventions | "Project uses tabs, 120-char line width, Google-style docstrings" | `memory` |
-| Completed work | "Migrated database from MySQL to PostgreSQL on 2026-01-15" | `memory` |
 | Explicit requests | "Remember that my API key rotation happens monthly" | `memory` |
 
 Skip:
@@ -114,6 +123,8 @@ Skip:
 - Raw data dumps: large code blocks, log files, data tables (too big)
 - Session-specific ephemera: temporary file paths, one-off debugging context
 - Information already in context files: `SOUL.md` and `AGENTS.md` content
+- Task progress, session outcomes, completed-work logs, or temporary TODO state -- use `session_search` for those
+- New procedures or solutions that could be useful later -- save those as skills with the skill tool
 
 ---
 
@@ -121,8 +132,8 @@ Skip:
 
 | Store | Limit | Typical entries |
 |-------|-------|----------------|
-| memory | 2,200 chars | 8–15 entries |
-| user | 1,375 chars | 5–10 entries |
+| memory | 2,200 chars | 8-15 entries |
+| user | 1,375 chars | 5-10 entries |
 
 When an addition would exceed the limit, the tool returns an error:
 
@@ -143,11 +154,29 @@ Best practice: when memory is above 80% capacity (visible in the system prompt h
 
 The memory system automatically rejects exact duplicate entries. If you try to add content that already exists, it returns success with a "no duplicate added" message.
 
+### File Locking and Atomic Writes
+
+Memory operations use a two-layer safety mechanism:
+
+1. **File locking** (`fcntl.flock`) via a separate `.lock` file for read-modify-write safety across concurrent sessions
+2. **Atomic writes** via `tempfile.mkstemp()` + `os.replace()` so readers always see either the complete old file or the complete new file, never a partial write
+
+The `_reload_target()` method re-reads from disk under the lock before every mutation to pick up writes from other concurrent sessions.
+
 ---
 
 ## Security Scanning
 
-Memory entries are scanned for injection and exfiltration patterns before being accepted, because they are injected into the system prompt. Content matching threat patterns (prompt injection, credential exfiltration, SSH backdoors) or containing invisible Unicode characters is blocked.
+Memory entries are scanned for injection and exfiltration patterns before being accepted, because they are injected into the system prompt. The `_scan_memory_content()` function in `tools/memory_tool.py` checks for:
+
+- Prompt injection patterns ("ignore previous instructions", "you are now", "system prompt override")
+- Credential exfiltration via curl/wget with secret variable references
+- Attempts to read secret files (.env, credentials, .netrc, .pgpass, .npmrc, .pypirc)
+- SSH backdoor attempts (authorized_keys, .ssh access)
+- Hermes env file access patterns
+- Invisible Unicode characters (zero-width spaces, bidirectional overrides, word joiners, byte order marks)
+
+Content matching any pattern is blocked with an error message identifying the threat pattern.
 
 ---
 
@@ -170,7 +199,7 @@ hermes sessions list    # Browse past sessions
 | Capacity | ~1,300 tokens total | Unlimited (all sessions) |
 | Speed | Instant (already in system prompt) | Requires search and LLM summarization |
 | Use case | Key facts always available | Finding specific past conversations |
-| Management | Manually curated by agent | Automatic — all sessions stored |
+| Management | Manually curated by agent | Automatic -- all sessions stored |
 | Token cost | Fixed per session (~1,300 tokens) | On-demand when searched |
 
 Memory is for critical facts that should always be in context. Session search is for "did we discuss X last week?" queries.
@@ -216,7 +245,7 @@ The memory files remain on disk. Re-enabling memory loads them again in the next
 
 ## Honcho Integration: Cross-Session User Modeling
 
-Honcho is an AI-native memory system that gives Hermes persistent, cross-session understanding of users. While Hermes has built-in memory (`MEMORY.md` and `USER.md`), Honcho adds a deeper layer of user modeling — learning preferences, goals, and communication style across conversations via a dual-peer architecture where both the user and the AI build representations over time.
+Honcho is an AI-native memory system that gives Hermes persistent, cross-session understanding of users. While Hermes has built-in memory (`MEMORY.md` and `USER.md`), Honcho adds a deeper layer of user modeling -- learning preferences, goals, and communication style across conversations via a dual-peer architecture where both the user and the AI build representations over time.
 
 ### Built-in Memory vs. Honcho Memory
 
@@ -254,7 +283,7 @@ pip install 'honcho-ai>=2.0.1'
 Or install with the extra:
 
 ```bash
-pip install -e '.[honcho]'
+uv pip install -e '.[honcho]'
 ```
 
 Get an API key from [app.honcho.dev](https://app.honcho.dev) under Settings > API Keys.
@@ -287,6 +316,8 @@ hermes config set HONCHO_API_KEY your-key
 
 When an API key is present (either in `~/.honcho/config.json` or as `HONCHO_API_KEY`), Honcho auto-enables unless explicitly set to `"enabled": false`.
 
+The global config path is `~/.honcho/config.json` (defined as `GLOBAL_CONFIG_PATH` in `honcho_integration/client.py`). The host key for Hermes is `"hermes"` (defined as `HOST = "hermes"`).
+
 ---
 
 ## Honcho Configuration Reference
@@ -295,11 +326,13 @@ When an API key is present (either in `~/.honcho/config.json` or as `HONCHO_API_
 
 Settings are scoped to `hosts.hermes`. Root-level keys are shared across all Honcho-enabled tools. Hermes only writes to its own host block (except `apiKey`, which is a shared credential at the root).
 
+**Resolution order:** host block field > root-level field > default.
+
 **Root-level (shared)**
 
 | Field | Default | Description |
 |-------|---------|-------------|
-| `apiKey` | — | Honcho API key (required, shared across all hosts) |
+| `apiKey` | -- | Honcho API key (required, shared across all hosts) |
 | `sessions` | `{}` | Manual session name overrides per directory |
 
 **Host-level (`hosts.hermes`)**
@@ -321,6 +354,7 @@ Settings are scoped to `hosts.hermes`. Root-level keys are shared across all Hon
 | `dialecticReasoningLevel` | `"low"` | Floor for dialectic reasoning: `minimal`, `low`, `medium`, `high`, `max` |
 | `dialecticMaxChars` | `600` | Character cap on dialectic results injected into system prompt |
 | `linkedHosts` | `[]` | Other host keys whose workspaces to cross-reference |
+| `baseUrl` | *(none)* | Override for self-hosted Honcho deployments (also configurable via `honcho.base_url` in `~/.hermes/config.yaml`) |
 
 ---
 
@@ -329,7 +363,7 @@ Settings are scoped to `hosts.hermes`. Root-level keys are shared across all Hon
 | Mode | Effect |
 |------|--------|
 | `hybrid` | Write to both Honcho and local files (default) |
-| `honcho` | Honcho only — skip local file writes |
+| `honcho` | Honcho only -- skip local file writes |
 
 Memory mode can be set globally or per-peer:
 
@@ -342,6 +376,8 @@ Memory mode can be set globally or per-peer:
 }
 ```
 
+The `_resolve_memory_mode()` function in `honcho_integration/client.py` handles both string and object forms. The object form uses `"default"` as the fallback and other keys as per-peer overrides.
+
 To disable Honcho entirely, set `enabled: false` or remove the API key.
 
 ---
@@ -353,8 +389,10 @@ Controls how Honcho context reaches the agent:
 | Mode | Behavior |
 |------|----------|
 | `hybrid` | Auto-injected context plus Honcho tools available (default) |
-| `context` | Auto-injected context only — Honcho tools hidden |
-| `tools` | Honcho tools only — no auto-injected context |
+| `context` | Auto-injected context only -- Honcho tools hidden |
+| `tools` | Honcho tools only -- no auto-injected context |
+
+Legacy alias: `"auto"` is normalized to `"hybrid"` by `_normalize_recall_mode()`.
 
 ---
 
@@ -375,12 +413,12 @@ The default `async` mode has zero blocking impact on response latency. The backg
 
 | Strategy | Session key | Use case |
 |----------|-------------|----------|
-| `per-session` | Unique per run | Default — fresh session every time |
+| `per-session` | Unique per run (Hermes session_id) | Default -- fresh session every time |
 | `per-directory` | CWD basename | Each project gets its own session |
 | `per-repo` | Git repo root name | Groups subdirectories under one session |
-| `global` | Fixed `"global"` | Single cross-project session |
+| `global` | Workspace name | Single cross-project session |
 
-Resolution order: manual directory map > session title > strategy-derived key > platform key.
+Resolution order (from `resolve_session_name()`): manual directory map > session title > strategy-derived key > platform key.
 
 ---
 
@@ -420,7 +458,7 @@ Dialectic queries scale reasoning effort with message complexity:
 | Message length | Reasoning level |
 |----------------|-----------------|
 | Less than 120 chars | Config default (typically `low`) |
-| 120–400 chars | One level above default (cap: `high`) |
+| 120-400 chars | One level above default (cap: `high`) |
 | More than 400 chars | Two levels above default (cap: `high`) |
 
 `max` is never selected automatically.
@@ -429,51 +467,43 @@ Dialectic queries scale reasoning effort with message complexity:
 
 ## Honcho Tools
 
-When Honcho is active, four tools become available to the agent. They are invisible when Honcho is disabled.
+When Honcho is active, four tools become available to the agent (registered in `tools/honcho_tools.py`). They are invisible when Honcho is disabled (the `_check_honcho_available()` function returns `False`).
 
 ### `honcho_profile`
 
-Fast peer card retrieval (no LLM call). Returns a curated list of key facts about the user.
+Fast peer card retrieval (no LLM call). Returns a curated list of key facts about the user. Good at conversation start or for a quick factual snapshot.
 
 ### `honcho_search`
 
-Semantic search over memory (no LLM call). Returns raw excerpts ranked by relevance. Cheaper and faster than `honcho_context` — good for factual lookups.
+Semantic search over memory (no LLM call). Returns raw excerpts ranked by relevance. Cheaper and faster than `honcho_context` -- good for factual lookups.
 
 Parameters:
-- `query` (string) — search query
-- `max_tokens` (integer, optional) — result token budget
+- `query` (string, required) -- search query
+- `max_tokens` (integer, optional) -- result token budget (default 800, max 2000)
 
 ### `honcho_context`
 
-Dialectic Q&A powered by Honcho's LLM. Synthesizes an answer from accumulated conversation history.
+Dialectic Q&A powered by Honcho's LLM. Synthesizes an answer from accumulated conversation history. Higher cost than profile or search.
 
 Parameters:
-- `query` (string) — natural language question
-- `peer` (string, optional) — `"user"` (default) or `"ai"` (queries the assistant's own history and identity)
-
-Example queries:
-```
-"What are this user's main goals?"
-"What communication style does this user prefer?"
-"What topics has this user discussed recently?"
-"What is this user's technical expertise level?"
-```
+- `query` (string, required) -- natural language question
+- `peer` (string, optional) -- `"user"` (default) or `"ai"` (queries the assistant's own history and identity)
 
 ### `honcho_conclude`
 
-Writes a fact to Honcho memory. Use when the user explicitly states a preference, correction, or project context worth remembering. Feeds into the user's peer card and representation.
+Writes a factual statement to Honcho memory. Use when the user explicitly states a preference, correction, or project context worth remembering. Feeds into the user's peer card and representation.
 
 Parameters:
-- `conclusion` (string) — the fact to persist
+- `conclusion` (string, required) -- the fact to persist
 
 ---
 
 ## Multi-User Isolation in Gateway Mode
 
-Each gateway session (e.g., a Telegram chat, a Discord channel) gets its own Honcho session context. The session key — derived from the platform and chat ID — is threaded through the entire tool dispatch chain so that Honcho tool calls always execute against the correct session, even when multiple users are messaging concurrently.
+Each gateway session (e.g., a Telegram chat, a Discord channel) gets its own Honcho session context. The session key -- derived from the platform and chat ID -- is threaded through the entire tool dispatch chain via `set_session_context()` so that Honcho tool calls always execute against the correct session, even when multiple users are messaging concurrently.
 
 This means:
-- `honcho_profile`, `honcho_search`, `honcho_context`, and `honcho_conclude` all resolve the correct session at call time, not at startup
+- `honcho_profile`, `honcho_search`, `honcho_context`, and `honcho_conclude` all resolve the correct session at call time via `_resolve_session_context()`, not at startup
 - Background memory flushes (triggered by `/reset`, `/resume`, or session expiry) preserve the original session key so they write to the correct Honcho session
 - Synthetic flush turns skip Honcho sync to avoid polluting conversation history with internal bookkeeping
 
@@ -487,7 +517,7 @@ This means:
 | Session expiry | Automatic flush and shutdown after the configured idle timeout |
 | Gateway stop | All active Honcho managers are flushed and shut down gracefully |
 
-Honcho managers are owned at the gateway session layer (`_honcho_managers` dict) so they persist across requests within the same session and flush at real session boundaries.
+Honcho managers are owned at the gateway session layer so they persist across requests within the same session and flush at real session boundaries.
 
 ---
 
@@ -512,7 +542,7 @@ hermes honcho identity <file>              # Seed AI peer identity from file (SO
 hermes honcho migrate                      # Migration guide: OpenClaw -> Hermes + Honcho
 ```
 
-`hermes doctor` includes a Honcho section that validates config, API key, and connection status.
+`hermes doctor` includes a Honcho section that validates config, API key, and connection status, showing workspace, mode, and write frequency.
 
 ---
 
@@ -542,6 +572,8 @@ Multiple Honcho-enabled tools share `~/.honcho/config.json`. Each tool writes on
 ```
 
 Resolution: `hosts.<tool>` field > root-level field > default. Both tools share the root `apiKey` and `peerName`, but each has its own `aiPeer` and can have separate workspace settings.
+
+The `get_linked_workspaces()` method resolves linked host keys to workspace names for cross-tool context sharing.
 
 ---
 
@@ -582,4 +614,4 @@ This walks through converting an OpenClaw native Honcho setup to the shared `~/.
 
 ## Honcho Reliability
 
-Honcho is fully opt-in — zero behavior change when disabled or unconfigured. All Honcho calls are non-fatal: if the service is unreachable, the agent continues normally using only local memory and session history.
+Honcho is fully opt-in -- zero behavior change when disabled or unconfigured. All Honcho calls are non-fatal: if the service is unreachable, the agent continues normally using only local memory and session history.

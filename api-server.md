@@ -229,3 +229,6 @@ print(response.choices[0].message.content)
 - **No file upload** — vision/document analysis via uploaded files is not yet supported through the API.
 - **Model field is cosmetic** — the `model` field in requests is accepted but the actual LLM model used is configured server-side in `config.yaml`.
 - **Config via env only** — `config.yaml` support for API server settings is not yet available.
+- **Truncation** — Responses API supports `"truncation": "auto"` which limits conversation history to the last 100 messages when set.
+- **Store control** — Set `"store": false` in Responses API to skip saving the response (useful for one-off queries where chaining is not needed).
+- **`conversation` and `previous_response_id` are mutually exclusive** — using both in the same request returns a 400 error.

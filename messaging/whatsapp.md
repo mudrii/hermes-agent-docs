@@ -78,7 +78,7 @@ Add to `~/.hermes/.env`:
 ```bash
 # Required
 WHATSAPP_ENABLED=true
-WHATSAPP_MODE=bot                          # "bot" or "self-chat"
+WHATSAPP_MODE=self-chat                    # "bot" or "self-chat" (default: self-chat)
 WHATSAPP_ALLOWED_USERS=15551234567         # Comma-separated phone numbers (with country code, no +)
 ```
 
@@ -120,8 +120,9 @@ whatsapp:
 | Variable | Required | Description |
 |----------|----------|-------------|
 | `WHATSAPP_ENABLED` | Yes | Set to `true` to enable WhatsApp |
-| `WHATSAPP_MODE` | No | `bot` or `self-chat` (default: `bot`) |
+| `WHATSAPP_MODE` | No | `bot` or `self-chat` (default: `self-chat`) |
 | `WHATSAPP_ALLOWED_USERS` | Recommended | Comma-separated phone numbers with country code, without `+` |
+| `WHATSAPP_ALLOW_ALL_USERS` | No | Allow all senders (not recommended) |
 
 ---
 
@@ -149,6 +150,12 @@ This generates a fresh QR code. Scan it again and the session is re-established.
 
 - **Incoming** — Voice messages (`.ogg` Opus format) are automatically transcribed using the configured STT provider: local `faster-whisper`, Groq Whisper (`GROQ_API_KEY`), or OpenAI Whisper (`VOICE_TOOLS_OPENAI_KEY`)
 - **Outgoing** — TTS responses are sent as MP3 audio file attachments
+
+---
+
+## Message Length Limit
+
+WhatsApp allows messages up to 65,536 characters. Longer responses are split at natural boundaries.
 
 ---
 

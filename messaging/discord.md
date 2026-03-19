@@ -211,6 +211,7 @@ group_sessions_per_user: true
 | `DISCORD_REQUIRE_MENTION` | No | `true`/`false` — also readable from `config.yaml` |
 | `DISCORD_FREE_RESPONSE_CHANNELS` | No | Comma-separated channel IDs — also readable from `config.yaml` |
 | `DISCORD_AUTO_THREAD` | No | `true`/`false` — also readable from `config.yaml` (v0.3.0) |
+| `DISCORD_ALLOW_ALL_USERS` | No | Allow all users (not recommended) |
 
 ---
 

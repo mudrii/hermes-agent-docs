@@ -46,10 +46,15 @@ Built-in skins are loaded from `hermes_cli/skin_engine.py`.
 
 | Area | Config keys |
 |------|-------------|
-| Banner and response colors | `colors.banner_border`, `colors.banner_title`, `colors.banner_accent`, `colors.response_border` |
+| Banner and response colors | `colors.banner_border`, `colors.banner_title`, `colors.banner_accent`, `colors.banner_dim`, `colors.banner_text`, `colors.response_border` |
+| UI accent colors | `colors.ui_accent`, `colors.ui_label`, `colors.ui_ok`, `colors.ui_error`, `colors.ui_warn` |
+| Prompt and input styling | `colors.prompt`, `colors.input_rule`, `colors.session_label`, `colors.session_border` |
 | Spinner animation | `spinner.waiting_faces`, `spinner.thinking_faces`, `spinner.thinking_verbs`, `spinner.wings` |
-| Branding text | `branding.agent_name`, `branding.welcome`, `branding.response_label`, `branding.prompt_symbol` |
-| Tool activity prefix | `tool_prefix` |
+| Branding text | `branding.agent_name`, `branding.welcome`, `branding.goodbye`, `branding.response_label`, `branding.prompt_symbol`, `branding.help_header` |
+| Tool activity prefix | `tool_prefix` (default: `"┊"`) |
+| Tool emoji overrides | `tool_emojis` (per-tool emoji overrides for spinners and progress) |
+| Banner ASCII art | `banner_logo` (Rich-markup ASCII art replacing the default logo) |
+| Banner hero art | `banner_hero` (Rich-markup hero art replacing the default caduceus) |
 
 ## Creating Custom Skins
 
@@ -91,10 +96,21 @@ name: my-skin
 description: My custom skin
 
 colors:
-  banner_border: "#FFD700"          # hex color for banner box border
-  banner_title: "#FFA500"           # hex color for the banner title text
-  banner_accent: "#FFFF00"          # hex color for accents in the banner
-  response_border: "#888888"        # hex color for the response box border
+  banner_border: "#FFD700"          # Panel border color
+  banner_title: "#FFA500"           # Panel title text color
+  banner_accent: "#FFFF00"          # Section headers (Available Tools, etc.)
+  banner_dim: "#B8860B"             # Dim/muted text (separators, labels)
+  banner_text: "#FFF8DC"            # Body text (tool names, skill names)
+  ui_accent: "#FFBF00"             # General UI accent
+  ui_label: "#4dd0e1"              # UI labels
+  ui_ok: "#4caf50"                 # Success indicators
+  ui_error: "#ef5350"              # Error indicators
+  ui_warn: "#ffa726"               # Warning indicators
+  prompt: "#FFF8DC"                # Prompt text color
+  input_rule: "#CD7F32"            # Input area horizontal rule
+  response_border: "#FFD700"       # Response box border (ANSI)
+  session_label: "#DAA520"         # Session label color
+  session_border: "#8B8682"        # Session ID dim color
 
 spinner:
   waiting_faces: ["(-.-)Zzz...", "(-.-)Zz...", "(-.-)Z...", "(-.-)..."]
@@ -103,17 +119,28 @@ spinner:
     - "thinking"
     - "processing"
     - "reasoning"
-  wings:
-    - ["✦", "✦"]
+  wings:                            # Optional left/right spinner decorations
+    - ["✦", "✦"]                   # Each entry is [left, right] pair
     - ["✧", "✧"]
 
 branding:
-  agent_name: "My Agent"
-  welcome: "Welcome! I am your agent."
-  response_label: " My Agent "
-  prompt_symbol: "❯"
+  agent_name: "My Agent"           # Banner title, status display
+  welcome: "Welcome! I am your agent."  # Shown at CLI startup
+  goodbye: "See you! ✦"            # Shown on exit
+  response_label: " ✦ My Agent "   # Response box header label
+  prompt_symbol: "✦ ❯ "           # Input prompt symbol
+  help_header: "(✦) Available Commands"  # /help header text
 
-tool_prefix: "│"
+tool_prefix: "│"                    # Tool output line prefix (default: ┊)
+
+# Per-tool emoji overrides (used in spinners and progress)
+tool_emojis:
+  terminal: "✦"
+  web_search: "🔮"
+
+# Rich-markup ASCII art for the banner (optional)
+# banner_logo: "[bold]MY AGENT[/]"
+# banner_hero: "[dim]hero art here[/]"
 ```
 
 ## Operational Notes

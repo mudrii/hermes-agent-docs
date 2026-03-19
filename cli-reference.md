@@ -97,9 +97,9 @@ The primary command for talking to the agent. Running `hermes` with no subcomman
 
 The `--provider` flag accepts these values (as defined in `hermes_cli/main.py` and the `PROVIDER_REGISTRY` in `hermes_cli/auth.py`):
 
-`auto`, `openrouter`, `nous`, `openai-codex`, `copilot`, `copilot-acp`, `anthropic`, `zai`, `kimi-coding`, `minimax`, `minimax-cn`, `opencode-zen`, `opencode-go`, `ai-gateway`, `kilocode`, `alibaba`, `deepseek`
+`auto`, `openrouter`, `nous`, `openai-codex`, `copilot`, `copilot-acp`, `anthropic`, `zai`, `kimi-coding`, `minimax`, `minimax-cn`, `opencode-zen`, `opencode-go`, `ai-gateway`, `kilocode`, `alibaba`, `deepseek`, `custom`
 
-Aliases: `--provider claude` and `--provider claude-code` both map to `--provider anthropic`.
+Aliases: `--provider claude` and `--provider claude-code` both map to `--provider anthropic`. `--provider vercel` maps to `--provider ai-gateway`. `--provider kimi` and `--provider moonshot` map to `--provider kimi-coding`. `--provider dashscope`, `--provider qwen`, and `--provider aliyun` map to `--provider alibaba`. See the full alias table in [providers.md](./providers.md).
 
 ### Examples
 
@@ -155,30 +155,37 @@ The selected provider and model are persisted to `~/.hermes/config.yaml` under t
 hermes gateway <subcommand>
 ```
 
-Manages the messaging gateway service that connects Hermes to Telegram, Discord, Slack, WhatsApp, Signal, and other platforms.
+Manages the messaging gateway service that connects Hermes to Telegram, Discord, Slack, WhatsApp, Signal, Mattermost, Matrix, Email, DingTalk, SMS (Twilio), and other platforms.
 
 ### Subcommands
 
 | Subcommand | Description |
 |------------|-------------|
-| `run` | Run the gateway in the foreground (logs to stdout). |
-| `start` | Start the installed gateway service. |
-| `stop` | Stop the service. |
-| `restart` | Restart the service. |
-| `status` | Show service status. |
-| `install` | Install as a user service (`systemd` on Linux, `launchd` on macOS). |
-| `uninstall` | Remove the installed service. |
+| `run` | Run the gateway in the foreground (logs to stdout). Accepts `--verbose` and `--replace`. |
+| `start` | Start the installed gateway service. Accepts `--system` on Linux. |
+| `stop` | Stop the service. Accepts `--system` on Linux. |
+| `restart` | Restart the service. Accepts `--system` on Linux. |
+| `status` | Show service status. Accepts `--deep` and `--system`. |
+| `install` | Install as a user service (`systemd` on Linux, `launchd` on macOS). Accepts `--force`, `--system`, and `--run-as-user`. |
+| `uninstall` | Remove the installed service. Accepts `--system` on Linux. |
 | `setup` | Interactive messaging-platform setup. |
+
+### `--system` Flag (Linux)
+
+On Linux, passing `--system` to `install`, `start`, `stop`, `restart`, `status`, or `uninstall` targets the system-level systemd service instead of the user service. System service install requires root (`sudo`). The system service starts at boot and runs as a non-root user configured via `--run-as-user`.
 
 ### Examples
 
 ```bash
 hermes gateway run           # Foreground (development)
-hermes gateway install       # Install as a background service
+hermes gateway install       # Install as a user background service
+hermes gateway install --system --run-as-user myuser  # System service (boot-time)
 hermes gateway start         # Start installed service
 hermes gateway status        # Check if running
+hermes gateway status --deep # Detailed status with logs
 hermes gateway stop          # Stop the service
 hermes gateway restart       # Restart the service
+hermes gateway setup         # Configure messaging platforms
 ```
 
 ---
@@ -229,8 +236,8 @@ hermes logout [--provider nous|openai-codex]
 
 Authenticate with OAuth-backed providers. `login` supports:
 
-- **Nous Portal** — OAuth/device code flow against `https://portal.nousresearch.com`
-- **OpenAI Codex** — OAuth/device code flow against the OpenAI auth endpoint
+- **Nous Portal** -- OAuth/device code flow against `https://portal.nousresearch.com`
+- **OpenAI Codex** -- OAuth/device code flow against the OpenAI auth endpoint
 
 ### `login` Options
 
@@ -272,13 +279,13 @@ Manage the cron scheduler for scheduled agent tasks.
 
 | Subcommand | Description |
 |------------|-------------|
-| `list` | Show all scheduled jobs. |
-| `create` / `add` | Create a scheduled job from a prompt. Attach skills via repeated `--skill`. |
+| `list` | Show all scheduled jobs. Accepts `--all` to include disabled jobs. |
+| `create` / `add` | Create a scheduled job from a prompt. Attach skills via repeated `--skill`. Accepts `--name`, `--deliver`, `--repeat`. |
 | `edit` | Update a job's schedule, prompt, name, delivery, repeat count, or attached skills. Supports `--clear-skills`, `--add-skill`, `--remove-skill`. |
 | `pause` | Pause a job without deleting it. |
 | `resume` | Resume a paused job and compute its next future run. |
 | `run` | Trigger a job on the next scheduler tick. |
-| `remove` | Delete a scheduled job. |
+| `remove` (aliases: `rm`, `delete`) | Delete a scheduled job. |
 | `status` | Check whether the cron scheduler is running. |
 | `tick` | Run due jobs once and exit. |
 
@@ -290,11 +297,11 @@ Manage the cron scheduler for scheduled agent tasks.
 hermes doctor [--fix]
 ```
 
-Diagnose configuration and dependency issues.
+Diagnose configuration and dependency issues. Checks Python environment, required/optional packages, configuration files, auth providers (`codex` CLI availability, Nous Portal and OpenAI Codex login status), directory structure, external tools (git, ripgrep, docker, node), API connectivity, submodules, tool availability, Skills Hub, and Honcho memory.
 
 | Option | Description |
 |--------|-------------|
-| `--fix` | Attempt automatic repairs where possible. |
+| `--fix` | Attempt automatic repairs where possible (create missing directories, config files, SOUL.md). |
 
 ---
 
@@ -323,7 +330,7 @@ Show, edit, and manage `config.yaml` and `.env`.
 ```bash
 hermes config show
 hermes config edit
-hermes config set model anthropic/claude-opus-4
+hermes config set model anthropic/claude-opus-4.6
 hermes config set terminal.backend docker
 hermes config set OPENROUTER_API_KEY sk-or-...   # Saves to .env
 hermes config check
@@ -500,10 +507,10 @@ Show token usage, cost, and activity analytics.
 ## `hermes claw`
 
 ```bash
-hermes claw migrate
+hermes claw migrate [--dry-run]
 ```
 
-OpenClaw migration helpers. Migrates settings, memories, skills, and keys from OpenClaw to Hermes.
+OpenClaw migration helpers. Migrates settings, memories, skills, and keys from OpenClaw to Hermes. Pass `--dry-run` to preview without changes.
 
 ---
 
@@ -521,123 +528,83 @@ OpenClaw migration helpers. Migrates settings, memories, skills, and keys from O
 
 Slash commands are dispatched from a central `COMMAND_REGISTRY` in `hermes_cli/commands.py`. They are available in two surfaces:
 
-- **Interactive CLI** — type `/` for autocomplete menu. Built-in commands are case-insensitive.
-- **Messaging gateway** — dispatched by `gateway/run.py`, available in Telegram, Discord, Slack, WhatsApp, Signal, Email, and Home Assistant chats.
+- **Interactive CLI** -- type `/` for autocomplete menu. Built-in commands are case-insensitive.
+- **Messaging gateway** -- dispatched by `gateway/run.py`, available in Telegram, Discord, Slack, WhatsApp, Signal, Email, Mattermost, Matrix, DingTalk, SMS, and Home Assistant chats.
 
-### CLI-Only Slash Commands
+### Session Commands
 
-#### Session
+| Command | CLI | Messaging | Description |
+|---------|-----|-----------|-------------|
+| `/new` (alias: `/reset`) | Yes | Yes | Start a new session (fresh session ID and history). |
+| `/clear` | Yes | -- | Clear screen and start a new session. |
+| `/history` | Yes | -- | Show conversation history. |
+| `/save` | Yes | -- | Save the current conversation. |
+| `/retry` | Yes | Yes | Retry the last message (resend to agent). |
+| `/undo` | Yes | Yes | Remove the last user/assistant exchange. |
+| `/title [name]` | Yes | Yes | Set a title for the current session. |
+| `/compress` | Yes | Yes | Manually compress conversation context (flush memories and summarize). |
+| `/rollback [number]` | Yes | Yes | List or restore filesystem checkpoints. |
+| `/stop` | Yes | Yes | Kill all running background processes. |
+| `/background <prompt>` (alias: `/bg`) | Yes | Yes | Run a prompt in a separate background session. Results appear as a panel when the task finishes. |
+| `/resume [name]` | Yes | Yes | Resume a previously-named session. |
+| `/approve [session\|always]` | -- | Yes | Approve a pending dangerous command. |
+| `/deny` | -- | Yes | Deny a pending dangerous command. |
+| `/status` | -- | Yes | Show session info. |
+| `/sethome` (alias: `/set-home`) | -- | Yes | Set this chat as the home channel for cron/notification delivery. |
+
+### Configuration Commands
+
+| Command | CLI | Messaging | Description |
+|---------|-----|-----------|-------------|
+| `/config` | Yes | -- | Show current configuration. |
+| `/model [name]` | Yes | Yes | Show or change the current model. Supports `provider:model` syntax. |
+| `/provider` | Yes | Yes | Show available providers and current provider. |
+| `/prompt [text]` | Yes | -- | View/set custom system prompt. Subcommand: `clear`. |
+| `/personality [name]` | Yes | Yes | Set a predefined personality. |
+| `/statusbar` (alias: `/sb`) | Yes | -- | Toggle the context/model status bar. |
+| `/verbose` | Yes | -- | Cycle tool progress display: off -> new -> all -> verbose. |
+| `/reasoning [level\|show\|hide]` | Yes | Yes | Manage reasoning effort and display. Levels: `none`, `low`, `minimal`, `medium`, `high`, `xhigh`. Subcommands: `show`, `hide`, `on`, `off`. |
+| `/skin [name]` | Yes | -- | Show or change the display skin/theme. |
+| `/voice [on\|off\|tts\|status]` | Yes | Yes | Toggle voice mode. Recording key defaults to `Ctrl+B` (configurable via `voice.record_key` in `config.yaml`). |
+
+### Tools and Skills Commands
+
+| Command | CLI | Messaging | Description |
+|---------|-----|-----------|-------------|
+| `/tools [list\|disable\|enable] [name...]` | Yes | -- | Manage tools for the current session. Disabling a tool removes it from the agent's toolset and triggers a session reset. |
+| `/toolsets` | Yes | -- | List available toolsets. |
+| `/browser [connect\|disconnect\|status]` | Yes | -- | Manage local Chrome CDP connection. `connect` attaches browser tools (default: `ws://localhost:9222`). |
+| `/skills [search\|browse\|inspect\|install]` | Yes | -- | Search, install, inspect, or manage skills from online registries. |
+| `/cron [list\|add\|create\|edit\|pause\|resume\|run\|remove]` | Yes | -- | Manage scheduled tasks. |
+| `/reload-mcp` (alias: `/reload_mcp`) | Yes | Yes | Reload MCP servers from `config.yaml`. |
+| `/plugins` | Yes | -- | List installed plugins and their status. |
+
+### Info Commands
+
+| Command | CLI | Messaging | Description |
+|---------|-----|-----------|-------------|
+| `/help` | Yes | Yes | Show help message. |
+| `/usage` | Yes | Yes | Show token usage, cost breakdown, and session duration. |
+| `/insights [days]` | Yes | Yes | Show usage insights and analytics (last 30 days). |
+| `/platforms` (alias: `/gateway`) | Yes | -- | Show gateway/messaging platform status. |
+| `/paste` | Yes | -- | Check clipboard for an image and attach it. |
+| `/update` | -- | Yes | Update Hermes Agent to the latest version. |
+
+### Exit Commands
+
+| Command | CLI | Messaging | Description |
+|---------|-----|-----------|-------------|
+| `/quit` (aliases: `/exit`, `/q`) | Yes | -- | Exit the CLI. |
+
+### Dynamic Slash Commands
 
 | Command | Description |
 |---------|-------------|
-| `/new` (alias: `/reset`) | Start a new session (fresh session ID and history). |
-| `/clear` | Clear screen and start a new session. |
-| `/history` | Show conversation history. |
-| `/save` | Save the current conversation. |
-| `/retry` | Retry the last message (resend to agent). |
-| `/undo` | Remove the last user/assistant exchange. |
-| `/title` | Set a title for the current session. Usage: `/title My Session Name`. |
-| `/compress` | Manually compress conversation context (flush memories and summarize). |
-| `/rollback [number]` | List or restore filesystem checkpoints. |
-| `/stop` | Kill all running background processes. |
-| `/background <prompt>` | Run a prompt in a separate background session. Results appear as a panel when the task finishes. |
-| `/plan [request]` | Load the bundled `plan` skill to write a markdown plan instead of executing the work. Plans are saved under `.hermes/plans/`. |
+| `/<skill-name>` | Load any installed skill as an on-demand command. Example: `/gif-search`, `/github-pr-workflow`, `/plan`. |
 
-#### Configuration
-
-| Command | Description |
-|---------|-------------|
-| `/config` | Show current configuration. |
-| `/model` | Show or change the current model. |
-| `/provider` | Show available providers and current provider. |
-| `/prompt` | View/set custom system prompt. |
-| `/personality` | Set a predefined personality. |
-| `/verbose` | Cycle tool progress display: off → new → all → verbose. |
-| `/reasoning [level\|show\|hide]` | Manage reasoning effort and display. Levels: `xhigh`, `high`, `medium`, `low`, `minimal`, `none`. |
-| `/skin` | Show or change the display skin/theme. |
-| `/voice [on\|off\|tts\|status]` | Toggle CLI voice mode and spoken playback. Recording key defaults to `Ctrl+B` (configurable via `voice.record_key` in `config.yaml`). |
-
-#### Tools and Skills
-
-| Command | Description |
-|---------|-------------|
-| `/tools [list\|disable\|enable] [name...]` | Manage tools for the current session. Disabling a tool removes it from the agent's toolset and triggers a session reset. |
-| `/toolsets` | List available toolsets. |
-| `/browser [connect\|disconnect\|status]` | Manage local Chrome CDP connection. `connect` attaches browser tools (default: `ws://localhost:9222`). |
-| `/skills` | Search, install, inspect, or manage skills from online registries. |
-| `/cron` | Manage scheduled tasks: list, add/create, edit, pause, resume, run, remove. |
-| `/reload-mcp` | Reload MCP servers from `config.yaml`. |
-| `/plugins` | List installed plugins and their status. |
-
-#### Info
-
-| Command | Description |
-|---------|-------------|
-| `/help` | Show help message. |
-| `/usage` | Show token usage, cost breakdown, and session duration. |
-| `/insights` | Show usage insights and analytics (last 30 days). |
-| `/platforms` | Show gateway/messaging platform status. |
-| `/paste` | Check clipboard for an image and attach it. |
-
-#### Exit
-
-| Command | Description |
-|---------|-------------|
-| `/quit` | Exit the CLI. Aliases: `/exit`, `/q`. |
-
-#### Dynamic Slash Commands
-
-| Command | Description |
-|---------|-------------|
-| `/<skill-name>` | Load any installed skill as an on-demand command. Example: `/gif-search`, `/github-pr-workflow`. |
-
-#### Quick Commands
+### Quick Commands
 
 User-defined quick commands from `quick_commands` in `~/.hermes/config.yaml` are available as slash commands. They run shell commands directly without invoking the LLM. See [configuration.md](./configuration.md) for the `quick_commands` schema.
-
----
-
-### Messaging-Only Slash Commands
-
-Available inside Telegram, Discord, Slack, WhatsApp, Signal, Email, and Home Assistant chats:
-
-| Command | Description |
-|---------|-------------|
-| `/new` | Start a new conversation. |
-| `/reset` | Reset conversation history. |
-| `/status` | Show session info. |
-| `/stop` | Kill all running background processes and interrupt the agent. |
-| `/model [provider:model]` | Show or change the model, including provider switches. |
-| `/provider` | Show provider availability and auth status. |
-| `/personality [name]` | Set a personality overlay for the session. |
-| `/retry` | Retry the last message. |
-| `/undo` | Remove the last exchange. |
-| `/sethome` | Mark the current chat as the platform home channel for deliveries. |
-| `/compress` | Manually compress conversation context. |
-| `/title [name]` | Set or show the session title. |
-| `/resume [name]` | Resume a previously named session. |
-| `/usage` | Show token usage, estimated cost breakdown (input/output), context window state, and session duration. |
-| `/insights [days]` | Show usage analytics. |
-| `/reasoning [level\|show\|hide]` | Change reasoning effort or toggle reasoning display. |
-| `/voice [on\|off\|tts\|join\|channel\|leave\|status]` | Control spoken replies. `join`/`channel`/`leave` are Discord voice-channel only. |
-| `/rollback [number]` | List or restore filesystem checkpoints. |
-| `/background <prompt>` | Run a prompt in a background session. Results are delivered back to the same chat. |
-| `/plan [request]` | Load the bundled `plan` skill to write a markdown plan. |
-| `/reload-mcp` | Reload MCP servers from config. |
-| `/update` | Update Hermes Agent to the latest version. |
-| `/help` | Show messaging help. |
-| `/<skill-name>` | Invoke any installed skill by name. |
-
----
-
-### Command Surface Summary
-
-| Command | CLI | Messaging |
-|---------|-----|-----------|
-| `/skin`, `/tools`, `/toolsets`, `/browser`, `/config`, `/prompt`, `/cron`, `/skills`, `/platforms`, `/paste`, `/verbose`, `/plugins` | CLI only | — |
-| `/status`, `/sethome`, `/update` | — | Messaging only |
-| `/background`, `/voice`, `/reload-mcp`, `/rollback`, `/compress`, `/reasoning`, `/new`, `/reset`, `/model`, `/provider`, `/personality`, `/retry`, `/undo`, `/title`, `/usage`, `/insights`, `/plan`, `/help`, `/<skill>` | Both | Both |
-| `/voice join`, `/voice channel`, `/voice leave` | — | Discord only |
 
 ---
 
@@ -649,7 +616,7 @@ The following environment variables are checked at startup by `hermes_cli/main.p
 
 | Variable | Description |
 |----------|-------------|
-| `HERMES_INFERENCE_PROVIDER` | Override provider selection. Values: `auto`, `openrouter`, `nous`, `openai-codex`, `copilot`, `anthropic`, `zai`, `kimi-coding`, `minimax`, `minimax-cn`, `kilocode`, `alibaba`. Default: `auto`. Lower priority than `config.yaml` `model.provider`. |
+| `HERMES_INFERENCE_PROVIDER` | Override provider selection. Values: `auto`, `openrouter`, `nous`, `openai-codex`, `copilot`, `anthropic`, `zai`, `kimi-coding`, `minimax`, `minimax-cn`, `kilocode`, `alibaba`, `deepseek`, `opencode-zen`, `opencode-go`, `ai-gateway`. Default: `auto`. Lower priority than `config.yaml` `model.provider`. |
 
 ### Model Selection
 
@@ -677,14 +644,15 @@ The following environment variables are checked at startup by `hermes_cli/main.p
 | `HERMES_PREFILL_MESSAGES_FILE` | Path to a JSON file of ephemeral prefill messages injected at API-call time. |
 | `HERMES_DUMP_REQUESTS` | Dump API request payloads to log files. Values: `true`/`false`. |
 | `HERMES_TIMEZONE` | IANA timezone override. Example: `America/New_York`. |
+| `HERMES_YOLO_MODE` | Skip all approval prompts. Set automatically by `--yolo` flag. |
 
 ### Human Delay
 
 | Variable | Description |
 |----------|-------------|
 | `HERMES_HUMAN_DELAY_MODE` | Response pacing. Values: `off`, `natural`, `custom`. |
-| `HERMES_HUMAN_DELAY_MIN_MS` | Custom delay range minimum in milliseconds. |
-| `HERMES_HUMAN_DELAY_MAX_MS` | Custom delay range maximum in milliseconds. |
+| `HERMES_HUMAN_DELAY_MIN_MS` | Custom delay range minimum in milliseconds. Default: `800`. |
+| `HERMES_HUMAN_DELAY_MAX_MS` | Custom delay range maximum in milliseconds. Default: `2500`. |
 
 ### Session Settings
 
@@ -712,8 +680,8 @@ Classic PATs (`ghp_*` prefix) are explicitly rejected. Supported token types:
 
 | Type | Prefix | How to get |
 |------|--------|------------|
-| OAuth token | `gho_` | `hermes model` → GitHub Copilot → Login with GitHub |
-| Fine-grained PAT | `github_pat_` | GitHub Settings → Developer settings → Fine-grained tokens (needs Copilot Requests permission) |
+| OAuth token | `gho_` | `hermes model` -> GitHub Copilot -> Login with GitHub |
+| Fine-grained PAT | `github_pat_` | GitHub Settings -> Developer settings -> Fine-grained tokens (needs Copilot Requests permission) |
 | GitHub App token | `ghu_` | Via GitHub App installation |
 
 ### OAuth Device Code Flow
@@ -747,11 +715,11 @@ Relevant environment variables:
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `HERMES_COPILOT_ACP_COMMAND` | `copilot` | Override the Copilot ACP CLI binary path. |
-| `COPILOT_CLI_PATH` | — | Alias for `HERMES_COPILOT_ACP_COMMAND`. |
+| `COPILOT_CLI_PATH` | -- | Alias for `HERMES_COPILOT_ACP_COMMAND`. |
 | `HERMES_COPILOT_ACP_ARGS` | `--acp --stdio` | Override Copilot ACP arguments. |
 | `COPILOT_ACP_BASE_URL` | `acp://copilot` | Override Copilot ACP base URL. |
 
-Requires the GitHub Copilot CLI in `$PATH` and an existing `copilot login` session. No token exchange is performed by Hermes — the subprocess handles auth.
+Requires the GitHub Copilot CLI in `$PATH` and an existing `copilot login` session. No token exchange is performed by Hermes -- the subprocess handles auth.
 
 ---
 
@@ -759,10 +727,10 @@ Requires the GitHub Copilot CLI in `$PATH` and an existing `copilot login` sessi
 
 Settings are resolved in this order (highest priority first):
 
-1. **CLI arguments** — e.g., `hermes chat --model anthropic/claude-sonnet-4` (per-invocation override)
-2. **`~/.hermes/config.yaml`** — the primary config file
-3. **`~/.hermes/.env`** — fallback for env vars; required for secrets
-4. **Built-in defaults** — hardcoded safe defaults
+1. **CLI arguments** -- e.g., `hermes chat --model anthropic/claude-sonnet-4` (per-invocation override)
+2. **`~/.hermes/config.yaml`** -- the primary config file
+3. **`~/.hermes/.env`** -- fallback for env vars; required for secrets
+4. **Built-in defaults** -- hardcoded safe defaults
 
 For provider resolution specifically (`hermes_cli/runtime_provider.py`):
 

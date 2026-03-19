@@ -6,12 +6,12 @@ Hermes Agent includes a full browser automation toolset with multiple backend op
 
 | Backend | How to enable | Use case |
 |---------|--------------|----------|
-| **Browserbase cloud** | Set `BROWSERBASE_API_KEY` and `BROWSERBASE_PROJECT_ID` | Managed cloud browsers with anti-bot, CAPTCHA solving, residential proxies |
-| **Browser Use cloud** | Set `BROWSER_USE_API_KEY` | Alternative cloud browser provider |
-| **Local Chrome via CDP** | Run `/browser connect` in CLI | Attach to your own Chrome instance; free, real-time |
-| **Local Chromium** | Install `agent-browser` CLI | Local Chromium driven by `agent-browser`; no credentials required |
+| **Browserbase cloud** | Set `browser.cloud_provider: browserbase` in config.yaml + `BROWSERBASE_API_KEY` | Managed cloud browsers with anti-bot, CAPTCHA solving, residential proxies |
+| **Browser Use cloud** | Set `browser.cloud_provider: browser-use` in config.yaml + `BROWSER_USE_API_KEY` | Alternative cloud browser provider |
+| **Local Chrome via CDP** | Run `/browser connect` in CLI or set `BROWSER_CDP_URL` env var | Attach to your own Chrome instance; free, real-time |
+| **Local Chromium** | Install `agent-browser` CLI (default when no cloud provider is configured) | Local Chromium driven by `agent-browser`; no credentials required |
 
-If both Browserbase and Browser Use credentials are set, Browserbase takes priority.
+The cloud provider is selected via the `browser.cloud_provider` key in `~/.hermes/config.yaml`. When the key is absent or empty, local mode is used. When `BROWSER_CDP_URL` is set (e.g., via `/browser connect`), it takes priority over both cloud providers and local mode.
 
 ## Overview
 
@@ -46,8 +46,17 @@ toolsets:
 
 ### Browserbase cloud mode
 
+1. Set the cloud provider in config:
+
+```yaml
+# ~/.hermes/config.yaml
+browser:
+  cloud_provider: browserbase
+```
+
+2. Add credentials to `~/.hermes/.env`:
+
 ```bash
-# Add to ~/.hermes/.env
 BROWSERBASE_API_KEY=***
 BROWSERBASE_PROJECT_ID=your-project-id-here
 ```
@@ -56,8 +65,17 @@ Get credentials at [browserbase.com](https://browserbase.com).
 
 ### Browser Use cloud mode
 
+1. Set the cloud provider in config:
+
+```yaml
+# ~/.hermes/config.yaml
+browser:
+  cloud_provider: browser-use
+```
+
+2. Add your API key to `~/.hermes/.env`:
+
 ```bash
-# Add to ~/.hermes/.env
 BROWSER_USE_API_KEY=***
 ```
 
@@ -115,6 +133,24 @@ BROWSERBASE_SESSION_TIMEOUT=600000
 
 # Inactivity timeout before auto-cleanup in seconds (default: 300)
 BROWSER_INACTIVITY_TIMEOUT=300
+
+# Override CDP endpoint directly (set by /browser connect, or manually)
+BROWSER_CDP_URL=ws://localhost:9222
+
+# Vision model for browser_vision screenshot analysis
+AUXILIARY_VISION_MODEL=
+
+# Model for page snapshot text summarization
+AUXILIARY_WEB_EXTRACT_MODEL=
+```
+
+### config.yaml Browser Settings
+
+```yaml
+browser:
+  cloud_provider: browserbase    # "browserbase" or "browser-use" (empty = local mode)
+  record_sessions: false          # Auto-record browser sessions as WebM video
+  inactivity_timeout: 120         # Seconds before auto-cleanup (env var override available)
 ```
 
 ## Available Tools
@@ -180,9 +216,15 @@ List all images on the current page with their URLs and alt text.
 
 Take a screenshot and analyze it with vision AI. Use this when text snapshots don't capture important visual information — especially useful for CAPTCHAs, complex layouts, or visual verification.
 
+Parameters:
+- **`question`** (required): What you want to know about the page visually
+- **`annotate`** (optional, default `false`): When `true`, overlay numbered `[N]` labels on interactive elements. Each `[N]` maps to ref `@eN` for subsequent browser commands. Useful for QA and spatial reasoning about page layout.
+
 The screenshot is saved persistently and the file path is returned alongside the AI analysis. On messaging platforms (Telegram, Discord, Slack, WhatsApp), you can ask the agent to share the screenshot — it will be sent as a native photo attachment via the `MEDIA:` mechanism.
 
 Screenshots are stored in `~/.hermes/browser_screenshots/` and automatically cleaned up after 24 hours.
+
+The vision model used for analysis is controlled by the `AUXILIARY_VISION_MODEL` environment variable. For page snapshot text summarization, the `AUXILIARY_WEB_EXTRACT_MODEL` variable is used.
 
 ### browser_console
 
@@ -250,11 +292,14 @@ If paid features aren't available on your plan, Hermes automatically falls back 
 
 ## Session Management
 
-- Each task gets an isolated browser session
-- Sessions are automatically cleaned up after inactivity (default: 5 minutes, set by `BROWSER_INACTIVITY_TIMEOUT`)
-- A background thread checks every 30 seconds for stale sessions
-- Emergency cleanup runs on process exit to prevent orphaned sessions
-- Browserbase sessions are released via the API (`REQUEST_RELEASE` status)
+- Each task gets an isolated browser session identified by `task_id`
+- Sessions are automatically cleaned up after inactivity (default: 300 seconds / 5 minutes, set by `BROWSER_INACTIVITY_TIMEOUT`)
+- A background daemon thread (`browser-cleanup`) checks every 30 seconds for stale sessions
+- Emergency cleanup runs on process exit via `atexit` to prevent orphaned sessions
+- Cloud sessions are released via the provider's API on cleanup
+- Each session gets its own socket directory under `/tmp/agent-browser-<session_name>` (or `$TMPDIR` on Linux) to avoid concurrency conflicts between parallel subagents
+- On macOS, `/tmp` is used directly instead of `$TMPDIR` to avoid the 104-byte Unix socket path limit
+- Session activity is tracked per-task with `_session_last_activity` under a thread-safe lock
 
 ## Security Considerations
 

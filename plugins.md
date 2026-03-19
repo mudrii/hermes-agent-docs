@@ -28,21 +28,36 @@ version: 1.0.0
 description: A description of what this plugin does
 author: Your Name
 
-provides:
-  tools: true
-  hooks: true
+provides_tools:      # list of tool names this plugin provides
+  - my_tool
+provides_hooks:      # list of hook names this plugin provides
+  - post_tool_call
 
 requires_env:        # optional: gate plugin loading on env vars
   - MY_API_KEY       # plugin is disabled if this variable is not set
 ```
 
+The manifest file can be named `plugin.yaml` or `plugin.yml` (both are accepted).
+
 If `requires_env` lists any variable that is missing from the environment, the plugin is skipped at load time with a clear message. No crash, no error in the agent — just a notice that the plugin is disabled due to a missing key.
+
+### Manifest Fields Reference
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `name` | string | Yes | Plugin name (defaults to directory name if omitted) |
+| `version` | string | No | Version string |
+| `description` | string | No | Human-readable description |
+| `author` | string | No | Author name |
+| `requires_env` | list | No | Environment variables that must be set for the plugin to load |
+| `provides_tools` | list | No | List of tool names this plugin registers |
+| `provides_hooks` | list | No | List of hook names this plugin registers |
 
 ## What Plugins Can Do
 
 | Capability | How |
 |-----------|-----|
-| Add custom tools | `ctx.register_tool(name, schema, handler)` |
+| Add custom tools | `ctx.register_tool(name, toolset, schema, handler)` |
 | Register lifecycle hooks | `ctx.register_hook("post_tool_call", callback)` |
 | Ship data files | `Path(__file__).parent / "data" / "file.yaml"` |
 | Bundle skills | Copy `skill.md` to `~/.hermes/skills/` at load time |
@@ -90,13 +105,17 @@ def _on_post_tool_call(tool_name, args, result, task_id, **kwargs):
 
 `ctx.register_tool` parameters:
 
-| Parameter | Description |
-|-----------|-------------|
-| `name` | Tool name (must be unique across all plugins) |
-| `toolset` | Toolset group name (shown in banner) |
-| `schema` | OpenAI function-calling schema dict |
-| `handler` | Python callable that executes the tool |
-| `check_fn` | Optional callable returning bool; `False` hides tool from model |
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `name` | str | Yes | Tool name (must be unique across all plugins) |
+| `toolset` | str | Yes | Toolset group name (shown in banner, used for toolset-level enable/disable) |
+| `schema` | dict | Yes | OpenAI function-calling schema dict |
+| `handler` | Callable | Yes | Python callable that executes the tool |
+| `check_fn` | Callable | No | Returns bool; `False` hides tool from model (e.g., check for optional dependency) |
+| `requires_env` | list | No | Environment variables required for this tool |
+| `is_async` | bool | No | Set to `True` if the handler is an async function |
+| `description` | str | No | Short description (separate from schema description) |
+| `emoji` | str | No | Emoji shown in spinner and progress output |
 
 ## Tool Schemas
 
@@ -163,9 +182,11 @@ This example is taken from the official build-a-plugin guide and demonstrates a 
 name: calculator
 version: 1.0.0
 description: Math calculator — evaluate expressions and convert units
-provides:
-  tools: true
-  hooks: true
+provides_tools:
+  - calculate
+  - unit_convert
+provides_hooks:
+  - post_tool_call
 ```
 
 ### schemas.py
@@ -327,12 +348,12 @@ pip install hermes-plugin-my-plugin
 
 On startup, Hermes:
 
-1. Scans `~/.hermes/plugins/` for subdirectories containing `plugin.yaml`
-2. Scans `.hermes/plugins/` in the current working directory
+1. Scans `~/.hermes/plugins/` (or `$HERMES_HOME/plugins/`) for subdirectories containing `plugin.yaml` or `plugin.yml`
+2. Scans `.hermes/plugins/` in the current working directory for project-specific plugins
 3. Checks installed packages for the `hermes_agent.plugins` entry points group
-4. For each discovered plugin, validates `requires_env` and skips if any variable is missing
-5. Calls `register(ctx)` on each valid plugin
-6. Any plugin whose `register()` raises an exception is disabled; Hermes continues
+4. For each discovered plugin, imports the module and calls `register(ctx)`
+5. Any plugin whose `register()` raises an exception is disabled with an error logged; Hermes continues
+6. Discovery runs only once per process (idempotent via `_discovered` flag)
 
 ## Managing Plugins
 

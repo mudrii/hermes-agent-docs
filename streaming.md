@@ -8,7 +8,7 @@ Streaming is implemented via PR [#1538](https://github.com/NousResearch/hermes-a
 
 ## What Unified Streaming Is
 
-Unified streaming means the same streaming mechanism in `AIAgent` (`run_agent.py`) works identically regardless of whether the consumer is the CLI, a messaging gateway platform, or an API server. The agent does not know or care what the consumer does with each token — it emits tokens through a callback, and each platform handles display in the appropriate way.
+Unified streaming means the same streaming mechanism in `AIAgent` (`run_agent.py`) works identically regardless of whether the consumer is the CLI, a messaging gateway platform, or an API server. The agent does not know or care what the consumer does with each token -- it emits tokens through callbacks, and each platform handles display in the appropriate way.
 
 Before v0.3.0:
 
@@ -20,75 +20,88 @@ Before v0.3.0:
 After v0.3.0:
 
 - The agent opens a streaming connection to the LLM API
-- Each text token is delivered via `stream_callback(text_delta: str)` as it arrives
+- Each text token is delivered via callbacks as it arrives
 - The CLI prints tokens to the terminal progressively
 - Gateway platforms (Telegram, Discord, Slack) send an initial message then edit it with accumulated content at regular intervals
-- A `None` signal (`stream_callback(None)`) marks end of stream so consumers can finalize display
+- A `None` signal marks end of stream so consumers can finalize display
 
 ---
 
 ## Architecture
 
-The streaming bridge is a thread-safe `queue.Queue()` connecting the agent thread to the consumer.
+### Callback Registration
+
+`AIAgent` has two independent stream callback paths:
+
+1. **`stream_delta_callback`** -- set in `AIAgent.__init__()`. This is a persistent callback that fires for every text token across all turns. Used by the CLI for progressive display.
+
+2. **`stream_callback`** -- set per-call via `run_conversation(stream_callback=...)`. Stored internally as `self._stream_callback`. Used by the TTS pipeline to start audio generation before the full response.
+
+Both callbacks are fired by `_fire_stream_delta(text)` for each text token. The method `_has_stream_consumers()` returns `True` if either callback is registered.
+
+### Thread-Safe Bridge
+
+The streaming bridge between the agent thread and the consumer uses a thread-safe `queue.Queue()`:
 
 ```
-                          stream_callback(delta)
-                                │
-  ┌─────────────┐    ┌──────────▼──────────────┐
-  │  LLM API    │    │      queue.Queue()       │
-  │  (stream)   │───►│  thread-safe bridge      │
-  │             │    │  agent thread ↔ consumer │
-  └─────────────┘    └──────────┬───────────────┘
-                                │
-                 ┌──────────────┼──────────────┐
-                 │              │              │
-           ┌─────▼─────┐ ┌─────▼─────┐ ┌─────▼─────┐
-           │    CLI     │ │  Gateway  │ │ API Server│
-           │ print to   │ │ edit msg  │ │ SSE event │
-           │ terminal   │ │ on Tg/Dc  │ │ to client │
-           └───────────┘ └───────────┘ └───────────┘
+                          _fire_stream_delta(delta)
+                                |
+  +---------------+    +-------v------------------+
+  |  LLM API      |    |      queue.Queue()        |
+  |  (stream)     |--->|  thread-safe bridge       |
+  |               |    |  agent thread <-> consumer|
+  +---------------+    +-------+-------------------+
+                               |
+                 +-------------+-------------+
+                 |             |             |
+           +-----v-----+ +----v------+ +----v------+
+           |    CLI     | |  Gateway  | | API Server|
+           | print to   | | edit msg  | | SSE event |
+           | terminal   | | on Tg/Dc  | | to client |
+           +-----------+ +-----------+ +-----------+
 ```
-
-The `AIAgent` class in `run_agent.py` accepts an optional `stream_callback: callable = None` parameter. When `None`, all existing code paths are unchanged — the non-streaming path is the fallback for any failure.
 
 ---
 
 ## How Token Delivery Works
 
-### API Modes
+### The Streaming Entry Point
 
-Hermes supports three API modes. Streaming is wired into each:
+When `_has_stream_consumers()` returns `True`, the agent loop calls `_interruptible_streaming_api_call()` instead of `_interruptible_api_call()`. This method handles all three API modes.
+
+### API Modes
 
 **Chat Completions API** (`chat_completions` mode)
 
-The `_run_streaming_chat_completion()` method in `run_agent.py`:
+Inside `_interruptible_streaming_api_call()`, the `_call_chat_completions()` inner function:
 
 1. Adds `stream=True` and `stream_options={"include_usage": True}` to the API call
 2. Iterates chunks from the stream
-3. For text content (`delta.content`): appends to accumulated buffer and calls `stream_callback(delta.content)`
-4. For tool call deltas: accumulates silently into a dict indexed by `tc_delta.index`
-5. At stream end, constructs a fake response object using `SimpleNamespace` that is compatible with the non-streaming code path
-6. On any exception, falls back to `self.client.chat.completions.create(**api_kwargs)` (non-streaming)
+3. For text content (`delta.content`): appends to accumulated buffer and calls `_fire_stream_delta(delta.content)`
+4. For reasoning content: calls `_fire_reasoning_delta()`
+5. For tool call deltas: accumulates silently into a dict indexed by `tc_delta.index`
+6. At stream end, constructs a `SimpleNamespace` response object compatible with the non-streaming code path
+7. On any exception, falls back to `_interruptible_api_call()` (non-streaming)
 
 **Codex Responses API** (`codex_responses` mode)
 
-The existing `_run_codex_stream()` method already iterated the stream. In v0.3.0 it was extended to emit text deltas: when `event.type == 'response.output_text.delta'`, `stream_callback(event.delta)` is called.
+For Codex, `_interruptible_streaming_api_call()` delegates to `_interruptible_api_call()`, which internally calls `_run_codex_stream()`. The `_codex_on_first_delta` callback is temporarily stored on the instance so the Codex streaming path can fire it.
 
 **Anthropic Messages API** (`anthropic_messages` mode)
 
-Native Anthropic streaming is handled through the `AnthropicAuxiliaryClient` in `agent/auxiliary_client.py`, using the Anthropic SDK's streaming interface.
+Native Anthropic streaming is handled within `_interruptible_streaming_api_call()` using the Anthropic SDK's `client.messages.stream()` context manager. Text deltas (`content_block_delta` events of type `text_delta`) are delivered via `_fire_stream_delta()`. Thinking deltas fire `_fire_reasoning_delta()`.
 
 ### End-of-Stream Signal
 
-After `_interruptible_api_call()` returns, the agent sends `stream_callback(None)`. This `None` token is the end-of-stream signal. Consumers use it to:
+After the streaming API call returns, the agent sends `_fire_stream_delta(None)` (a `None` token). This is the end-of-stream signal. Consumers use it to:
 
 - Remove the typing cursor from the terminal display
-- Remove the cursor character (`▌`) from the last gateway message edit
+- Remove the cursor character from the last gateway message edit
 - Close SSE connections in the API server
 
 ### Tool Calls During Streaming
 
-When the model returns tool calls instead of text, no text tokens are emitted — `stream_callback` is never called with text content in that turn. Tool progress messages continue to appear through the existing tool display mechanism. After tools execute, if the model produces a final text response, streaming picks up again.
+When the model returns tool calls instead of text, no text tokens are emitted -- `_fire_stream_delta` is never called with text content in that turn. Tool progress messages continue to appear through the existing `tool_progress_callback` mechanism. After tools execute, if the model produces a final text response, streaming picks up again.
 
 ---
 
@@ -164,14 +177,14 @@ HERMES_STREAMING_ENABLED=true
 
 ### Precedence order
 
-1. API server: the client's `stream` field overrides everything — a `stream: true` request always streams regardless of config
+1. API server: the client's `stream` field overrides everything -- a `stream: true` request always streams regardless of config
 2. Per-platform override (e.g., `streaming.telegram: true`)
 3. Master `streaming.enabled` flag
 4. Default: off
 
 ### Graceful degradation
 
-If the LLM provider does not support streaming, or the streaming connection fails for any reason, the agent falls back silently to the non-streaming path. The user sees the full response as a single block, as in v0.2.0 and earlier.
+If the LLM provider does not support streaming, or the streaming connection fails for any reason, the agent falls back silently to the non-streaming path. The user sees the full response as a single block, as in v0.2.0 and earlier. This fallback is handled within `_interruptible_streaming_api_call()` which catches exceptions and retries via `_interruptible_api_call()`.
 
 ---
 
@@ -181,7 +194,7 @@ The gateway API server (`gateway/platforms/api_server.py`) supports real Server-
 
 When a client sends `stream: true`:
 
-1. A `queue.Queue()` is created and a `_api_stream_callback` function enqueues each token
+1. A `queue.Queue()` is created and a callback function enqueues each token
 2. The agent runs as a background task via `asyncio.create_task`
 3. A real SSE writer reads the queue and emits `chat.completion.chunk` events as tokens arrive
 4. When `None` is received from the queue (end of stream), the SSE writer sends `data: [DONE]` and closes
@@ -192,11 +205,11 @@ For `/v1/responses` with `stream: true`, the events follow the Responses API for
 
 ## Edge Cases
 
-**Interrupt during streaming**: if the user sends a message while the agent is streaming, the HTTP connection is closed via `_interruptible_api_call`. Accumulated tokens are displayed as-is (cursor removed), and the interrupt message is processed normally.
+**Interrupt during streaming**: if the user sends a message while the agent is streaming, the HTTP connection is closed via the interrupt mechanism. Accumulated tokens are displayed as-is (cursor removed), and the interrupt message is processed normally.
 
 **Context compression during streaming**: compression happens between API calls, not during a streaming turn, so it does not affect in-flight streaming tokens.
 
-**Multi-model fallback**: if the primary model fails and the agent falls back to a different model, the streaming state resets. The fallback call may or may not support streaming; the graceful fallback in `_run_streaming_chat_completion` handles both cases.
+**Multi-model fallback**: if the primary model fails and the agent falls back to a different model, the streaming state resets. The fallback call may or may not support streaming; the graceful fallback in `_interruptible_streaming_api_call` handles both cases.
 
 ---
 
@@ -204,7 +217,7 @@ For `/v1/responses` with `stream: true`, the events follow the Responses API for
 
 | File | Role |
 |------|------|
-| `run_agent.py` | `AIAgent.stream_callback`, `_run_streaming_chat_completion()`, `_run_codex_stream()`, `_interruptible_api_call()` |
+| `run_agent.py` | `_fire_stream_delta()`, `_has_stream_consumers()`, `_interruptible_streaming_api_call()`, `stream_delta_callback` (init param), `stream_callback` (run_conversation param) |
 | `gateway/run.py` | Streaming config reader, queue/callback setup, `stream_preview()` task, skip-final-send logic |
 | `gateway/platforms/base.py` | Checks `_streamed_msg_id` in response handler to suppress duplicate send |
 | `cli.py` | CLI streaming callback setup, token display with prompt_toolkit integration |
@@ -215,6 +228,5 @@ For `/v1/responses` with `stream: true`, the events follow the Responses API for
 
 ## Related Docs
 
-- [Architecture](./architecture.md) — agent loop, API modes, concurrent tool execution
-- [Gateway](./gateway.md) — messaging platform setup and configuration
-- [CLI Reference](./cli-reference.md) — CLI commands and flags
+- [Architecture](./architecture.md) -- agent loop, API modes, concurrent tool execution
+- [Changelog](./changelog.md) -- v0.3.0 release notes

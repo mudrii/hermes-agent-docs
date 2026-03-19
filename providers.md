@@ -11,7 +11,7 @@ All providers are registered in `PROVIDER_REGISTRY` in `hermes_cli/auth.py`. The
 | Provider ID | Name | Auth Type | Base URL |
 |-------------|------|-----------|----------|
 | `openrouter` | OpenRouter | API key | `https://openrouter.ai/api/v1` |
-| `nous` | Nous Portal | OAuth device code | `https://portal.nousresearch.com` → `https://inference-api.nousresearch.com/v1` |
+| `nous` | Nous Portal | OAuth device code | `https://portal.nousresearch.com` -> `https://inference-api.nousresearch.com/v1` |
 | `openai-codex` | OpenAI Codex | OAuth external (ChatGPT) | `https://chatgpt.com/backend-api/codex` |
 | `copilot` | GitHub Copilot | API key (GitHub token) | `https://api.githubcopilot.com` |
 | `copilot-acp` | GitHub Copilot ACP | External process | `acp://copilot` |
@@ -28,13 +28,32 @@ All providers are registered in `PROVIDER_REGISTRY` in `hermes_cli/auth.py`. The
 | `opencode-go` | OpenCode Go | API key | `https://opencode.ai/zen/go/v1` |
 | custom | Any OpenAI-compatible endpoint | API key | User-configured |
 
+### Provider Aliases
+
+The following aliases are recognized in `--provider`, `/model provider:model`, and `config.yaml`:
+
+| Alias | Maps to |
+|-------|---------|
+| `glm`, `z-ai`, `z.ai`, `zhipu` | `zai` |
+| `github`, `github-copilot`, `github-models`, `github-model` | `copilot` |
+| `github-copilot-acp`, `copilot-acp-agent` | `copilot-acp` |
+| `kimi`, `moonshot` | `kimi-coding` |
+| `minimax-china`, `minimax_cn` | `minimax-cn` |
+| `claude`, `claude-code` | `anthropic` |
+| `deep-seek` | `deepseek` |
+| `opencode`, `zen` | `opencode-zen` |
+| `go`, `opencode-go-sub` | `opencode-go` |
+| `aigateway`, `vercel`, `vercel-ai-gateway` | `ai-gateway` |
+| `kilo`, `kilo-code`, `kilo-gateway` | `kilocode` |
+| `dashscope`, `aliyun`, `qwen`, `alibaba-cloud` | `alibaba` |
+
 ---
 
 ## Provider Detail
 
 ### OpenRouter
 
-Recommended for flexibility — routes to hundreds of models through a single API key.
+Recommended for flexibility -- routes to hundreds of models through a single API key.
 
 **Setup:**
 
@@ -72,8 +91,16 @@ google/gemini-3-pro-preview
 google/gemini-3-flash-preview
 qwen/qwen3.5-plus-02-15
 qwen/qwen3.5-35b-a3b
+stepfun/step-3.5-flash
+minimax/minimax-m2.5
+z-ai/glm-5
+z-ai/glm-5-turbo
 moonshotai/kimi-k2.5
 x-ai/grok-4.20-beta
+nvidia/nemotron-3-super-120b-a12b:free  (free)
+arcee-ai/trinity-large-preview:free     (free)
+openai/gpt-5.4-pro
+openai/gpt-5.4-nano
 ```
 
 **Key scoping:** `OPENROUTER_API_KEY` is only sent to `openrouter.ai` endpoints. It is never forwarded to custom or other provider endpoints.
@@ -101,7 +128,7 @@ Nous Research's own inference endpoint with subscription-based access.
 | `HERMES_PORTAL_BASE_URL` | Override Nous Portal URL (development/testing) |
 | `NOUS_INFERENCE_BASE_URL` | Override Nous inference API URL |
 | `HERMES_NOUS_MIN_KEY_TTL_SECONDS` | Minimum agent key TTL before re-mint. Default: `1800`. |
-| `HERMES_NOUS_TIMEOUT_SECONDS` | HTTP timeout for Nous credential/token flows. |
+| `HERMES_NOUS_TIMEOUT_SECONDS` | HTTP timeout for Nous credential/token flows. Default: `15`. |
 
 **Static model catalog:**
 
@@ -131,9 +158,11 @@ Hermes stores credentials in `~/.hermes/auth.json` and can import existing Codex
 ```
 gpt-5.3-codex
 gpt-5.2-codex
-gpt-5.1-codex-mini
 gpt-5.1-codex-max
+gpt-5.1-codex-mini
 ```
+
+Forward-compatibility: when the live API returns `gpt-5.2-codex` or `gpt-5.3-codex`, Hermes also surfaces `gpt-5.3-codex-spark` and `gpt-5.4` as synthetic entries.
 
 ---
 
@@ -154,8 +183,8 @@ First-class provider using your GitHub Copilot subscription. Provides access to 
 
 | Prefix | Type | How to obtain |
 |--------|------|---------------|
-| `gho_` | OAuth token | `hermes model` → GitHub Copilot → Login with GitHub |
-| `github_pat_` | Fine-grained PAT | GitHub Settings → Developer settings → Fine-grained tokens (needs Copilot Requests permission) |
+| `gho_` | OAuth token | `hermes model` -> GitHub Copilot -> Login with GitHub |
+| `github_pat_` | Fine-grained PAT | GitHub Settings -> Developer settings -> Fine-grained tokens (needs Copilot Requests permission) |
 | `ghu_` | GitHub App token | Via GitHub App installation |
 
 Classic PATs (`ghp_*`) are **not supported** by the Copilot API and are explicitly rejected.
@@ -214,7 +243,7 @@ hermes chat --provider copilot-acp --model copilot-acp
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `HERMES_COPILOT_ACP_COMMAND` | `copilot` | Override the Copilot CLI binary path |
-| `COPILOT_CLI_PATH` | — | Alias for `HERMES_COPILOT_ACP_COMMAND` |
+| `COPILOT_CLI_PATH` | -- | Alias for `HERMES_COPILOT_ACP_COMMAND` |
 | `HERMES_COPILOT_ACP_ARGS` | `--acp --stdio` | Override ACP arguments |
 | `COPILOT_ACP_BASE_URL` | `acp://copilot` | Override ACP base URL |
 
@@ -222,7 +251,7 @@ hermes chat --provider copilot-acp --model copilot-acp
 
 ### Anthropic (Native)
 
-Native Anthropic Messages API — no OpenRouter proxy needed. Supports native prompt caching.
+Native Anthropic Messages API -- no OpenRouter proxy needed. Supports native prompt caching.
 
 **API mode:** `anthropic_messages` (uses `agent/anthropic_adapter.py` for translation).
 
@@ -240,7 +269,7 @@ hermes chat --provider anthropic --model claude-sonnet-4-6
 Hermes reads Claude Code's own credential files at `~/.claude/.credentials.json`. When valid refreshable credentials exist, Hermes uses them directly, keeping them refreshable instead of copying a static token. The startup gate in `hermes_cli/main.py` explicitly checks for Claude Code credentials via `agent.anthropic_adapter.read_claude_code_credentials()` and `is_claude_code_token_valid()`.
 
 ```bash
-# Auto-detect Claude Code credentials — no env var needed
+# Auto-detect Claude Code credentials -- no env var needed
 hermes chat --provider anthropic
 ```
 
@@ -253,10 +282,10 @@ hermes chat --provider anthropic
 
 **Credential resolution order** (inside `agent/anthropic_adapter.py`):
 
-1. Claude Code credential files (`~/.claude/.credentials.json`) — refreshable, preferred.
-2. `ANTHROPIC_TOKEN` environment variable — manual or legacy OAuth token.
-3. `ANTHROPIC_API_KEY` environment variable — console API key.
-4. `CLAUDE_CODE_OAUTH_TOKEN` environment variable — explicit override.
+1. Claude Code credential files (`~/.claude/.credentials.json`) -- refreshable, preferred.
+2. `ANTHROPIC_TOKEN` environment variable -- manual or legacy OAuth token.
+3. `ANTHROPIC_API_KEY` environment variable -- console API key.
+4. `CLAUDE_CODE_OAUTH_TOKEN` environment variable -- explicit override.
 
 **Environment variables:**
 
@@ -316,6 +345,23 @@ Hermes fetches available models from the gateway's `/models` endpoint, filtering
 | `AI_GATEWAY_API_KEY` | Vercel AI Gateway API key (required) |
 | `AI_GATEWAY_BASE_URL` | Override AI Gateway base URL. Default: `https://ai-gateway.vercel.sh/v1`. |
 
+**Static model catalog:**
+
+```
+anthropic/claude-opus-4.6
+anthropic/claude-sonnet-4.6
+anthropic/claude-sonnet-4.5
+anthropic/claude-haiku-4.5
+openai/gpt-5
+openai/gpt-4.1
+openai/gpt-4.1-mini
+google/gemini-3-pro-preview
+google/gemini-3-flash
+google/gemini-2.5-pro
+google/gemini-2.5-flash
+deepseek/deepseek-v3.2
+```
+
 ---
 
 ### Z.AI / ZhipuAI GLM
@@ -323,6 +369,15 @@ Hermes fetches available models from the gateway's `/models` endpoint, filtering
 ```bash
 hermes chat --provider zai --model glm-5
 ```
+
+**Endpoint auto-detection at setup:** Z.AI has separate billing for general vs coding plans, and global vs China endpoints. During `hermes model` setup, Hermes probes all four endpoint combinations to find one that accepts your API key:
+
+| Endpoint ID | Base URL | Default Model | Label |
+|-------------|----------|---------------|-------|
+| `global` | `https://api.z.ai/api/paas/v4` | `glm-5` | Global |
+| `cn` | `https://open.bigmodel.cn/api/paas/v4` | `glm-5` | China |
+| `coding-global` | `https://api.z.ai/api/coding/paas/v4` | `glm-4.7` | Global (Coding Plan) |
+| `coding-cn` | `https://open.bigmodel.cn/api/coding/paas/v4` | `glm-4.7` | China (Coding Plan) |
 
 **Environment variables:**
 
@@ -366,7 +421,7 @@ hermes chat --provider minimax --model MiniMax-M2.7
 
 | Variable | Description |
 |----------|-------------|
-| `MINIMAX_API_KEY` | MiniMax API key — global endpoint |
+| `MINIMAX_API_KEY` | MiniMax API key -- global endpoint |
 | `MINIMAX_BASE_URL` | Override. Default: `https://api.minimax.io/v1`. |
 
 **China endpoint:**
@@ -377,7 +432,7 @@ hermes chat --provider minimax-cn --model MiniMax-M2.7
 
 | Variable | Description |
 |----------|-------------|
-| `MINIMAX_CN_API_KEY` | MiniMax API key — China endpoint |
+| `MINIMAX_CN_API_KEY` | MiniMax API key -- China endpoint |
 | `MINIMAX_CN_BASE_URL` | Override. Default: `https://api.minimaxi.com/v1`. |
 
 **Static model catalog:** `MiniMax-M2.7`, `MiniMax-M2.7-highspeed`, `MiniMax-M2.5`, `MiniMax-M2.5-highspeed`, `MiniMax-M2.1`
@@ -387,7 +442,7 @@ hermes chat --provider minimax-cn --model MiniMax-M2.7
 ### Alibaba Cloud (DashScope)
 
 ```bash
-hermes chat --provider alibaba --model qwen-plus
+hermes chat --provider alibaba --model qwen3.5-plus
 ```
 
 **API mode:** `anthropic_messages` (routes through Anthropic-compatible DashScope endpoint).
@@ -397,9 +452,11 @@ hermes chat --provider alibaba --model qwen-plus
 | Variable | Description |
 |----------|-------------|
 | `DASHSCOPE_API_KEY` | Alibaba Cloud DashScope API key (required) |
-| `DASHSCOPE_BASE_URL` | Override DashScope base URL |
+| `DASHSCOPE_BASE_URL` | Override DashScope base URL. Default: `https://dashscope-intl.aliyuncs.com/apps/anthropic`. |
 
-**Aliases:** `dashscope`, `qwen` also accepted in some contexts.
+**Aliases:** `dashscope`, `qwen`, `aliyun`, `alibaba-cloud` also accepted.
+
+**Static model catalog:** `qwen3.5-plus`, `qwen3-max`, `qwen3-coder-plus`, `qwen3-coder-next`, `qwen-plus-latest`, `qwen3.5-flash`, `qwen-vl-max`
 
 ---
 
@@ -421,13 +478,15 @@ hermes chat --provider deepseek --model deepseek-chat
 ### Kilo Code
 
 ```bash
-hermes chat --provider kilocode --model <model>
+hermes chat --provider kilocode --model anthropic/claude-opus-4.6
 ```
 
 | Variable | Description |
 |----------|-------------|
 | `KILOCODE_API_KEY` | Kilo Code API key |
 | `KILOCODE_BASE_URL` | Override. Default: `https://api.kilo.ai/api/gateway`. |
+
+**Static model catalog:** `anthropic/claude-opus-4.6`, `anthropic/claude-sonnet-4.6`, `openai/gpt-5.4`, `google/gemini-3-pro-preview`, `google/gemini-3-flash-preview`
 
 ---
 
@@ -442,18 +501,20 @@ hermes chat --provider opencode-zen --model gpt-5.4
 | Variable | Description |
 |----------|-------------|
 | `OPENCODE_ZEN_API_KEY` | OpenCode Zen API key |
-| `OPENCODE_ZEN_BASE_URL` | Override base URL |
+| `OPENCODE_ZEN_BASE_URL` | Override base URL. Default: `https://opencode.ai/zen/v1`. |
 
 **OpenCode Go** ($10/month subscription for open models):
 
 ```bash
-hermes chat --provider opencode-go --model <model>
+hermes chat --provider opencode-go --model glm-5
 ```
 
 | Variable | Description |
 |----------|-------------|
 | `OPENCODE_GO_API_KEY` | OpenCode Go API key |
-| `OPENCODE_GO_BASE_URL` | Override base URL |
+| `OPENCODE_GO_BASE_URL` | Override base URL. Default: `https://opencode.ai/zen/go/v1`. |
+
+**OpenCode Go model catalog:** `glm-5`, `kimi-k2.5`, `minimax-m2.5`
 
 ---
 
@@ -531,6 +592,14 @@ The shared resolution path is implemented in `hermes_cli/runtime_provider.py` (`
 
 This ordering prevents a stale shell export from silently overriding the provider a user last selected in `hermes model`.
 
+### Auto-Detection Order (when provider is `auto`)
+
+1. Active OAuth provider in `~/.hermes/auth.json` with valid credentials (Nous Portal, OpenAI Codex).
+2. Explicit CLI `api_key`/`base_url` -> `openrouter`.
+3. `OPENAI_API_KEY` or `OPENROUTER_API_KEY` env vars -> `openrouter`.
+4. Provider-specific API keys checked in `PROVIDER_REGISTRY` order (Z.AI, Kimi, MiniMax, DeepSeek, etc.) -> that provider. Note: `copilot` is intentionally skipped in auto-detection because `GITHUB_TOKEN` is commonly present for repo/tool access.
+5. Fallback: `openrouter`.
+
 ### Output of Runtime Resolution
 
 `resolve_runtime_provider()` returns a dict containing:
@@ -541,7 +610,7 @@ This ordering prevents a stale shell export from silently overriding the provide
 | `api_mode` | `chat_completions`, `codex_responses`, or `anthropic_messages` |
 | `base_url` | API endpoint base URL |
 | `api_key` | Resolved API key or token |
-| `source` | Where the credentials came from (`env`, `portal`, `auth-store`, `explicit`) |
+| `source` | Where the credentials came from (`env`, `portal`, `auth-store`, `explicit`, `env/config`) |
 | `requested_provider` | The provider ID that was originally requested |
 | Provider-specific | `expires_at`, `last_refresh`, `command`, `args` for relevant providers |
 
@@ -551,7 +620,7 @@ This ordering prevents a stale shell export from silently overriding the provide
 |------|---------|
 | `chat_completions` | OpenRouter, Nous, custom endpoints, most API-key providers |
 | `codex_responses` | OpenAI Codex (`openai-codex`), GPT-5+ models on Copilot |
-| `anthropic_messages` | Anthropic native, Alibaba Cloud DashScope |
+| `anthropic_messages` | Anthropic native, Alibaba Cloud DashScope, any endpoint whose URL ends in `/anthropic` |
 
 ### Key Scoping (Anti-Leakage)
 
@@ -562,7 +631,7 @@ Hermes enforces strict API key scoping to prevent credentials from leaking to un
 - `OPENAI_API_KEY` is used for custom endpoints and as a fallback.
 - `OPENROUTER_API_KEY` is not reused for auxiliary task custom endpoints.
 
-When the resolved `base_url` targets `openrouter.ai`, the key priority is `OPENROUTER_API_KEY` → `OPENAI_API_KEY`. For all other endpoints, the priority is `OPENAI_API_KEY` → `OPENROUTER_API_KEY`.
+When the resolved `base_url` targets `openrouter.ai`, the key priority is `OPENROUTER_API_KEY` -> `OPENAI_API_KEY`. For all other endpoints, the priority is `OPENAI_API_KEY` -> `OPENROUTER_API_KEY`.
 
 ---
 
@@ -580,71 +649,7 @@ provider_routing:
   data_collection: null      # "allow" or "deny"
 ```
 
-This applies to both CLI and gateway modes. The config is passed to `AIAgent` as separate parameters that are forwarded to OpenRouter via the `extra_body.provider` field.
-
 Provider routing only applies when using OpenRouter. It has no effect with direct provider connections.
-
-### Options
-
-**`sort`** — How OpenRouter ranks available providers:
-
-| Value | Description |
-|-------|-------------|
-| `"price"` | Cheapest provider first (default) |
-| `"throughput"` | Fastest tokens-per-second first |
-| `"latency"` | Lowest time-to-first-token first |
-
-**`only`** — Whitelist of provider names. Only these providers will be used:
-
-```yaml
-provider_routing:
-  only: ["Anthropic", "Google"]
-```
-
-**`ignore`** — Blacklist of provider names. These providers will never be used:
-
-```yaml
-provider_routing:
-  ignore: ["Together", "DeepInfra"]
-```
-
-**`order`** — Explicit priority order. Unlisted providers are used as fallbacks:
-
-```yaml
-provider_routing:
-  order: ["Anthropic", "Google", "AWS Bedrock"]
-```
-
-**`require_parameters`** — When `true`, only routes to providers that support all request parameters (like `temperature`, `top_p`, `tools`). Prevents silent parameter drops.
-
-**`data_collection`** — `"allow"` or `"deny"`. `"deny"` excludes providers that may store or train on your data.
-
-### Shortcuts
-
-Append to any model name:
-
-- `:nitro` — throughput sorting (e.g., `anthropic/claude-sonnet-4:nitro`)
-- `:floor` — price sorting (e.g., `anthropic/claude-sonnet-4:floor`)
-
-### Examples
-
-```yaml
-# Cost optimization
-provider_routing:
-  sort: "price"
-  ignore: ["Together"]
-  require_parameters: true
-  data_collection: "deny"
-
-# Lock to Anthropic
-provider_routing:
-  only: ["Anthropic"]
-
-# Preferred order with fallbacks
-provider_routing:
-  order: ["Anthropic", "Google"]
-  require_parameters: true
-```
 
 ---
 
@@ -662,35 +667,15 @@ smart_model_routing:
   cheap_model:
     provider: openrouter
     model: google/gemini-2.5-flash
-    # base_url: http://localhost:8000/v1   # optional custom endpoint
-    # api_key_env: MY_CUSTOM_KEY           # optional env var for that endpoint
 ```
-
-**When it activates:**
-
-- The turn is short (within `max_simple_chars` and `max_simple_words`).
-- The turn is single-line.
-- The turn does not look code/tool/debug-heavy.
-
-**When it stays on the primary model:**
-
-- Coding or debugging work.
-- Tool-heavy requests.
-- Long or multi-line analysis.
-
-**Fallback:** If the cheap route cannot be resolved cleanly, Hermes falls back to the primary model automatically.
-
-This is intentionally conservative. Use it when you want lower latency or cost without fully changing your default model.
 
 ---
 
 ## Fallback Providers
 
-Hermes has two independent fallback systems:
-
 ### Primary Model Fallback
 
-Automatically switches to a backup provider:model when the main model fails with rate limits, server errors, auth failures, or invalid responses.
+Automatically switches to a backup provider:model when the main model fails with rate limits (429), overload (529), server errors (503), or connection failures.
 
 **Configuration in `config.yaml`:**
 
@@ -698,220 +683,26 @@ Automatically switches to a backup provider:model when the main model fails with
 fallback_model:
   provider: openrouter       # required
   model: anthropic/claude-sonnet-4  # required
-  # base_url: http://localhost:8000/v1   # optional, for custom endpoints
-  # api_key_env: MY_CUSTOM_KEY           # optional, env var name for the API key
 ```
 
-Both `provider` and `model` are required. If either is missing, fallback is disabled.
-
-**Trigger conditions:**
-
-| Trigger | Details |
-|---------|---------|
-| Rate limits (`429`) | After exhausting retry attempts |
-| Server errors (`500`, `502`, `503`) | After exhausting retry attempts |
-| Auth failures (`401`, `403`) | Immediately — no retries |
-| Not found (`404`) | Immediately |
-| Invalid responses | When the API returns malformed or empty responses repeatedly |
-
-**Activation flow** (from `hermes_cli/runtime_provider.py` via `AIAgent._try_activate_fallback()`):
-
-1. Returns `False` immediately if already activated or not configured.
-2. Calls `resolve_provider_client()` from `agent/auxiliary_client.py` to build a new client.
-3. Determines `api_mode`: `codex_responses` for `openai-codex`, `anthropic_messages` for `anthropic`, `chat_completions` for everything else.
-4. Swaps in-place: `self.model`, `self.provider`, `self.base_url`, `self.api_mode`, `self.client`.
-5. For Anthropic fallback: builds a native Anthropic client.
-6. Re-evaluates prompt caching (enabled for Claude models on OpenRouter).
-7. Sets `_fallback_activated = True` — fires **at most once** per session.
-8. Resets retry count to 0 and continues the agent loop.
-
-**Supported fallback providers:**
-
-| Provider value | Requirements |
-|---------------|-------------|
-| `openrouter` | `OPENROUTER_API_KEY` |
-| `nous` | `hermes login` (OAuth) |
-| `openai-codex` | `hermes model` (ChatGPT OAuth) |
-| `copilot` | GitHub token |
-| `anthropic` | `ANTHROPIC_API_KEY` or Claude Code credentials |
-| `zai` | `GLM_API_KEY` |
-| `kimi-coding` | `KIMI_API_KEY` |
-| `minimax` | `MINIMAX_API_KEY` |
-| `minimax-cn` | `MINIMAX_CN_API_KEY` |
-| `kilocode` | `KILOCODE_API_KEY` |
-| `ai-gateway` | `AI_GATEWAY_API_KEY` |
-| `custom` | `base_url` + optional `api_key_env` |
-
-**Where fallback works:**
-
-| Context | Supported |
-|---------|-----------|
-| CLI sessions | Yes |
-| Messaging gateway | Yes |
-| Subagent delegation | No — subagents do not inherit fallback config |
-| Cron jobs | No — run with a fixed provider |
-| Auxiliary tasks | No — use their own provider chain |
-
-Fallback is configured exclusively through `config.yaml`. There are no environment variables for it.
-
-**Examples:**
-
-```yaml
-# OpenRouter fallback for Anthropic native
-model:
-  provider: anthropic
-  default: claude-sonnet-4-6
-fallback_model:
-  provider: openrouter
-  model: anthropic/claude-sonnet-4
-
-# Local model as fallback for cloud
-fallback_model:
-  provider: custom
-  model: llama-3.1-70b
-  base_url: http://localhost:8000/v1
-  api_key_env: LOCAL_API_KEY
-```
+Fires at most once per session. Configured exclusively through `config.yaml`.
 
 ### Auxiliary Task Fallback
 
-Auxiliary tasks (vision, web extraction, compression, memory flush, etc.) each have their own independent provider resolution chain.
-
-**Auto-detection chain for text tasks:**
-
-```
-OpenRouter → Nous Portal → Custom endpoint → Codex OAuth →
-API-key providers (z.ai, Kimi, MiniMax, Anthropic) → give up
-```
-
-**Auto-detection chain for vision tasks:**
-
-```
-Main provider (if vision-capable) → OpenRouter → Nous Portal →
-Codex OAuth → Anthropic → Custom endpoint → give up
-```
-
-If the resolved provider fails at call time, Hermes tries OpenRouter as a last-resort fallback (unless the provider is already OpenRouter or an explicit `base_url` is set).
-
-**Auxiliary tasks with independent provider resolution:**
-
-| Task | Config key |
-|------|-----------|
-| Vision (image analysis, browser screenshots) | `auxiliary.vision` |
-| Web extraction (page summarization) | `auxiliary.web_extract` |
-| Context compression | `auxiliary.compression` or `compression.summary_provider` |
-| Session search | `auxiliary.session_search` |
-| Skills hub | `auxiliary.skills_hub` |
-| MCP helpers | `auxiliary.mcp` |
-| Memory flush | `auxiliary.flush_memories` |
-
-**Configuration:**
-
-```yaml
-auxiliary:
-  vision:
-    provider: "auto"              # auto | openrouter | nous | codex | main | anthropic
-    model: ""                     # e.g. "openai/gpt-4o"
-    base_url: ""                  # direct endpoint (takes precedence over provider)
-    api_key: ""                   # API key for base_url
-  web_extract:
-    provider: "auto"
-    model: ""
-  compression:
-    provider: "auto"
-    model: ""
-```
-
-When `base_url` is set, it takes precedence over `provider`. Authentication uses the configured `api_key`, falling back to `OPENAI_API_KEY`. `OPENROUTER_API_KEY` is never reused for custom endpoints.
-
-**Provider options for auxiliary tasks:**
-
-| Value | Description | Requirements |
-|-------|-------------|-------------|
-| `"auto"` | Try providers in order (default) | At least one provider configured |
-| `"openrouter"` | Force OpenRouter | `OPENROUTER_API_KEY` |
-| `"nous"` | Force Nous Portal | `hermes login` |
-| `"codex"` | Force Codex OAuth | `hermes model` → Codex |
-| `"main"` | Use the main agent's provider | Active main provider |
-| `"anthropic"` | Force Anthropic native | `ANTHROPIC_API_KEY` or Claude Code credentials |
-
-When `provider: "main"` is set, the auxiliary task routes through the same custom endpoint as the main agent — whether that comes from `OPENAI_BASE_URL`, a saved `hermes model` endpoint, or `config.yaml`.
+Auxiliary tasks each have their own independent provider resolution chain. All tasks fall back to `openrouter:google/gemini-3-flash-preview` if the configured provider is unavailable.
 
 ---
 
 ## Adding a Custom Provider
 
-Hermes can already talk to any OpenAI-compatible endpoint through the custom provider path (`OPENAI_BASE_URL` + `OPENAI_API_KEY`). A built-in first-class provider is only needed when you want:
-
-- Provider-specific auth or token refresh.
-- A curated model catalog shown in menus.
-- Setup / `hermes model` menu entries.
-- Provider aliases for `provider:model` syntax.
-- A non-OpenAI API shape requiring a new adapter.
-
-### Implementation Layers
-
-A built-in provider must be consistent across these files (from `website/docs/developer-guide/adding-providers.md`):
+Key files to update:
 
 | File | Purpose |
 |------|---------|
-| `hermes_cli/auth.py` | `ProviderConfig` entry in `PROVIDER_REGISTRY`, aliases in `_PROVIDER_ALIASES` |
-| `hermes_cli/models.py` | Model catalog in `_PROVIDER_MODELS`, display labels in `_PROVIDER_LABELS`, aliases in `_PROVIDER_ALIASES` |
-| `hermes_cli/runtime_provider.py` | Runtime resolution branch returning `provider`, `api_mode`, `base_url`, `api_key`, `source` |
-| `hermes_cli/main.py` | `provider_labels`, dispatch inside the `model` command, `--provider` argument choices |
-| `hermes_cli/setup.py` | `provider_choices`, auth branch, model-selection branch |
-| `agent/auxiliary_client.py` | Default aux model in `_API_KEY_PROVIDER_AUX_MODELS` |
-| `agent/model_metadata.py` | Context lengths for the provider's models |
-
-For a native provider with a non-OpenAI protocol (like `anthropic_messages` or `codex_responses`):
-
-- Add `agent/<provider>_adapter.py` — handles client construction, message conversion, response normalization, usage extraction.
-- Update `run_agent.py` — add the new `api_mode` to every switch point: `__init__`, `_build_api_kwargs()`, `_api_call_with_interrupt()`, interrupt/rebuild paths, response validation, finish-reason extraction, token-usage extraction, fallback activation.
-
-### Two Implementation Paths
-
-**Path A — OpenAI-compatible:** The provider accepts standard chat-completions requests. You do not need a new adapter or `api_mode`. Add auth metadata, model catalog, runtime resolution, and CLI wiring.
-
-**Path B — Native:** The provider uses a different protocol. Add everything from Path A plus a provider adapter and `run_agent.py` branches.
-
-### Step-by-Step Summary
-
-1. **Pick a canonical provider ID** — e.g., `kimi-coding`. Use it everywhere: `PROVIDER_REGISTRY`, `_PROVIDER_LABELS`, `_PROVIDER_ALIASES`, `--provider` choices, tests.
-
-2. **Add `ProviderConfig` in `hermes_cli/auth.py`:**
-
-   ```python
-   "my-provider": ProviderConfig(
-       id="my-provider",
-       name="My Provider",
-       auth_type="api_key",
-       inference_base_url="https://api.myprovider.com/v1",
-       api_key_env_vars=("MY_PROVIDER_API_KEY",),
-       base_url_env_var="MY_PROVIDER_BASE_URL",
-   ),
-   ```
-
-3. **Add model catalog in `hermes_cli/models.py`:** Update `_PROVIDER_MODELS`, `_PROVIDER_LABELS`, `_PROVIDER_ALIASES`, and `list_available_providers()`. If the provider exposes a live `/models` endpoint, prefer that over a static list.
-
-4. **Add runtime resolution in `hermes_cli/runtime_provider.py`:** Return at minimum `{"provider", "api_mode", "base_url", "api_key", "source", "requested_provider"}`. For OpenAI-compatible providers, `api_mode` is `chat_completions`.
-
-5. **Wire the CLI in `hermes_cli/main.py` and `hermes_cli/setup.py`:** Both must know about the provider — only updating one causes `hermes model` and `hermes setup` to drift.
-
-6. **Add auxiliary defaults in `agent/auxiliary_client.py`:** Add the provider's cheap/fast aux model to `_API_KEY_PROVIDER_AUX_MODELS`.
-
-7. **Add context lengths in `agent/model_metadata.py`:** Required for token budgeting and compression thresholds.
-
-8. **For native providers:** Add `agent/<provider>_adapter.py` and update all `api_mode` switch points in `run_agent.py`. Search for `api_mode` and `self.client.` — every path that assumes the standard OpenAI client can break.
-
-9. **Add tests:** Cover auth resolution, CLI menu/provider selection, runtime provider resolution, agent execution path, `provider:model` parsing, and any adapter-specific message conversion.
-
-10. **Update user docs:** `website/docs/user-guide/configuration.md` and `website/docs/reference/environment-variables.md`.
-
-### Common Pitfalls
-
-- Adding the provider to `auth.py` but not `models.py` — credentials resolve but `/model` and `provider:model` inputs fail.
-- Forgetting that `config["model"]` can be a string or a dict — normalize both forms.
-- Not updating `hermes setup` when you update `hermes model` — both flows must stay in sync.
-- Missing auxiliary paths — the main chat path works while vision helpers or compression fail silently.
-- Sending OpenRouter-only fields (like provider routing) to other providers.
-- Native-provider branches hiding in `run_agent.py` — search exhaustively for `api_mode` and `self.client.`.
+| `hermes_cli/auth.py` | `ProviderConfig` entry in `PROVIDER_REGISTRY` |
+| `hermes_cli/models.py` | Model catalog in `_PROVIDER_MODELS`, labels in `_PROVIDER_LABELS`, aliases in `_PROVIDER_ALIASES` |
+| `hermes_cli/runtime_provider.py` | Runtime resolution branch |
+| `hermes_cli/main.py` | `--provider` argument choices, `model` command dispatch |
+| `hermes_cli/setup.py` | Setup wizard provider selection |
+| `agent/auxiliary_client.py` | Default auxiliary model |
+| `agent/model_metadata.py` | Context lengths |

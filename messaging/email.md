@@ -108,6 +108,10 @@ Replies are sent via SMTP with proper email threading:
 - **Message-ID** generated with the agent's domain
 - Responses are sent as plain text (UTF-8)
 
+### Message Length Limit
+
+Email responses are limited to 50,000 characters per email body. This is a Gmail-safe maximum; other providers may have different limits.
+
 ### File Attachments (Outgoing)
 
 The agent can send file attachments in replies. Include `MEDIA:/path/to/file` in the response and the file is attached to the outgoing email.
@@ -149,6 +153,7 @@ platforms:
 | `EMAIL_POLL_INTERVAL` | No | `15` | Seconds between inbox checks |
 | `EMAIL_ALLOWED_USERS` | No | — | Comma-separated allowed sender addresses |
 | `EMAIL_HOME_ADDRESS` | No | — | Default delivery target for cron jobs |
+| `EMAIL_HOME_ADDRESS_NAME` | No | `Home` | Display name for the home address |
 | `EMAIL_ALLOW_ALL_USERS` | No | `false` | Allow all senders (not recommended) |
 
 ---

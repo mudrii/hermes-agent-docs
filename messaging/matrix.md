@@ -184,7 +184,9 @@ unauthorized_dm_behavior: pair    # pair | ignore
 | `MATRIX_USER_ID` | See notes | Bot's Matrix user ID; auto-detected from token if omitted |
 | `MATRIX_ALLOWED_USERS` | Recommended | Comma-separated Matrix user IDs (full `@user:server` format) |
 | `MATRIX_HOME_ROOM` | No | Room ID for cron job delivery |
+| `MATRIX_HOME_ROOM_NAME` | No | Display name for the home room (default: `Home`) |
 | `MATRIX_ENCRYPTION` | No | Set to `true` to enable E2EE |
+| `MATRIX_ALLOW_ALL_USERS` | No | Allow all users (not recommended) |
 
 ---
 
@@ -253,7 +255,9 @@ Do not delete the `~/.hermes/matrix/store/` directory — the bot loses its encr
 
 ---
 
-## Media Support
+## Message Length and Media Support
+
+Matrix messages are limited to 4,000 characters (the spec has no hard limit, but clients render poorly above this). Longer responses are split at natural boundaries.
 
 Hermes can send and receive images, audio, video, and file attachments. Media is uploaded to your homeserver using the Matrix content repository API.
 

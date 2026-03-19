@@ -224,6 +224,7 @@ Skills for spawning and orchestrating autonomous AI coding agents and multi-agen
 | Skill | Description | Path |
 |-------|-------------|------|
 | `dogfood` | Systematic exploratory QA testing of web applications — find bugs, capture evidence, and generate structured reports. | `dogfood` |
+| `hermes-agent-setup` | Help users configure Hermes Agent — CLI usage, setup wizard, model/provider selection, tools, skills, voice/STT/TTS, gateway, and troubleshooting. | `dogfood/hermes-agent-setup` |
 
 ### email
 
@@ -251,6 +252,12 @@ GitHub workflow skills for managing repositories, pull requests, code reviews, i
 | `github-pr-workflow` | Full pull request lifecycle — create branches, commit changes, open PRs, monitor CI, auto-fix failures, and merge. | `github/github-pr-workflow` |
 | `github-repo-management` | Clone, create, fork, configure, and manage GitHub repositories. Manage remotes, secrets, releases, and workflows. | `github/github-repo-management` |
 
+### inference-sh
+
+| Skill | Description | Path |
+|-------|-------------|------|
+| `inference-sh-cli` | Run 150+ AI apps via inference.sh CLI (infsh) — image generation, video creation, LLMs, search, 3D, social automation. No GPU required. | `inference-sh/cli` |
+
 ### leisure
 
 | Skill | Description | Path |
@@ -272,6 +279,12 @@ GitHub workflow skills for managing repositories, pull requests, code reviews, i
 | `heartmula` | Set up and run HeartMuLa, the open-source music generation model family. Generates full songs from lyrics and tags with multilingual support. | `media/heartmula` |
 | `songsee` | Generate spectrograms and audio feature visualizations (mel, chroma, MFCC, tempogram) from audio files via CLI. | `media/songsee` |
 | `youtube-content` | Fetch YouTube video transcripts and transform them into structured content (chapters, summaries, threads, blog posts). | `media/youtube-content` |
+
+### mlops
+
+| Skill | Description | Path |
+|-------|-------------|------|
+| `huggingface-hub` | Hugging Face Hub CLI (hf) — search, download, and upload models and datasets, manage repos, query datasets with SQL, deploy inference endpoints, manage Spaces and buckets. | `mlops/huggingface-hub` |
 
 ### mlops/cloud
 
@@ -372,6 +385,7 @@ Vector similarity search and embedding databases for RAG, semantic search, and A
 | `google-workspace` | Gmail, Calendar, Drive, Contacts, Sheets, and Docs integration via Python with OAuth2 and automatic token refresh. | `productivity/google-workspace` |
 | `nano-pdf` | Edit PDFs with natural-language instructions using the nano-pdf CLI — modify text, fix typos, update titles. | `productivity/nano-pdf` |
 | `notion` | Notion API for creating and managing pages, databases, and blocks via curl. Search, create, update, and query workspaces. | `productivity/notion` |
+| `linear` | Manage Linear issues, projects, and teams via the GraphQL API. Create, update, search, and organize issues. All operations via curl. | `productivity/linear` |
 | `ocr-and-documents` | Extract text from PDFs and scanned documents using pymupdf, marker-pdf, and web_extract. | `productivity/ocr-and-documents` |
 | `powerpoint` | Work with .pptx files — create slide decks, read/parse/extract text, edit content using python-pptx. | `productivity/powerpoint` |
 
@@ -384,6 +398,7 @@ Vector similarity search and embedding databases for RAG, semantic search, and A
 | `domain-intel` | Passive domain reconnaissance — subdomain discovery, SSL certificate inspection, WHOIS lookups, DNS records, domain availability checks. No API keys required. | `research/domain-intel` |
 | `duckduckgo-search` | Free web search via DuckDuckGo — text, news, images, videos. No API key needed. Uses `fallback_for_toolsets: [web]` so it only appears when the web toolset is unavailable. | `research/duckduckgo-search` |
 | `ml-paper-writing` | Write publication-ready ML/AI papers for NeurIPS, ICML, ICLR, ACL, AAAI, COLM. Includes LaTeX templates and reviewer guidelines. | `research/ml-paper-writing` |
+| `parallel-cli` | Parallel CLI agent-native web search, extraction, deep research, enrichment, FindAll, and monitoring. JSON output and non-interactive flows. | `research/parallel-cli` |
 | `polymarket` | Query Polymarket prediction market data — search markets, prices, orderbooks, and price history. Read-only via public REST APIs. | `research/polymarket` |
 
 ### smart-home
@@ -391,6 +406,12 @@ Vector similarity search and embedding databases for RAG, semantic search, and A
 | Skill | Description | Path |
 |-------|-------------|------|
 | `openhue` | Control Philips Hue lights, rooms, and scenes via the OpenHue CLI. Turn lights on/off, adjust brightness, color, and color temperature. | `smart-home/openhue` |
+
+### social-media
+
+| Skill | Description | Path |
+|-------|-------------|------|
+| `xitter` | Interact with X/Twitter via the x-cli terminal client using official X API credentials. Post, read timelines, search tweets, like, retweet, bookmarks, mentions, and user lookups. | `social-media/xitter` |
 
 ### software-development
 
@@ -421,7 +442,14 @@ Browse all: `hermes skills browse --source official`
 
 | Skill | Description | Path |
 |-------|-------------|------|
+| `base` | Query Base (Ethereum L2) blockchain data with USD pricing — wallet balances, token info, transaction details, gas analysis, contract inspection, whale detection, and live network stats. Uses Base RPC + CoinGecko. No API key required. | `blockchain/base` |
 | `solana` | Query Solana blockchain data with USD pricing — wallet balances, token portfolios, transaction details, NFTs, whale detection, and live network stats. Uses Solana RPC + CoinGecko. No API key required. | `blockchain/solana` |
+
+### creative
+
+| Skill | Description | Path |
+|-------|-------------|------|
+| `blender-mcp` | Control Blender directly from Hermes via socket connection to the blender-mcp addon. Create 3D objects, materials, animations, and run arbitrary Blender Python (bpy) code. Requires Blender 4.3+. | `creative/blender-mcp` |
 
 ### email
 
@@ -441,6 +469,12 @@ Browse all: `hermes skills browse --source official`
 |-------|-------------|------|
 | `openclaw-migration` | Migrate OpenClaw customization footprint (memories, SOUL.md, command allowlists, user skills, workspace assets from ~/.openclaw) into Hermes Agent. | `migration/openclaw-migration` |
 
+### productivity
+
+| Skill | Description | Path |
+|-------|-------------|------|
+| `telephony` | Give Hermes phone capabilities without core tool changes. Provision and persist a Twilio number, send and receive SMS/MMS, make direct calls, and place AI-driven outbound calls through Bland.ai or Vapi. | `productivity/telephony` |
+
 ### research
 
 | Skill | Description | Path |
@@ -452,6 +486,8 @@ Browse all: `hermes skills browse --source official`
 | Skill | Description | Path |
 |-------|-------------|------|
 | `1password` | Set up and use 1Password CLI (op). Install the CLI, enable desktop app integration, sign in, and read/inject secrets for commands. | `security/1password` |
+| `oss-forensics` | Supply chain investigation, evidence recovery, and forensic analysis for GitHub repositories. Covers deleted commit recovery, force-push detection, IOC extraction, multi-source evidence collection, and structured forensic reporting. | `security/oss-forensics` |
+| `sherlock` | OSINT username search across 400+ social networks. Hunt down social media accounts by username. Requires the sherlock CLI. | `security/sherlock` |
 
 ## Per-Platform Skill Enable/Disable
 

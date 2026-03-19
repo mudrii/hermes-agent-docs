@@ -8,20 +8,22 @@ This section covers v0.2.0 (v2026.3.12) and v0.3.0 (v2026.3.17).
 
 ## Platform Overview
 
-| Platform | Protocol | Auth type | Requires public URL | Voice |
-|----------|----------|-----------|---------------------|-------|
-| [Telegram](telegram.md) | Bot API + polling | Bot token | No | Voice bubbles, TTS, STT |
-| [Discord](discord.md) | WebSocket + REST | Bot token | No | Voice messages, voice channels |
-| [Slack](slack.md) | Socket Mode (WebSocket) | Bot token + App token | No | Audio file attachments |
-| [WhatsApp](whatsapp.md) | Baileys bridge (WhatsApp Web) | QR code scan | No | OGG, MP3 attachments |
-| [Signal](signal.md) | signal-cli HTTP/SSE | QR code link | No | Audio attachments |
-| [Email](email.md) | IMAP + SMTP | Email credentials | No | — |
-| [Matrix](matrix.md) | matrix-nio (sync) | Access token or password | No | Audio attachments |
-| [Mattermost](mattermost.md) | REST API + WebSocket | Bot token | No | Audio attachments |
-| [DingTalk](dingtalk.md) | Stream Mode (WebSocket) | Client ID + Secret | No | — |
-| [Home Assistant](homeassistant.md) | WebSocket + REST | Long-lived access token | No | — |
-| [SMS (Twilio)](sms.md) | Twilio webhook | Account SID + Auth token | Yes | — |
-| [Open WebUI / API Server](open-webui.md) | OpenAI-compatible HTTP | Optional API key | No | — |
+| Platform | Protocol | Auth type | Requires public URL | Voice | Streaming |
+|----------|----------|-----------|---------------------|-------|-----------|
+| [Telegram](telegram.md) | Bot API + polling | Bot token | No | Voice bubbles, TTS, STT | Yes |
+| [Discord](discord.md) | WebSocket + REST | Bot token | No | Voice messages, voice channels | Yes |
+| [Slack](slack.md) | Socket Mode (WebSocket) | Bot token + App token | No | Audio file attachments | Yes |
+| [WhatsApp](whatsapp.md) | Baileys bridge (WhatsApp Web) | QR code scan | No | OGG, MP3 attachments | Yes |
+| [Signal](signal.md) | signal-cli HTTP/SSE | QR code link | No | Audio attachments | No |
+| [Email](email.md) | IMAP + SMTP | Email credentials | No | — | No |
+| [Matrix](matrix.md) | matrix-nio (sync) | Access token or password | No | Audio attachments | Yes |
+| [Mattermost](mattermost.md) | REST API + WebSocket | Bot token | No | Audio attachments | Yes |
+| [DingTalk](dingtalk.md) | Stream Mode (WebSocket) | Client ID + Secret | No | — | No |
+| [Home Assistant](homeassistant.md) | WebSocket + REST | Long-lived access token | No | — | No |
+| [SMS (Twilio)](sms.md) | Twilio webhook | Account SID + Auth token | Yes | — | No |
+| [Open WebUI / API Server](open-webui.md) | OpenAI-compatible HTTP | Optional API key | No | — | No |
+
+Streaming uses the `edit` transport: the bot sends an initial message then progressively edits it as tokens arrive, showing a cursor indicator. Platforms without `edit_message` support fall back gracefully to sending the final response in one message.
 
 ---
 
@@ -43,9 +45,10 @@ This walks through platform selection, credential entry, and writes configuratio
 
 Every platform uses the same authorization model. By default, the gateway denies all users. To grant access:
 
-1. **Allowlist** — Set `PLATFORM_ALLOWED_USERS` in `~/.hermes/.env` with comma-separated user IDs
+1. **Allowlist** — Set `<PLATFORM>_ALLOWED_USERS` in `~/.hermes/.env` with comma-separated user IDs
 2. **DM Pairing** — Unknown users receive a one-time pairing code you approve with `hermes pairing approve <platform> <code>`
-3. **Allow all** — Set `GATEWAY_ALLOW_ALL_USERS=true` (not recommended for bots with terminal access)
+3. **Per-platform allow-all** — Set `<PLATFORM>_ALLOW_ALL_USERS=true` (e.g., `DISCORD_ALLOW_ALL_USERS=true`)
+4. **Global allow-all** — Set `GATEWAY_ALLOW_ALL_USERS=true` (not recommended for bots with terminal access)
 
 The `unauthorized_dm_behavior` setting controls what happens when an unlisted user DMs the bot:
 - `pair` (default) — send the user a pairing code

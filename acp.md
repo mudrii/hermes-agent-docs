@@ -16,19 +16,20 @@ ACP (Agent Communication Protocol) is a JSON-RPC protocol over stdio that allows
 - File diff rendering
 - Approval prompts for dangerous commands
 - Model switching per-session
+- Session listing and forking
 
-Hermes implements an ACP server in the `acp_adapter/` package. The adapter wraps Hermes' synchronous `AIAgent` in an async JSON-RPC stdio server.
+Hermes implements an ACP server in the `acp_adapter/` package. The adapter wraps Hermes' synchronous `AIAgent` in an async JSON-RPC stdio server using `asyncio.run_coroutine_threadsafe()` to bridge the synchronous agent thread with the async ACP I/O loop.
 
 ### Key implementation files
 
 | File | Purpose |
 |------|---------|
 | `acp_adapter/entry.py` | Boot entrypoint, env loading, server startup |
-| `acp_adapter/server.py` | `HermesACPAgent` — implements the ACP agent protocol |
-| `acp_adapter/session.py` | `SessionManager` — tracks live ACP sessions |
+| `acp_adapter/server.py` | `HermesACPAgent` -- implements the ACP agent protocol |
+| `acp_adapter/session.py` | `SessionManager` -- tracks live ACP sessions |
 | `acp_adapter/events.py` | Event bridge: AIAgent callbacks to ACP `session_update` events |
 | `acp_adapter/permissions.py` | Permission bridge: dangerous command approval to ACP permission requests |
-| `acp_adapter/tools.py` | Tool rendering helpers — maps Hermes tools to ACP tool kinds and content |
+| `acp_adapter/tools.py` | Tool rendering helpers -- maps Hermes tools to ACP tool kinds and content |
 | `acp_adapter/auth.py` | Provider/auth resolution for ACP |
 | `acp_registry/agent.json` | ACP registry manifest |
 
@@ -49,14 +50,14 @@ Hermes implements an ACP server in the `acp_adapter/` package. The adapter wraps
 Install Hermes normally, then add the `acp` extra:
 
 ```bash
-pip install -e '.[acp]'
+uv pip install -e '.[acp]'
 ```
 
 This installs `agent-client-protocol>=0.8.1,<1.0` and enables three entry points:
 
-- `hermes acp` — CLI subcommand
-- `hermes-acp` — standalone binary
-- `python -m acp_adapter` — module invocation
+- `hermes acp` -- CLI subcommand
+- `hermes-acp` -- standalone binary (defined as `acp_adapter.entry:main` in pyproject.toml)
+- `python -m acp_adapter` -- module invocation (via `acp_adapter/__main__.py`)
 
 ---
 
@@ -83,8 +84,9 @@ All three are equivalent. Hermes logs to stderr so stdout remains reserved for A
 ```
 hermes acp / hermes-acp / python -m acp_adapter
   -> acp_adapter.entry.main()
-  -> load ~/.hermes/.env
-  -> configure stderr logging
+  -> load ~/.hermes/.env (via hermes_cli.env_loader.load_hermes_dotenv)
+  -> configure stderr logging (quiet httpx, httpcore, openai)
+  -> ensure project root is on sys.path
   -> construct HermesACPAgent
   -> acp.run_agent(agent)
 ```
@@ -191,27 +193,17 @@ ACP mode uses the same Hermes configuration as the CLI:
 | `~/.hermes/skills/` | Active skills |
 | `~/.hermes/state.db` | Session and conversation storage |
 
-Provider resolution uses Hermes' normal runtime resolver (`hermes_cli/runtime_provider.py`), so ACP inherits the currently configured provider and credentials. ACP mode does not have its own authentication flow — configure credentials first with `hermes model` or by editing `~/.hermes/.env`.
+Provider resolution uses Hermes' normal runtime resolver, so ACP inherits the currently configured provider and credentials. ACP mode does not have its own authentication flow -- configure credentials first with `hermes model` or by editing `~/.hermes/.env`.
 
 ---
 
-## ACP Copilot Auth (v0.3.0)
+## ACP Copilot Auth
 
-v0.3.0 adds support for using GitHub Copilot as a provider in ACP mode via the `copilot-acp` provider (`hermes_cli/copilot_auth.py`).
+Hermes supports using GitHub Copilot as a provider in ACP mode via the `copilot-acp` provider.
 
 ### copilot-acp Provider
 
 The `copilot-acp` provider (`auth_type: "external_process"`) routes through an external process that provides the Copilot API endpoint. The base URL is resolved from `COPILOT_ACP_BASE_URL` environment variable, falling back to `acp://copilot`.
-
-```python
-PROVIDER_REGISTRY["copilot-acp"] = ProviderConfig(
-    id="copilot-acp",
-    name="GitHub Copilot ACP",
-    auth_type="external_process",
-    inference_base_url="acp://copilot",
-    base_url_env_var="COPILOT_ACP_BASE_URL",
-)
-```
 
 ### copilot Provider (Direct API)
 
@@ -237,14 +229,17 @@ The device code login flow for Copilot (`copilot_device_code_login` in `hermes_c
 
 ### HermesACPAgent
 
-`acp_adapter/server.py` implements the ACP agent protocol:
+`acp_adapter/server.py` implements the ACP agent protocol via the `HermesACPAgent` class, which extends `acp.Agent`.
 
 Responsibilities:
-- Initialize and authenticate
-- Handle session methods: `new_session`, `load_session`, `resume_session`, `fork_session`, `list_sessions`, `cancel`
-- Execute prompts
-- Switch session models
-- Wire synchronous AIAgent callbacks into asynchronous ACP notifications
+- `initialize()` -- returns protocol version, agent info (`hermes-agent` + version), and capabilities (session fork/list support). Advertises authentication methods based on the detected provider.
+- `authenticate()` -- validates that a provider is configured
+- Session methods: `new_session`, `load_session`, `resume_session`, `fork_session`, `list_sessions`, `cancel`
+- `prompt()` -- runs the agent on user input and streams events back to the editor
+- `set_session_model()` -- switch model for a session (ACP protocol method)
+- Slash commands: `/help`, `/model`, `/tools`, `/context`, `/reset`, `/compact`, `/version`
+
+The agent uses a `ThreadPoolExecutor` with 4 worker threads (`thread_name_prefix="acp-agent"`) to run the synchronous `AIAgent` in parallel.
 
 ### SessionManager
 
@@ -271,11 +266,7 @@ Bridged callbacks:
 - `step_callback`
 - `message_callback`
 
-Because `AIAgent` runs in a worker thread while ACP I/O lives on the main event loop, the bridge uses:
-
-```python
-asyncio.run_coroutine_threadsafe(...)
-```
+Because `AIAgent` runs in a worker thread while ACP I/O lives on the main event loop, the bridge uses `asyncio.run_coroutine_threadsafe()` to safely dispatch updates.
 
 The event bridge tracks tool IDs with FIFO queues per tool name (not a single ID per name). This handles parallel same-name calls and repeated same-name calls in one step without attaching completion events to the wrong tool invocation.
 
@@ -284,16 +275,11 @@ The event bridge tracks tool IDs with FIFO queues per tool name (not a single ID
 `acp_adapter/permissions.py` adapts dangerous terminal approval prompts into ACP permission requests.
 
 Mapping:
-- `allow_once` → Hermes `once`
-- `allow_always` → Hermes `always`
-- Reject options → Hermes `deny`
+- `allow_once` -> Hermes `once`
+- `allow_always` -> Hermes `always`
+- Reject options -> Hermes `deny`
 
 Timeouts and bridge failures deny by default.
-
-ACP approval options are simpler than the CLI flow:
-- Allow once
-- Allow always
-- Deny
 
 The approval callback is temporarily installed on the terminal tool during prompt execution and restored afterward. This prevents session-specific approval handlers from persisting globally.
 
@@ -310,7 +296,7 @@ The approval callback is temporarily installed on the terminal tool during promp
 
 ### Provider and Auth
 
-ACP does not implement its own auth store. It reuses Hermes' runtime resolver from `acp_adapter/auth.py` and `hermes_cli/runtime_provider.py`, so ACP advertises and uses the currently configured Hermes provider and credentials.
+ACP does not implement its own auth store. It reuses Hermes' runtime resolver from `acp_adapter/auth.py`, so ACP advertises and uses the currently configured Hermes provider and credentials.
 
 ---
 
@@ -324,11 +310,13 @@ new_session(cwd)
 
 prompt(..., session_id)
   -> extract text from ACP content blocks
+  -> intercept slash commands (return immediately if recognized)
   -> reset cancel event
   -> install callbacks + approval bridge
   -> run AIAgent in ThreadPoolExecutor
   -> update session history
   -> emit final agent message chunk
+  -> return PromptResponse with usage stats and stop_reason
 ```
 
 ### Cancellation
@@ -350,12 +338,28 @@ ACP sessions bind the editor's cwd to the Hermes task ID. File and terminal tool
 
 ACP sessions are tracked in-memory while the server is running. The underlying `AIAgent` still uses Hermes' normal persistence and logging paths (`~/.hermes/state.db`, `~/.hermes/sessions/`), but ACP `list/load/resume/fork` are scoped to the currently running ACP server process.
 
+### Slash Commands
+
+ACP mode supports these headless slash commands that execute locally without calling the LLM:
+
+| Command | Description |
+|---------|-------------|
+| `/help` | Show available commands |
+| `/model [name]` | Show or change current model (with auto-provider detection) |
+| `/tools` | List available tools |
+| `/context` | Show conversation context info (message count by role) |
+| `/reset` | Clear conversation history |
+| `/compact` | Compress conversation context |
+| `/version` | Show Hermes version |
+
+Unrecognized `/commands` are sent to the model as normal messages.
+
 ---
 
 ## Current Limitations
 
 - ACP sessions are process-local from the ACP server's perspective
-- Non-text prompt blocks are currently ignored for request text extraction
+- Non-text prompt blocks (images, audio, resources) are currently ignored for request text extraction
 - Editor-specific UX varies by ACP client implementation
 
 ---
@@ -367,7 +371,7 @@ ACP sessions are tracked in-memory while the server is running. The underlying `
 Check:
 - The editor is pointed at the correct `acp_registry/` path (must be an absolute path)
 - Hermes is installed and on your PATH: `which hermes`
-- The ACP extra is installed: `pip install -e '.[acp]'`
+- The ACP extra is installed: `uv pip install -e '.[acp]'`
 - Run `hermes doctor` to verify the installation is healthy
 
 ### ACP starts but immediately errors

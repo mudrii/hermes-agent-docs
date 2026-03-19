@@ -162,9 +162,14 @@ The bot will not automatically join channels.
 group_sessions_per_user: true
 
 unauthorized_dm_behavior: pair    # pair | ignore
+
+# Slack-specific settings (in gateway.json platforms.slack.extra or config.yaml)
+# slack:
+#   reply_broadcast: false   # Also post thread replies to the main channel
 ```
 
-Slack-specific behavior is primarily controlled through environment variables. The `group_sessions_per_user` setting controls whether multiple users in the same channel share a session or have isolated sessions.
+- `group_sessions_per_user: true` controls whether multiple users in the same channel share a session or have isolated sessions
+- `reply_broadcast: false` (default) keeps replies only in the thread; set to `true` to also post the first chunk of a thread reply to the main channel (useful for visibility in busy channels)
 
 ---
 
@@ -177,6 +182,7 @@ Slack-specific behavior is primarily controlled through environment variables. T
 | `SLACK_ALLOWED_USERS` | Recommended | Comma-separated Slack Member IDs |
 | `SLACK_HOME_CHANNEL` | No | Channel ID for cron job delivery |
 | `SLACK_HOME_CHANNEL_NAME` | No | Display name for the home channel |
+| `SLACK_ALLOW_ALL_USERS` | No | Allow all users (not recommended) |
 
 ---
 

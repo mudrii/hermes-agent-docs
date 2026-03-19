@@ -208,7 +208,9 @@ delegation:
   api_key: "local-key"
 ```
 
-When `delegation.provider` is configured, subagents resolve the full credential bundle (base_url, api_key, api_mode) through the same runtime provider system used by CLI/gateway startup.
+When `delegation.provider` is configured, subagents resolve the full credential bundle (base_url, api_key, api_mode) through the same runtime provider system used by CLI/gateway startup. Supported provider names: `openrouter`, `nous`, `zai`, `kimi-coding`, `minimax`.
+
+When `delegation.base_url` is set instead of `delegation.provider`, the subagent connects directly to that OpenAI-compatible endpoint. The API key is taken from `delegation.api_key` or falls back to `OPENAI_API_KEY`. Special URL patterns are auto-detected: ChatGPT Codex URLs use the `codex_responses` API mode, and `api.anthropic.com` URLs use `anthropic_messages` mode.
 
 ## Delegation vs execute_code
 

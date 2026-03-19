@@ -171,9 +171,9 @@ hermes cron status
 hermes cron tick
 ```
 
-- `pause` — keep the job but stop scheduling it; sets `state: "paused"` and `enabled: false`
-- `resume` — re-enable the job and compute the next future run from now
-- `run` — trigger the job on the next scheduler tick by setting `next_run_at` to now
+- `pause` — keep the job but stop scheduling it; sets `state: "paused"` and `enabled: false`; records `paused_at` timestamp and optional `paused_reason`
+- `resume` — re-enable the job and compute the next future run from now; clears pause metadata
+- `run` — trigger the job on the next scheduler tick by setting `next_run_at` to now; also clears pause state if the job was paused
 - `remove` — delete the job entirely
 
 ## Editing Jobs
@@ -239,7 +239,11 @@ The gateway ticks the scheduler every 60 seconds via `cron.scheduler.tick()`. On
 
 A file lock at `~/.hermes/cron/.tick.lock` prevents overlapping ticks from double-running the same job batch. The lock uses `fcntl` on Unix and `msvcrt` on Windows.
 
+One-shot jobs get a 120-second grace period (`ONESHOT_GRACE_SECONDS`). If a job is created a few seconds after its requested time, it still fires on the next tick as long as the scheduled time is within 2 minutes of now.
+
 The cron scheduler re-reads `~/.hermes/.env` and `config.yaml` fresh on every run, so provider/key changes take effect without a gateway restart.
+
+Each cron job session initializes its own SQLite session store so messages are persisted and discoverable via `session_search`.
 
 ## Job Storage Format
 
