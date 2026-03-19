@@ -1,377 +1,621 @@
 # Architecture
 
-Hermes Agent is a Python-based AI agent platform organized around a persistent agent loop, a centralized tool registry, a multi-platform messaging gateway, and a three-tier memory system.
+This page is the authoritative map of Hermes Agent internals for v0.3.0 (v2026.3.17). The project is organized around a shared agent core that serves multiple platform frontends, a centralized provider router, a SQLite session store, and a set of loosely-coupled optional subsystems.
 
 ---
 
-## High-Level System Design
+## High-Level Component Diagram
 
 ```
-┌─ Entry Points ──────────────────────────────────────────┐
-│  hermes (interactive CLI)                                │
-│  hermes-agent (programmatic runner)                     │
-│  hermes-acp (editor integration via ACP protocol)       │
-└──────────────────────────┬──────────────────────────────┘
-                           ↓
-┌─ Core Agent Loop ─────────────────────────────────────  ┐
-│  AIAgent (run_agent.py — 6,211 lines)                   │
-│  ├── Prompt assembly (agent/prompt_builder.py)          │
-│  ├── LLM inference (provider router)                    │
-│  ├── Tool execution (model_tools.py + tools/registry.py)│
-│  ├── Context compression (agent/context_compressor.py)  │
-│  ├── Prompt caching (agent/prompt_caching.py)           │
-│  └── Anthropic adapter (agent/anthropic_adapter.py)     │
-└──────────────────────────┬──────────────────────────────┘
-                           ↓
-┌─ Session Storage ─────────────────────────────────────  ┐
-│  hermes_state.py — SQLite (WAL mode, FTS5 search)       │
-└──────────────────────────────────────────────────────────┘
+┌─── Entry Points ─────────────────────────────────────────────────────────┐
+│  hermes          Interactive terminal CLI (cli.py)                       │
+│  hermes-agent    Programmatic runner (run_agent.py main())               │
+│  hermes-acp      ACP editor integration server (acp_adapter/entry.py)   │
+└──────────────────────────────┬───────────────────────────────────────────┘
+                               │
+                               ▼
+┌─── Core Agent Loop ─────────────────────────────────────────────────────┐
+│  AIAgent  (run_agent.py)                                                │
+│                                                                         │
+│  ┌── Prompt Assembly ──────────────────────────────────────────────┐    │
+│  │  agent/prompt_builder.py                                        │    │
+│  │  load_soul_md() → SOUL.md identity                             │    │
+│  │  build_context_files_prompt() → AGENTS.md, .cursorrules        │    │
+│  │  build_skills_system_prompt() → skills index                   │    │
+│  │  PLATFORM_HINTS → platform-specific guidance                   │    │
+│  │  MEMORY_GUIDANCE, SESSION_SEARCH_GUIDANCE, SKILLS_GUIDANCE     │    │
+│  └─────────────────────────────────────────────────────────────────┘    │
+│                                                                         │
+│  ┌── LLM Inference ────────────────────────────────────────────────┐    │
+│  │  Three API modes: chat_completions / codex_responses /          │    │
+│  │                   anthropic_messages                            │    │
+│  │  agent/auxiliary_client.py → call_llm() / async_call_llm()     │    │
+│  │  agent/anthropic_adapter.py → native Anthropic support         │    │
+│  │  agent/smart_model_routing.py → cheap vs strong routing        │    │
+│  └─────────────────────────────────────────────────────────────────┘    │
+│                                                                         │
+│  ┌── Tool Execution ───────────────────────────────────────────────┐    │
+│  │  model_tools.py → get_tool_definitions(), handle_function_call()│    │
+│  │  Sequential (single or interactive tools)                       │    │
+│  │  Concurrent via ThreadPoolExecutor (multiple non-interactive)   │    │
+│  └─────────────────────────────────────────────────────────────────┘    │
+│                                                                         │
+│  ┌── Context Management ───────────────────────────────────────────┐    │
+│  │  agent/context_compressor.py → ContextCompressor                │    │
+│  │  agent/prompt_caching.py → Anthropic cache_control markers      │    │
+│  │  agent/model_metadata.py → context length resolution            │    │
+│  └─────────────────────────────────────────────────────────────────┘    │
+└──────────────────────────────┬───────────────────────────────────────────┘
+                               │
+                               ▼
+┌─── Session Storage ──────────────────────────────────────────────────────┐
+│  hermes_state.py → SessionDB                                            │
+│  SQLite WAL mode, schema v5, FTS5 full-text search                      │
+│  Default: ~/.hermes/state.db (override via HERMES_HOME)                 │
+└──────────────────────────────┬───────────────────────────────────────────┘
+                               │
+          ┌────────────────────┼───────────────────────┐
+          │                   │                       │
+          ▼                   ▼                       ▼
+┌─── Messaging ──────┐ ┌─── ACP ─────────────┐ ┌─── Cron ───────────┐
+│  gateway/          │ │  acp_adapter/        │ │  cron/             │
+│  8 platform        │ │  stdio/JSON-RPC      │ │  scheduler + jobs  │
+│  adapters          │ │  VS Code, Zed,       │ │  SQLite-backed     │
+│  Session routing   │ │  JetBrains           │ │  60s tick interval │
+│  Delivery          │ └──────────────────────┘ └────────────────────┘
+└────────────────────┘
 
-┌─ Messaging Gateway ────────────────────────────────────  ┐
-│  gateway/ — 8 platform adapters                         │
-│  ├── Telegram, Discord, Slack, WhatsApp                 │
-│  ├── Signal, Email (IMAP/SMTP), Home Assistant          │
-│  └── Session routing, delivery, cron, STT               │
-└──────────────────────────────────────────────────────────┘
-
-┌─ Specialized Subsystems ──────────────────────────────   ┐
-│  cron/          — Scheduled task runner                  │
-│  honcho_integration/ — Cross-session user memory        │
-│  acp_adapter/   — Editor protocol (VS Code, Zed, etc.)  │
-│  environments/  — RL/benchmark evaluation               │
-└──────────────────────────────────────────────────────────┘
-```
-
----
-
-## Agent Loop (ReAct Pattern)
-
-The core agent implements a **Reason → Act → Observe** loop:
-
-```
-User Input
-    ↓
-Build System Prompt
-  ├── Identity (SOUL.md or default)
-  ├── Context files (AGENTS.md, .cursorrules)
-  ├── Skill definitions (dynamically loaded)
-  ├── Honcho user context (if enabled)
-  └── Platform hints (CLI vs Telegram vs Discord)
-    ↓
-LLM Call (via Provider Router)
-  ├── Anthropic (with prompt caching + extended thinking)
-  ├── OpenAI-compatible (OpenRouter, Nous Portal, etc.)
-  └── Streaming SSE
-    ↓
-Parse Response
-  ├── Text → stream to output
-  └── Tool calls → dispatch to registry
-    ↓
-Execute Tools (parallel, up to 8 workers)
-  ├── Each tool: check_fn → handler → JSON result
-  ├── Sequential fallback for clarify tool
-  └── Iteration budget shared with subagents
-    ↓
-Append tool results to messages
-    ↓
-Loop (until no tool calls or max_turns reached)
-    ↓
-Return final response
+┌─── Optional Subsystems ──────────────────────────────────────────────────┐
+│  honcho_integration/ → cross-session user modeling                      │
+│  environments/       → RL benchmark framework                           │
+│  tools/              → 40+ tool implementations                         │
+│  skills/             → 70+ bundled skill documents                      │
+└──────────────────────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## Key Design Principles
+## Agent Loop: How run_agent.py Orchestrates Everything
 
-From the official architecture documentation:
+The core orchestration engine is `AIAgent` in `run_agent.py`. It is the single class used by all entry points — CLI, gateway, ACP, cron, and batch runner.
 
-1. **Prompt stability** — System prompt assembled once per session start; skills and context loaded at initialization
-2. **Observable/interruptible tool execution** — All tool calls fire progress callbacks; can be cancelled mid-turn
-3. **Session persistence** — Every message, tool call, and token count persisted to SQLite immediately
-4. **Shared agent core** — Identical AIAgent class serves CLI, messaging gateway, ACP, and cron jobs
-5. **Loose coupling** — Optional subsystems (Honcho, MCP, ACP) injected via callbacks, not hardwired
+### Core Responsibilities
 
----
+`AIAgent` is responsible for:
 
-## AIAgent Class
+- Assembling the effective prompt and tool schemas
+- Selecting the correct provider and API mode
+- Making interruptible model calls
+- Executing tool calls (sequentially or concurrently)
+- Maintaining session history in memory and in the `SessionDB`
+- Handling compression, retries, and fallback models
+- Firing platform-specific callbacks during execution
 
-**File:** `run_agent.py` (6,211 lines)
+### Turn Lifecycle
 
-### Initialization Parameters
+Each call to `run_conversation()` follows this path:
 
-```python
-AIAgent(
-    base_url: str,                 # LLM endpoint URL
-    api_key: str,                  # Provider API key
-    provider: str,                 # Provider identifier
-    model: str = "anthropic/claude-opus-4.6",
-    max_iterations: int = 90,      # Shared with subagents
-    enabled_toolsets: list = [],
-    disabled_toolsets: list = [],
-    session_db: HermesState = None,
-    session_id: str = None,
-    honcho_session_key: str = None,
-    honcho_config: dict = None,
-    platform: str = "cli",         # cli | telegram | discord | ...
-    checkpoints_enabled: bool = False,
-)
+```
+run_conversation()
+  → generate effective task_id
+  → append current user message to conversation history
+  → load or build cached system prompt (assembled once, reused across turns)
+  → maybe preflight-compress (rough token estimate before API call)
+  → build api_messages from conversation history
+  → inject ephemeral prompt layers (not persisted to cached system prompt)
+  → apply prompt caching markers if appropriate (Anthropic / Claude-via-OpenRouter)
+  → make interruptible API call (can be cancelled from CLI or gateway)
+  → parse response:
+      if tool calls → execute them (sequential or concurrent)
+                    → append tool results to history
+                    → loop back to API call
+      if final text → persist to SessionDB
+                    → cleanup
+                    → return response to caller
 ```
 
-### Callbacks
+### API Modes
 
-| Callback | Fires When |
-|----------|-----------|
-| `tool_progress_callback` | Tool starts or completes |
-| `thinking_callback` | Extended thinking block received |
-| `reasoning_callback` | Reasoning step completed |
-| `step_callback` | Iteration milestone |
-| `clarify_callback` | User clarification requested |
+Hermes currently supports three API execution modes:
 
-### Context Management
+| Mode | Used For |
+|------|---------|
+| `chat_completions` | OpenAI-compatible chat endpoints, OpenRouter, most custom endpoints |
+| `codex_responses` | OpenAI Codex / Responses API path |
+| `anthropic_messages` | Native Anthropic Messages API |
 
-- **Compression trigger:** 50% of token budget (configurable)
-- **Compression model:** Configured auxiliary model (default: Gemini 3 Flash)
-- **Prompt caching:** Applied for Anthropic models (cache control headers)
-- **Token estimation:** Rough approximation without full tokenization (performance)
+The mode is resolved from explicit arguments, provider selection, and base URL heuristics.
+
+### Interruptible API Calls
+
+Hermes wraps API requests so they can be interrupted from the CLI or gateway. This handles:
+
+- Long LLM calls when the user sends a new message mid-flight
+- Gateway cancellation semantics when a session resets
+- Background system cancellation during shutdown
+
+### Tool Execution Modes
+
+Two strategies are used:
+
+- **Sequential execution** — for single tool calls or interactive tools (such as `clarify`)
+- **Concurrent execution** — for multiple non-interactive tools via `ThreadPoolExecutor`
+
+Concurrent execution preserves message and result ordering when reinserting tool responses into conversation history.
+
+### Callback Surfaces
+
+`AIAgent` supports platform-specific callbacks:
+
+| Callback | Purpose |
+|---------|---------|
+| `tool_progress_callback` | Fires when a tool starts or completes |
+| `thinking_callback` | Fires when an extended thinking block is received |
+| `reasoning_callback` | Fires when a reasoning step completes |
+| `clarify_callback` | Fires when user clarification is requested |
+| `step_callback` | Fires at iteration milestones |
+| `message_callback` | Fires when final message content is available |
+
+These are how the CLI, gateway, and ACP integrations stream intermediate progress and handle interactive approval and clarification flows.
+
+### Budget and Fallback Behavior
+
+Hermes tracks a shared iteration budget across parent agents and all subagents it spawns. Near the end of the available iteration window, it injects budget pressure hints into tool results. Fallback model support allows the agent to switch providers or models when the primary route fails in supported failure paths.
 
 ---
 
-## Tool System Architecture
+## Context Compression: How It Works
 
-### Registry Pattern
+**Primary file:** `agent/context_compressor.py` — `ContextCompressor` class
 
-All tools self-register at import time via a central registry:
+### When Compression Is Triggered
 
-```python
-# tools/registry.py
-class ToolRegistry:
-    _tools: Dict[str, ToolEntry]
-    _toolset_checks: Dict[str, Callable]
+`ContextCompressor` tracks actual token counts from API responses. Compression fires when:
 
-    def register(name, toolset, schema, handler, check_fn, requires_env)
-    def get(name) -> ToolEntry
-    def dispatch(name, args, ...) -> result
-    def list_available(toolsets) -> list
+- `should_compress(prompt_tokens)` returns `True` — actual token count exceeds `threshold_percent` of the model's context length (default: 50%)
+- `should_compress_preflight(messages)` returns `True` — rough estimate before an API call (avoids 413 errors)
+
+The threshold is tuned to 50% in v0.3.0 for more proactive compression.
+
+### Compression Algorithm
+
+```
+1. Check: does message count exceed protect_first_n + protect_last_n + 1?
+2. Set compress_start = protect_first_n (default: 3)
+3. Set compress_end = n_messages - protect_last_n (default: 4)
+4. Align compress_start forward past any orphan tool results
+5. Align compress_end backward to avoid splitting tool_call/result groups
+6. Extract turns_to_summarize = messages[compress_start:compress_end]
+7. Call _generate_summary() via auxiliary model (task="compression")
+8. Build compressed message list:
+   - Preserve messages[0:compress_start] (head)
+   - Insert summary message with SUMMARY_PREFIX
+   - Preserve messages[compress_end:] (tail)
+9. Run _sanitize_tool_pairs() to fix orphaned tool_call/tool_result pairs
+10. Increment compression_count
 ```
 
-### Tool Registration Flow
+The `SUMMARY_PREFIX` marker is `"[CONTEXT COMPACTION] Earlier turns in this conversation were compacted to save context space..."` and is prepended to every summary.
 
-1. Each tool file (e.g., `web_tools.py`) calls `registry.register()` at import
-2. `model_tools.py` imports all tool modules, triggering discovery
-3. `AIAgent` queries registry for enabled tools, builds OpenAI-compatible schemas
-4. LLM receives tool schemas; tool calls dispatched back through registry
+### Tool-Pair Sanitization
 
-### Parallel Execution
+After compression, `_sanitize_tool_pairs()` handles two failure modes that would cause API rejections:
 
-- Up to **8 concurrent tool workers** (via `asyncio.gather`)
-- `clarify` tool forces sequential execution (requires user interaction)
-- Tool delay configurable for rate-limiting
-- Retry with exponential backoff on transient errors
+1. **Orphaned tool results** — a tool result references a call_id whose assistant message was compressed away. These results are removed.
+2. **Calls without results** — an assistant message has `tool_calls` whose result messages were compressed away. Stub result messages (`"[Result from earlier conversation — see context summary above]"`) are inserted.
 
-### IterationBudget
+### Pre-Compression Memory Flush
 
-Tracks LLM calls across parent agent and all subagents. Prevents runaway recursive loops when agents delegate to other agents.
+Before compression, Hermes can give the model one last chance to persist memory so facts are not lost when middle turns are summarized away.
+
+### Session Lineage After Compression
+
+Compression can split the session into a new `session_id` while preserving ancestry via `parent_session_id` in the `SessionDB`. This allows the agent to continue with a smaller active context while retaining a searchable ancestry chain for session history and the `session_search` tool.
+
+### Re-Injected State After Compression
+
+After compression, Hermes may re-inject compact operational state such as:
+
+- Todo snapshot
+- Prior-read-files summary
+
+### Trajectory Compressor (Separate Tool)
+
+`trajectory_compressor.py` is a separate `TrajectoryCompressor` class for post-processing completed agent trajectories for training datasets. It is distinct from the runtime `ContextCompressor`. Key differences:
+
+| Feature | `ContextCompressor` | `TrajectoryCompressor` |
+|---------|--------------------|-----------------------|
+| Purpose | Runtime context management | Offline training data preparation |
+| Input | Live conversation messages | JSONL trajectory files |
+| Output | Compressed messages list | Compressed JSONL files |
+| Token counting | Rough estimate or API response | HuggingFace tokenizer |
+| Concurrency | Synchronous | Async with `asyncio.gather`, semaphore |
+| Default model | Configured auxiliary model | `google/gemini-3-flash-preview` via OpenRouter |
+| Target tokens | Context limit threshold | `target_max_tokens` (default: 15,250) |
+
+`TrajectoryCompressor` protects the first system, human, gpt, and tool turns plus the last N turns, and emits rich metrics (`TrajectoryMetrics`, `AggregateMetrics`) including compression ratios and token savings.
 
 ---
 
-## Session Storage (SQLite)
+## Prompt Assembly: System Prompt Layers
 
-**File:** `hermes_state.py` (824 lines)
+**Primary file:** `agent/prompt_builder.py`
 
-### Schema (v4)
+Hermes deliberately separates the **cached system prompt** (stable across turns) from **ephemeral API-call-time additions** (not persisted). This is critical for prompt caching effectiveness and memory correctness.
+
+### Cached System Prompt Layers (in order)
+
+1. **Agent identity** — `SOUL.md` loaded from `HERMES_HOME` via `load_soul_md()` when available; falls back to `DEFAULT_AGENT_IDENTITY` in `prompt_builder.py`
+2. **Tool-aware behavior guidance** — `MEMORY_GUIDANCE`, `SESSION_SEARCH_GUIDANCE`, `SKILLS_GUIDANCE` constants
+3. **Honcho static block** — when Honcho integration is active
+4. **Optional system message** — user-provided system message override
+5. **Frozen MEMORY snapshot** — memory tool contents at session start
+6. **Frozen USER profile snapshot** — user profile at session start
+7. **Skills index** — built by `build_skills_system_prompt()`, scanning `~/.hermes/skills/` for `SKILL.md` files grouped by category; filtered by platform compatibility and conditional activation rules
+8. **Context files** — discovered by `build_context_files_prompt()`: `AGENTS.md` (hierarchical, recursive), `.cursorrules`, `.cursor/rules/*.mdc`, `.hermes.md`/`HERMES.md` (walks to git root); `SOUL.md` is excluded here when already loaded as identity in step 1
+9. **Timestamp and optional session ID** — from `hermes_time.now()` (timezone-aware, configured via `HERMES_TIMEZONE` or `config.yaml`)
+10. **Platform hint** — from `PLATFORM_HINTS` dict, keyed by platform name
+
+When `skip_context_files` is set (for subagent delegation), `SOUL.md` is not loaded and the hardcoded `DEFAULT_AGENT_IDENTITY` is used instead.
+
+### API-Call-Time-Only Layers (not persisted)
+
+These are intentionally excluded from the cached system prompt:
+
+- `ephemeral_system_prompt` — injected per-call
+- Prefill messages
+- Gateway-derived session context overlays
+- Honcho recall injected into the current-turn user message (kept out of the cached prefix to preserve cache stability)
+
+### Context File Security Scanning
+
+`build_context_files_prompt()` and `load_soul_md()` run `_scan_context_content()` on every context file before injection. The scanner checks for:
+
+- Invisible Unicode characters (zero-width, directional overrides)
+- Prompt injection patterns (`"ignore previous instructions"`, `"system prompt override"`, `"act as if you have no restrictions"`, etc.)
+- Data exfiltration commands (`curl ... $KEY`, `cat .env`)
+
+Files that match threat patterns are blocked and replaced with a warning message.
+
+### Long File Truncation
+
+Files exceeding `CONTEXT_FILE_MAX_CHARS` (20,000 characters) are truncated using head/tail strategy: 70% from the head and 20% from the tail, with a marker in the middle.
+
+### Skills Index Format
+
+`build_skills_system_prompt()` produces a compact index in the format:
+
+```
+## Skills (mandatory)
+<available_skills>
+  category: description
+    - skill-name: description
+    - skill-name
+  category:
+    - skill-name: description
+</available_skills>
+```
+
+Skills are filtered by:
+- Platform compatibility (`skill_matches_platform()` from `tools/skills_tool.py`)
+- Disabled skills list
+- Conditional activation: `fallback_for_toolsets`, `requires_toolsets`, `fallback_for_tools`, `requires_tools` from skill frontmatter
+
+---
+
+## Session Storage: hermes_state.py
+
+**File:** `hermes_state.py` — `SessionDB` class
+
+### Database Location
+
+```
+~/.hermes/state.db
+```
+
+Override via the `HERMES_HOME` environment variable. The file is created automatically.
+
+### Schema (v5)
+
+The `SessionDB` maintains schema version 5. Migrations run automatically on startup.
+
+**`sessions` table:**
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `id` | TEXT PRIMARY KEY | Session UUID |
+| `source` | TEXT | Platform origin: `cli`, `telegram`, `discord`, `slack`, etc. |
+| `user_id` | TEXT | Platform user identifier |
+| `model` | TEXT | Active model slug |
+| `model_config` | TEXT | JSON serialized model configuration |
+| `system_prompt` | TEXT | Snapshot of the assembled system prompt |
+| `parent_session_id` | TEXT | Foreign key to parent session after compression split |
+| `started_at` | REAL | Unix timestamp of session creation |
+| `ended_at` | REAL | Unix timestamp when session ended |
+| `end_reason` | TEXT | Why the session ended |
+| `message_count` | INTEGER | Total message count |
+| `tool_call_count` | INTEGER | Total tool call count |
+| `input_tokens` | INTEGER | Cumulative input tokens |
+| `output_tokens` | INTEGER | Cumulative output tokens |
+| `cache_read_tokens` | INTEGER | Cumulative cache-read tokens (v5) |
+| `cache_write_tokens` | INTEGER | Cumulative cache-write tokens (v5) |
+| `reasoning_tokens` | INTEGER | Cumulative reasoning tokens (v5) |
+| `billing_provider` | TEXT | Provider used for billing (v5) |
+| `billing_base_url` | TEXT | Endpoint used for billing (v5) |
+| `billing_mode` | TEXT | Billing mode: `official_docs_snapshot`, `subscription_included`, etc. (v5) |
+| `estimated_cost_usd` | REAL | Estimated cost in USD (v5) |
+| `actual_cost_usd` | REAL | Actual cost in USD from provider (v5) |
+| `cost_status` | TEXT | `actual`, `estimated`, `included`, `unknown` (v5) |
+| `cost_source` | TEXT | Source of pricing data (v5) |
+| `pricing_version` | TEXT | Pricing snapshot version identifier (v5) |
+| `title` | TEXT | Human-readable session title (unique, optional) |
+
+**`messages` table:**
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `id` | INTEGER PRIMARY KEY AUTOINCREMENT | Row ID |
+| `session_id` | TEXT | Foreign key to sessions |
+| `role` | TEXT | `user`, `assistant`, `tool` |
+| `content` | TEXT | Message content |
+| `tool_call_id` | TEXT | Tool call identifier for tool results |
+| `tool_calls` | TEXT | JSON serialized tool call list |
+| `tool_name` | TEXT | Tool name for tool result messages |
+| `timestamp` | REAL | Unix timestamp |
+| `token_count` | INTEGER | Per-message token estimate |
+| `finish_reason` | TEXT | Model finish reason |
+
+**`messages_fts` virtual table:** FTS5 full-text search over message content, with triggers to auto-index on insert, update, and delete.
+
+### Indexes
 
 ```sql
-sessions(
-    id TEXT PRIMARY KEY,
-    source TEXT,               -- 'cli' | 'telegram' | 'discord' | ...
-    user_id TEXT,
-    model TEXT,
-    model_config TEXT,
-    system_prompt TEXT,
-    parent_session_id TEXT,    -- Lineage chain for compressed sessions
-    started_at TIMESTAMP,
-    ended_at TIMESTAMP,
-    end_reason TEXT,
-    message_count INTEGER,
-    tool_call_count INTEGER,
-    input_tokens INTEGER,
-    output_tokens INTEGER,
-    title TEXT
-)
-
-messages(
-    id TEXT PRIMARY KEY,
-    session_id TEXT,
-    role TEXT,                 -- user | assistant | tool
-    content TEXT,
-    tool_call_id TEXT,
-    tool_calls TEXT,
-    tool_name TEXT,
-    timestamp TIMESTAMP,
-    token_count INTEGER,
-    finish_reason TEXT
-)
-
-messages_fts                   -- FTS5 virtual table (auto-indexed)
+idx_sessions_source     ON sessions(source)
+idx_sessions_parent     ON sessions(parent_session_id)
+idx_sessions_started    ON sessions(started_at DESC)
+idx_sessions_title_unique ON sessions(title) WHERE title IS NOT NULL
+idx_messages_session    ON messages(session_id, timestamp)
 ```
 
-### Key Features
+### Thread Safety
 
-- **WAL mode** — concurrent readers + single writer (gateway-safe)
-- **FTS5 triggers** — auto-index all messages on insert/update/delete
-- **Session lineage** — `parent_session_id` chain for compression-split sessions
-- **Source tagging** — filter by platform origin
-- **Token tracking** — cumulative input/output counts per session
-- **Prefix resolution** — resolve `"sess_abc"` to full UUID
+`SessionDB` uses WAL (Write-Ahead Logging) mode and a `threading.Lock()` for all write operations. This supports the common gateway pattern of multiple reader threads and a single writer.
 
-**Default path:** `~/.hermes/state.db` (override via `HERMES_HOME`)
+### Session Lineage
 
----
+When `ContextCompressor` splits a session, it continues in a new `session_id` while setting `parent_session_id` to the previous session. The `resolve_session_by_title()` method follows numbered lineage variants (e.g., `"my session"` → `"my session #2"`) to find the most recent continuation of a named session.
 
-## Prompt Assembly
+### FTS5 Search
 
-**File:** `agent/prompt_builder.py`
+`search_messages()` performs full-text search with FTS5 MATCH syntax. It sanitizes user query input via `_sanitize_fts5_query()` (preserves quoted phrases, strips special characters, wraps hyphenated terms), then returns matching messages with a snippet, surrounding context (1 message before and after), and session metadata.
 
-System prompt constructed from (in order):
+### Gateway vs CLI Persistence
 
-1. **Identity block** — from `~/.hermes/SOUL.md` or built-in default
-2. **Context files** — `AGENTS.md`, `.cursorrules` in current directory (scanned for prompt injection before loading)
-3. **Skills index** — names + descriptions of all loaded skills
-4. **Memory guidance** — instructions for using memory tool
-5. **Session search guidance** — instructions for using session_search tool
-6. **Platform hints** — formatting and behavior rules per platform
-7. **Honcho context** — prefetched user model (if Honcho enabled)
-
-### Prompt Injection Protection
-
-Before loading any context file, the prompt builder scans for injection patterns:
-- Instructions to ignore previous directives
-- Attempts to override the system prompt
-- Commands to exfiltrate data
-
-Suspicious files are rejected with a warning.
+- CLI uses `SessionDB` directly for resume, history, and search via `hermes sessions`
+- Gateway maintains active-session mappings per platform and also writes to `SessionDB`
+- Some legacy JSON/JSONL artifacts exist for compatibility, but SQLite is the canonical historical store
 
 ---
 
-## Provider Router
+## Trajectory Format: What Gets Logged
 
-**File:** `hermes_cli/models.py` + `provider_runtime.py`
+**Primary files:** `agent/trajectory.py`, `run_agent.py`, `batch_runner.py`, `trajectory_compressor.py`
 
-Unified `call_llm()` / `async_call_llm()` for all LLM consumers in the system:
+### Purpose
 
-- Main agent loop
-- Context compression (auxiliary model)
-- Vision analysis (auxiliary model)
-- Web content extraction (auxiliary model)
-- Session search summarization (auxiliary model)
-- Skills Hub assistance (auxiliary model)
-- MCP tool invocation (auxiliary model)
+Trajectory outputs are used for:
 
-**Resolution order:**
-1. Per-call override (e.g., cron job model override)
-2. Config file `model:` field
-3. Environment variables
-4. Fallback to default
+- SFT (supervised fine-tuning) data generation
+- Debugging agent behavior
+- Benchmark and evaluation artifact capture
+- Post-processing and compression pipelines for training
 
----
+### Normalization Strategy
 
-## Messaging Gateway Architecture
+Hermes converts live conversation structure into a training-friendly format:
 
-```
-Messaging Platforms
-  [Telegram] [Discord] [Slack] [WhatsApp] [Signal] [Email] [HomeAsst]
-        ↓           ↓           ↓
-Platform Adapter (BasePlatformAdapter)
-  - connect() / disconnect()
-  - handle_message()
-  - send(text / image / audio)
-        ↓
-Message Event Dispatcher
-  - Extract SessionSource (platform, chat_id, user_id, thread_id)
-  - Build session key
-  - Evaluate reset policy
-  - Inject session context
-        ↓
-Session Management (hermes_state.py)
-  - SQLite state per platform session
-  - File-based logs
-  - Optional Honcho sync
-        ↓
-AIAgent (shared core)
-        ↓
-Response Router
-  - Chunk long messages per platform limits
-  - Route to delivery target
-  - Mirror to gateway session
-        ↓
-Platform send methods
+- Reasoning is represented in explicit markup (think blocks converted via `convert_scratchpad_to_think()`)
+- Tool calls are converted into structured XML-like regions for dataset compatibility
+- Tool outputs are grouped appropriately
+- Successful and failed trajectories are separated
+
+### Persistence Boundaries
+
+Trajectory files do not blindly mirror all runtime prompt state. Some prompt-time-only layers are intentionally excluded from persisted trajectory content so datasets are cleaner and less environment-specific.
+
+### Batch Runner Metadata
+
+`batch_runner.py` emits richer metadata than single-session trajectory saving:
+
+- Model and provider metadata
+- Toolset information
+- Partial and failure markers
+- Tool statistics
+
+### TrajectoryMetrics (trajectory_compressor.py)
+
+When `TrajectoryCompressor` processes a JSONL file, each entry receives optional `compression_metrics`:
+
+```json
+{
+  "original_tokens": 18500,
+  "compressed_tokens": 14200,
+  "tokens_saved": 4300,
+  "compression_ratio": 0.7676,
+  "original_turns": 32,
+  "compressed_turns": 28,
+  "turns_removed": 4,
+  "compression_region": {
+    "start_idx": 4,
+    "end_idx": 8,
+    "turns_count": 4
+  },
+  "was_compressed": true,
+  "still_over_limit": false,
+  "skipped_under_target": false,
+  "summarization_api_calls": 1,
+  "summarization_errors": 0
+}
 ```
 
-**Session key format:** `{platform}:{chat_id}` or `{platform}:{chat_id}:{thread_id}`
+---
+
+## Auxiliary Client: What It Does
+
+**File:** `agent/auxiliary_client.py`
+
+The auxiliary client is a shared routing layer that handles all side-task LLM calls — everything except the main agent loop. It provides a single resolution chain so every consumer picks up the best available backend without duplicating fallback logic.
+
+### Consumers of the Auxiliary Client
+
+| Consumer | Task Name | Purpose |
+|---------|-----------|---------|
+| `ContextCompressor._generate_summary()` | `compression` | Summarize middle turns |
+| `tools/session_search_tool.py` | `session_search` | Summarize session search results |
+| `tools/web_tools.py` | `web_extract` | Extract content from web pages |
+| `tools/vision_tools.py` | `vision` | Analyze images |
+| `tools/browser_tool.py` | `vision` | Analyze browser screenshots |
+| `tools/skills_tool.py` | `skills_hub` | Skills Hub assistance |
+| `tools/memory_tool.py` | `flush_memories` | Flush memories before compression |
+| `trajectory_compressor.py` | Provider-direct | Summarize trajectory regions |
+
+### Centralized API: call_llm() and async_call_llm()
+
+The primary public API is:
+
+```python
+call_llm(
+    task: str = None,        # "compression", "vision", "web_extract", etc.
+    provider: str = None,    # Explicit provider override
+    model: str = None,       # Explicit model override
+    base_url: str = None,    # Direct endpoint override
+    api_key: str = None,     # Direct API key override
+    messages: list,          # Chat messages
+    temperature: float = None,
+    max_tokens: int = None,
+    tools: list = None,
+    timeout: float = 30.0,
+    extra_body: dict = None,
+) -> Any  # Response with .choices[0].message.content
+```
+
+`async_call_llm()` is the async counterpart with identical signature.
+
+### Provider Resolution Order (Text Tasks, Auto Mode)
+
+1. OpenRouter (`OPENROUTER_API_KEY`)
+2. Nous Portal (`~/.hermes/auth.json` active provider)
+3. Custom endpoint (`OPENAI_BASE_URL` + `OPENAI_API_KEY`)
+4. Codex OAuth (Responses API via `chatgpt.com` with `gpt-5.2-codex`)
+5. Native Anthropic
+6. Direct API-key providers: z.ai/GLM, Kimi/Moonshot, MiniMax, MiniMax-CN
+7. None (raises `RuntimeError`)
+
+### Provider Resolution Order (Vision Tasks, Auto Mode)
+
+1. Selected main provider (if it is a supported vision backend)
+2. OpenRouter
+3. Nous Portal
+4. Codex OAuth (gpt-5.2-codex supports vision via Responses API)
+5. Native Anthropic
+6. Custom endpoint (local vision models: Qwen-VL, LLaVA, Pixtral, etc.)
+7. None
+
+### Per-Task Override Configuration
+
+Each auxiliary task supports per-task provider and model overrides via:
+
+- Environment variables: `AUXILIARY_{TASK}_PROVIDER`, `AUXILIARY_{TASK}_MODEL`, `AUXILIARY_{TASK}_BASE_URL`
+- Config file: `auxiliary.{task}.provider`, `auxiliary.{task}.model`, `auxiliary.{task}.base_url`
+- Legacy: `compression.summary_provider`, `compression.summary_model`
+
+### Codex Adapter
+
+The `_CodexCompletionsAdapter` class provides a `chat.completions.create()`-compatible interface that internally translates to the Codex Responses API. This makes Codex transparent to all auxiliary consumers. The adapter converts content formats (`text`/`image_url` → `input_text`/`input_image`), handles tools, and streams the response to reconstruct a chat-completions-compatible result.
+
+### Anthropic Adapter
+
+`AnthropicAuxiliaryClient` wraps the native Anthropic client in a `chat.completions.create()`-compatible interface via `_AnthropicCompletionsAdapter`. It uses `build_anthropic_kwargs()` and `normalize_anthropic_response()` from `agent/anthropic_adapter.py`.
+
+### Client Caching
+
+Resolved clients are cached in `_client_cache` keyed by `(provider, async_mode, base_url, api_key)`. The cache uses a `threading.Lock()` for thread-safe initialization.
 
 ---
 
-## Memory Architecture
+## Smart Model Routing
 
-Three tiers:
+**File:** `agent/smart_model_routing.py`
 
-| Tier | Storage | Scope | Tools |
-|------|---------|-------|-------|
-| Inference memory | Context window | Current session | (none — automatic) |
-| Procedural skills | `~/.hermes/skills/*/SKILL.md` | All sessions | `skills_list`, `skill_view`, `skill_manage` |
-| Session history | SQLite FTS5 | All sessions | `session_search` |
-| User model | Honcho API | Cross-device | `honcho_profile`, `honcho_search`, `honcho_context`, `honcho_conclude` |
+### What It Does
 
----
+Smart model routing is an optional feature that can route simple conversational turns to a cheaper, faster model instead of the primary model configured by the user.
 
-## ACP Protocol
+### When It Activates
 
-**File:** `acp_adapter/` (Agent Communication Protocol)
+`choose_cheap_model_route()` activates only when:
 
-Runs as a stdio subprocess. Editors (VS Code, Zed, JetBrains) communicate via JSON-RPC.
+- `routing_config.enabled` is `True` in the user's configuration
+- `cheap_model.provider` and `cheap_model.model` are specified in `routing_config`
+- The user message passes all simplicity filters (see below)
 
-**Session lifecycle:** `initialize → authenticate → new_session → [prompt]* → cancel? → disconnect`
+### Decision Logic
 
-**Streaming events:** `session_update` events carry thinking blocks, tool progress, step completions, and message content in real time.
+`choose_cheap_model_route()` is conservative by design. It returns `None` (keep the primary model) if any of the following are true:
 
-See [ACP Integration](acp.md) for full details.
+- Message exceeds `max_simple_chars` (default: 160 characters)
+- Message exceeds `max_simple_words` (default: 28 words)
+- Message contains more than 1 newline
+- Message contains backticks or code fences (` ``` `)
+- Message contains a URL (`https://` or `www.`)
+- Message contains any word from `_COMPLEX_KEYWORDS`:
+  `debug`, `implement`, `refactor`, `patch`, `traceback`, `stacktrace`, `exception`, `error`, `analyze`, `analysis`, `investigate`, `architecture`, `design`, `compare`, `benchmark`, `optimize`, `review`, `terminal`, `shell`, `tool`, `tools`, `pytest`, `test`, `tests`, `plan`, `planning`, `delegate`, `subagent`, `cron`, `docker`, `kubernetes`
 
----
+### Route Resolution
 
-## Cron Scheduler
-
-**File:** `cron/scheduler.py`
-
-- **Tick interval:** 60 seconds
-- **Locking:** File lock prevents concurrent ticks
-- **Job persistence:** `~/.hermes/cron/jobs.json`
-- **Output:** `~/.hermes/cron/output/{job_id}/{timestamp}.md`
-- **Delivery:** origin | local | telegram | discord | slack | email
-
-See [Memory & Scheduling](memory.md) for full details.
+When cheap routing activates, `resolve_turn_route()` calls `resolve_runtime_provider()` with the cheap provider's configuration and returns a route dict with `model`, `runtime`, `label`, and `signature` fields. The label field is set to `"smart route → {model} ({provider})"` for display purposes.
 
 ---
 
-## RL / Trajectory Generation
+## Design Themes
 
-**Files:** `batch_runner.py`, `trajectory_compressor.py`, `rl_cli.py`
+Several cross-cutting design themes appear throughout the codebase (from the official architecture documentation):
 
-Hermes includes a research-grade pipeline for generating supervised fine-tuning (SFT) and RL training data:
-
-1. **`batch_runner.py`** — Run agent on seed tasks, record tool call trajectories
-2. **`trajectory_compressor.py`** — Optimize transcripts (remove redundancy, summarize verbose sections, preserve action semantics)
-3. **Atropos environments** (`environments/`) — RL evaluation environments for GRPO/PPO training
-4. **`rl_cli.py`** — `rl_list_environments`, `rl_start_training`, `rl_check_status`, etc.
-
-This pipeline powers NousResearch's agentic RL training for Hermes model family improvements.
+- **Prompt stability matters** — the system prompt is assembled once per session and the stable prefix must remain stable for provider-side prompt caching to be effective
+- **Tool execution must be observable and interruptible** — every tool call fires callbacks; long LLM calls can be cancelled
+- **Session persistence must survive long-running use** — every message and token count is written to SQLite immediately; WAL mode allows concurrent readers
+- **Platform frontends should share one agent core** — `AIAgent` is identical whether called from CLI, gateway, ACP, or cron
+- **Optional subsystems should remain loosely coupled** — Honcho, MCP, and ACP are injected via callbacks and configuration, not hardwired into the agent loop
 
 ---
 
-## Self-Evolution System
+## Source Files Reference
 
-A companion repository (`NousResearch/hermes-agent-self-evolution`) uses DSPy + GEPA (Generalized Evolutionary Prompt Adaptation) to autonomously optimize:
-
-- **Phase 1 (current):** Skill document quality improvement
-- **Planned:** Tool description optimization, system prompt optimization, code optimization
-
-The self-evolution loop runs periodically, proposes improvements to skills/prompts, validates them against held-out test sets, and opens PRs for human review.
+| File | Description |
+|------|-------------|
+| `run_agent.py` | `AIAgent` — core orchestration loop (entry point for all platforms) |
+| `cli.py` | Interactive terminal UI (prompt_toolkit TUI) |
+| `model_tools.py` | Tool discovery, schema building, and dispatch |
+| `toolsets.py` | Tool groupings and platform presets |
+| `hermes_state.py` | `SessionDB` — SQLite session and message store |
+| `hermes_constants.py` | Shared API endpoint constants |
+| `hermes_time.py` | `now()` — timezone-aware clock |
+| `batch_runner.py` | Batch trajectory generation for RL/SFT |
+| `trajectory_compressor.py` | `TrajectoryCompressor` — offline training data compression |
+| `agent/context_compressor.py` | `ContextCompressor` — runtime context management |
+| `agent/prompt_builder.py` | System prompt assembly functions |
+| `agent/auxiliary_client.py` | `call_llm()`, `resolve_provider_client()` — centralized LLM router |
+| `agent/model_metadata.py` | Context length resolution, token estimation, pricing |
+| `agent/smart_model_routing.py` | `choose_cheap_model_route()` — optional cheap model routing |
+| `agent/usage_pricing.py` | `estimate_usage_cost()`, `normalize_usage()`, `CanonicalUsage` |
+| `agent/prompt_caching.py` | Anthropic cache_control marker application |
+| `agent/anthropic_adapter.py` | Native Anthropic API translation |
+| `agent/trajectory.py` | Trajectory normalization and saving |
+| `gateway/` | Platform adapters (Telegram, Discord, Slack, WhatsApp, Signal, Email, Home Assistant) |
+| `cron/` | Scheduled job storage and scheduler |
+| `honcho_integration/` | Honcho memory integration |
+| `acp_adapter/` | ACP editor integration server |
+| `environments/` | RL/benchmark environment framework |
+| `skills/` | Bundled skill documents |
+| `optional-skills/` | Official optional skills |
+| `tools/` | Tool implementations and terminal environments |

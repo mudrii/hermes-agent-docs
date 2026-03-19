@@ -1,0 +1,583 @@
+# MCP (Model Context Protocol)
+
+MCP lets Hermes Agent connect to external tool servers so the agent can use tools that live outside Hermes itself — GitHub, databases, file systems, browser stacks, internal APIs, and more.
+
+## What MCP Gives You
+
+- Access to external tool ecosystems without writing a native Hermes tool
+- Local stdio servers and remote HTTP MCP servers in the same config
+- Automatic tool discovery and registration at startup
+- Utility wrappers for MCP resources and prompts when supported by the server
+- Per-server tool filtering to expose only the tools you actually want Hermes to see
+- MCP sampling: server-initiated LLM requests routed through Hermes
+
+## Supported Transports
+
+### Stdio transport
+
+Stdio servers run as local subprocesses and communicate over stdin/stdout.
+
+```yaml
+mcp_servers:
+  github:
+    command: "npx"
+    args: ["-y", "@modelcontextprotocol/server-github"]
+    env:
+      GITHUB_PERSONAL_ACCESS_TOKEN: "ghp_..."
+```
+
+Use stdio servers when:
+- the server is installed locally
+- you want low-latency access to local resources
+- the MCP server docs show `command`, `args`, and `env` fields
+
+The `mcp` Python package must be installed (`uv pip install -e ".[mcp]"` in `~/.hermes/hermes-agent`). For npm-based servers, `npx` must be on PATH.
+
+### HTTP (StreamableHTTP) transport
+
+HTTP MCP servers are remote endpoints Hermes connects to directly using the StreamableHTTP transport.
+
+```yaml
+mcp_servers:
+  remote_api:
+    url: "https://mcp.example.com/mcp"
+    headers:
+      Authorization: "Bearer sk-..."
+```
+
+Use HTTP servers when:
+- the MCP server is hosted elsewhere
+- your organization exposes internal MCP endpoints
+- you do not want Hermes spawning a local subprocess for that integration
+
+If both `url` and `command` are present in one server config, HTTP transport (`url`) wins and Hermes logs a warning.
+
+## How to Configure MCP Servers
+
+MCP configuration lives in `~/.hermes/config.yaml` under the `mcp_servers` key:
+
+```yaml
+mcp_servers:
+  <server_name>:
+    command: "..."      # stdio servers: executable to launch
+    args: []            # stdio servers: arguments for the subprocess
+    env: {}             # stdio servers: environment variables
+
+    # OR for HTTP servers:
+    url: "..."          # HTTP MCP endpoint
+    headers: {}         # HTTP headers
+
+    enabled: true       # Set to false to skip entirely
+    timeout: 120        # Tool call timeout in seconds (default: 120)
+    connect_timeout: 60 # Initial connection timeout in seconds (default: 60)
+    tools:
+      include: []       # Whitelist: only these tools are registered
+      exclude: []       # Blacklist: all tools except these
+      resources: true   # Register list_resources/read_resource utilities
+      prompts: true     # Register list_prompts/get_prompt utilities
+
+    sampling:           # Optional: server-initiated LLM requests
+      enabled: true     # Default: true
+      model: "..."      # Override model for sampling calls
+      max_tokens_cap: 4096
+      timeout: 30
+      max_rpm: 10
+      allowed_models: []
+      max_tool_rounds: 5
+      log_level: "info"
+```
+
+### Server key reference
+
+| Key | Type | Applies to | Description |
+|-----|------|------------|-------------|
+| `command` | string | stdio | Executable to launch |
+| `args` | list | stdio | Arguments for the subprocess |
+| `env` | mapping | stdio | Environment variables passed to the subprocess |
+| `url` | string | HTTP | Remote MCP endpoint URL |
+| `headers` | mapping | HTTP | HTTP headers for remote server requests |
+| `enabled` | bool | both | If `false`, Hermes skips the server entirely |
+| `timeout` | number | both | Per-tool-call timeout in seconds |
+| `connect_timeout` | number | both | Initial connection timeout in seconds |
+| `tools` | mapping | both | Tool filtering and utility policy |
+
+### Tools policy keys
+
+| Key | Type | Description |
+|-----|------|-------------|
+| `tools.include` | string or list | Whitelist: only these server-native MCP tools are registered |
+| `tools.exclude` | string or list | Blacklist: all server-native MCP tools except these are registered |
+| `tools.resources` | bool | Enable/disable `list_resources` and `read_resource` utility wrappers |
+| `tools.prompts` | bool | Enable/disable `list_prompts` and `get_prompt` utility wrappers |
+
+## Tool Naming Convention
+
+Hermes prefixes MCP tools to avoid name collisions with built-in tools:
+
+```
+mcp_<server_name>_<tool_name>
+```
+
+Hyphens and dots in server names and tool names are replaced with underscores.
+
+| Server | MCP tool name | Registered name in Hermes |
+|--------|---------------|--------------------------|
+| `filesystem` | `read_file` | `mcp_filesystem_read_file` |
+| `github` | `create-issue` | `mcp_github_create_issue` |
+| `my-api` | `query.data` | `mcp_my_api_query_data` |
+
+You do not need to call the prefixed name manually — Hermes sees the tool and chooses it during normal reasoning.
+
+## MCP Utility Tools
+
+When an MCP server supports resources or prompts, Hermes registers utility wrappers per server:
+
+**Resource utilities:**
+- `mcp_<server>_list_resources` — list available resources
+- `mcp_<server>_read_resource` — read a resource by URI
+
+**Prompt utilities:**
+- `mcp_<server>_list_prompts` — list available prompts
+- `mcp_<server>_get_prompt` — get a prompt by name with optional arguments
+
+These are capability-aware: Hermes only registers a resource utility if the MCP session actually supports resource operations, and only registers a prompt utility if the session supports prompt operations. A server that exposes callable tools but no resources/prompts will not get those extra wrappers.
+
+## Per-Server Tool Filtering
+
+### Disable a server entirely
+
+```yaml
+mcp_servers:
+  legacy:
+    url: "https://mcp.legacy.internal"
+    enabled: false
+```
+
+When `enabled: false`, Hermes makes no connection attempt, performs no discovery, and registers no tools. The config remains in place for later reuse.
+
+### Whitelist server tools (include)
+
+```yaml
+mcp_servers:
+  github:
+    command: "npx"
+    args: ["-y", "@modelcontextprotocol/server-github"]
+    env:
+      GITHUB_PERSONAL_ACCESS_TOKEN: "ghp_..."
+    tools:
+      include: [create_issue, list_issues, search_code]
+```
+
+Only those listed MCP server tools are registered. All others are silently dropped.
+
+### Blacklist server tools (exclude)
+
+```yaml
+mcp_servers:
+  stripe:
+    url: "https://mcp.stripe.com"
+    headers:
+      Authorization: "Bearer ***"
+    tools:
+      exclude: [delete_customer, refund_payment]
+```
+
+All server tools are registered except the excluded ones.
+
+### Precedence rule
+
+If both `include` and `exclude` are present, `include` wins:
+
+```yaml
+tools:
+  include: [create_issue]
+  exclude: [create_issue, delete_issue]
+```
+
+Result: `create_issue` is still registered; `exclude` has no effect on it.
+
+### Disable utility wrappers
+
+```yaml
+mcp_servers:
+  docs:
+    url: "https://mcp.docs.example.com"
+    tools:
+      prompts: false
+      resources: false
+```
+
+`tools.resources: false` disables `list_resources` and `read_resource`. `tools.prompts: false` disables `list_prompts` and `get_prompt`.
+
+### Empty result behavior
+
+If your config filters out all callable tools and disables or omits all supported utilities, Hermes does not create a runtime MCP toolset for that server. This keeps the tool list clean.
+
+## MCP Sampling
+
+Sampling lets MCP servers request LLM completions from Hermes. This allows MCP servers to drive agentic workflows — the server sends a request, Hermes calls the configured LLM, and the result is returned to the server.
+
+Configure sampling per server:
+
+```yaml
+mcp_servers:
+  analysis:
+    command: "npx"
+    args: ["-y", "analysis-server"]
+    sampling:
+      enabled: true              # Default: true when MCP sampling types are available
+      model: "gemini-3-flash"    # Override which model handles sampling requests
+      max_tokens_cap: 4096       # Maximum tokens per sampling request
+      timeout: 30                # LLM call timeout in seconds
+      max_rpm: 10                # Rate limit: maximum requests per minute
+      allowed_models: []         # Whitelist of allowed model names (empty = all)
+      max_tool_rounds: 5         # Tool loop limit (0 = disable tool loops)
+      log_level: "info"          # Audit verbosity: debug, info, warning
+```
+
+Sampling requires the MCP SDK to expose sampling types (`CreateMessageResult`, `SamplingCapability`). If those types are unavailable in the installed SDK version, sampling is disabled with a debug log message.
+
+The `SamplingHandler` class in `tools/mcp_tool.py` manages per-server sampling state:
+- Sliding-window rate limiting (60-second window)
+- Model resolution: config override > server hint > default
+- Token and request metrics per server
+- Tool loop governance via `max_tool_rounds`
+- Credential scrubbing from error messages before returning to the LLM
+
+## Reconnection Behavior
+
+Hermes implements automatic reconnection with exponential backoff for dropped connections:
+
+- Maximum reconnection attempts: 5
+- Initial backoff: 1 second
+- Backoff multiplier: 2x per retry
+- Maximum backoff: 60 seconds
+
+If the initial connection (first attempt) fails, Hermes logs a warning and continues without that server. If the connection drops after being established, Hermes attempts to reconnect up to 5 times before giving up.
+
+During reconnection, the server's tools remain registered in the tool list but calls to them return `{"error": "MCP server '<name>' is not connected"}` until reconnection succeeds.
+
+Reconnection is skipped if a graceful shutdown has been requested.
+
+## Architecture
+
+Hermes runs a dedicated background event loop (`mcp-event-loop` daemon thread) for all MCP connections. Each MCP server runs as a long-lived `asyncio.Task` on this loop, keeping its transport context alive.
+
+This architecture is required by `anyio`: cancel-scope cleanup must happen in the same Task that opened the connection.
+
+Tool call coroutines are scheduled onto the background loop via `asyncio.run_coroutine_threadsafe()` and blocked on from the caller thread. The lock `_lock` protects the `_servers` dict and the loop/thread references from concurrent access.
+
+On shutdown, each server Task is signalled to exit its `async with` block. All servers are shut down in parallel via `asyncio.gather`.
+
+## Security Model
+
+### stdio environment filtering
+
+For stdio servers, Hermes does not pass your full shell environment to the subprocess. Only a safe baseline is passed:
+- `PATH`, `HOME`, `USER`, `LANG`, `LC_ALL`, `TERM`, `SHELL`, `TMPDIR`
+- All `XDG_*` variables
+- Variables explicitly listed in the server's `env` config block
+
+This prevents accidental leakage of API keys, tokens, and credentials to MCP server subprocesses.
+
+### Credential scrubbing in error messages
+
+Error messages returned from MCP tool calls are scrubbed for credential-like patterns before the LLM sees them. Scrubbed patterns include:
+- GitHub PATs (`ghp_...`)
+- OpenAI-style keys (`sk-...`)
+- Bearer tokens
+- `token=`, `key=`, `API_KEY=`, `password=`, `secret=` patterns
+
+### Config-level exposure control
+
+Per-server filtering is also a security control:
+- Use `tools.include` to expose a minimal surface for sensitive servers
+- Use `tools.exclude` to block dangerous tools you do not want the model to call
+- Use `tools.resources: false` and `tools.prompts: false` to prevent browsing server-provided assets
+
+## Runtime Behavior
+
+### Discovery time
+
+Hermes connects to configured MCP servers at startup, in parallel (`asyncio.gather`). The outer discovery timeout is 120 seconds total. Per-server connection timeouts are controlled by `connect_timeout` (default: 60 seconds).
+
+After discovery, each connected server's tools are injected into the normal tool registry and into all `hermes-*` platform toolsets.
+
+### Reloading
+
+If you change MCP config during a session, use the `/reload-mcp` slash command:
+
+```
+/reload-mcp
+```
+
+This reloads MCP servers from config and refreshes the available tool list without restarting Hermes.
+
+### Toolset created per server
+
+Each configured MCP server that contributes at least one registered tool also gets its own named toolset: `mcp-<server>`. This lets you target a specific MCP server in platform toolset overrides.
+
+## Complete Config Example
+
+```yaml
+mcp_servers:
+  # Stdio server: GitHub with a tight allowlist
+  github:
+    command: "npx"
+    args: ["-y", "@modelcontextprotocol/server-github"]
+    env:
+      GITHUB_PERSONAL_ACCESS_TOKEN: "ghp_..."
+    tools:
+      include: [list_issues, create_issue, update_issue, search_code]
+      prompts: false
+      resources: false
+
+  # Stdio server: Git access for one repository
+  git:
+    command: "uvx"
+    args: ["mcp-server-git", "--repository", "/home/user/project"]
+
+  # Stdio server: Filesystem access rooted to one directory
+  filesystem:
+    command: "npx"
+    args: ["-y", "@modelcontextprotocol/server-filesystem", "/home/user/project"]
+    connect_timeout: 30
+
+  # HTTP server: Stripe with dangerous actions removed
+  stripe:
+    url: "https://mcp.stripe.com"
+    headers:
+      Authorization: "Bearer rk_live_..."
+    tools:
+      exclude: [delete_customer, refund_payment]
+      resources: false
+
+  # HTTP server: Internal API with strict allowlist
+  internal_api:
+    url: "https://mcp.internal.example.com"
+    headers:
+      Authorization: "Bearer ***"
+    tools:
+      include: [list_customers, get_customer, list_invoices]
+      resources: false
+      prompts: false
+
+  # HTTP server: Documentation server with resources enabled
+  docs:
+    url: "https://mcp.docs.example.com"
+    tools:
+      prompts: true
+      resources: true
+
+  # Disabled server: config kept for later use
+  legacy:
+    url: "https://mcp.legacy.internal"
+    enabled: false
+
+  # Server with sampling enabled
+  analysis:
+    command: "npx"
+    args: ["-y", "analysis-server"]
+    sampling:
+      enabled: true
+      model: "gemini-3-flash"
+      max_tokens_cap: 4096
+      timeout: 30
+      max_rpm: 10
+      max_tool_rounds: 5
+```
+
+## Quickstart
+
+1. Install MCP support (included in the standard install, but can be added separately):
+
+```bash
+cd ~/.hermes/hermes-agent
+uv pip install -e ".[mcp]"
+```
+
+2. For npm-based servers, ensure Node.js and npx are available:
+
+```bash
+node --version
+npx --version
+```
+
+3. Add a server to `~/.hermes/config.yaml`:
+
+```yaml
+mcp_servers:
+  filesystem:
+    command: "npx"
+    args: ["-y", "@modelcontextprotocol/server-filesystem", "/home/user/projects"]
+```
+
+4. Start Hermes:
+
+```bash
+hermes chat
+```
+
+5. Verify MCP loaded by asking the agent what tools are available, or use:
+
+```
+/reload-mcp
+```
+
+## Troubleshooting
+
+### MCP server not connecting
+
+Check:
+
+```bash
+# Verify MCP deps are installed
+cd ~/.hermes/hermes-agent && uv pip install -e ".[mcp]"
+
+# Check Node.js is available for npm-based servers
+node --version
+npx --version
+```
+
+Verify your config and restart Hermes, or use `/reload-mcp` inside chat.
+
+### Tools not appearing after connection
+
+Possible causes:
+- Filtered by `tools.include` — only whitelisted tools appear
+- Excluded by `tools.exclude`
+- Utility wrappers disabled via `resources: false` or `prompts: false`
+- Server does not actually support resources/prompts (capability-aware registration)
+- Server is disabled with `enabled: false`
+
+If you are intentionally filtering, the missing tools are expected.
+
+### Resource or prompt utilities not appearing
+
+Both conditions must be true for utility wrappers to appear:
+1. Your config allows them (`resources: true` / `prompts: true`, which is the default)
+2. The MCP server session actually supports the capability
+
+If the server does not advertise the capability, Hermes will not register the wrapper even if your config enables it. This is intentional and keeps the tool list honest.
+
+### Server connects but the wrong tools appear
+
+If more tools appear than expected, add an `include` allowlist. If fewer appear than expected, remove any `include` or `exclude` filters and check whether the server actually exposes those tool names.
+
+### "missing executable 'npx'" in logs
+
+Node.js is not on the filtered PATH used by the MCP subprocess. Either:
+- Ensure Node.js bin directory is in the system PATH
+- Set the full absolute path in `command`: `command: "/usr/local/bin/npx"`
+- Or set `PATH` explicitly in the server's `env` block:
+
+```yaml
+mcp_servers:
+  github:
+    command: "/usr/local/bin/npx"
+    args: ["-y", "@modelcontextprotocol/server-github"]
+    env:
+      GITHUB_PERSONAL_ACCESS_TOKEN: "ghp_..."
+```
+
+### How to disable a server without deleting the config
+
+Set `enabled: false`:
+
+```yaml
+mcp_servers:
+  github:
+    command: "npx"
+    args: ["-y", "@modelcontextprotocol/server-github"]
+    env:
+      GITHUB_PERSONAL_ACCESS_TOKEN: "ghp_..."
+    enabled: false
+```
+
+This prevents the connection and tool registration while preserving the config for later reuse.
+
+### Reloading after config changes
+
+After changing include/exclude lists, enabled flags, resources/prompts toggles, or auth headers/env, reload servers:
+
+```
+/reload-mcp
+```
+
+## Common Usage Patterns
+
+### Local project assistant
+
+```yaml
+mcp_servers:
+  fs:
+    command: "npx"
+    args: ["-y", "@modelcontextprotocol/server-filesystem", "/home/user/project"]
+
+  git:
+    command: "uvx"
+    args: ["mcp-server-git", "--repository", "/home/user/project"]
+```
+
+Prompts:
+- "Review the project structure and identify where configuration lives."
+- "Check the local git state and summarize what changed recently."
+
+### GitHub issue triage assistant
+
+```yaml
+mcp_servers:
+  github:
+    command: "npx"
+    args: ["-y", "@modelcontextprotocol/server-github"]
+    env:
+      GITHUB_PERSONAL_ACCESS_TOKEN: "ghp_..."
+    tools:
+      include: [list_issues, create_issue, update_issue, search_code]
+      prompts: false
+      resources: false
+```
+
+Prompts:
+- "List open issues labeled bug, cluster them by theme, and draft a high-quality issue for the most common bug."
+- "Search the repo for uses of _discover_and_register_server and explain how MCP tools are registered."
+
+### Internal API assistant
+
+```yaml
+mcp_servers:
+  internal_api:
+    url: "https://mcp.internal.example.com"
+    headers:
+      Authorization: "Bearer ***"
+    tools:
+      include: [list_customers, get_customer, list_invoices]
+      resources: false
+      prompts: false
+```
+
+Use `include` allowlists for any sensitive internal system — expose only what is needed for the task.
+
+### Documentation and knowledge server
+
+```yaml
+mcp_servers:
+  docs:
+    url: "https://mcp.docs.example.com"
+    tools:
+      prompts: true
+      resources: true
+```
+
+Prompts:
+- "List available MCP resources from the docs server, then read the onboarding guide and summarize it."
+- "List prompts exposed by the docs server and tell me which ones would help with incident response."
+
+## Safe Usage Recommendations
+
+- Prefer `include` allowlists for dangerous systems (financial, customer-facing, destructive). Start with the smallest set possible.
+- Keep filesystem servers scoped to one directory, not your home directory.
+- Keep git servers pointed at one repository.
+- Disable resource and prompt wrappers when you do not want the model browsing server-provided assets.
+- Use `enabled: false` to temporarily disable a server without losing the config.
+- Reload after config changes with `/reload-mcp` — do not restart Hermes for every small config update.

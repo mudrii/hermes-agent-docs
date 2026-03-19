@@ -1,376 +1,585 @@
-# Memory & Persistence
+# Memory and Persistence
 
-Hermes implements a multi-tier memory architecture that persists knowledge across sessions, devices, and restarts.
-
----
-
-## Memory Architecture
-
-| Tier | Storage | Scope | Purpose |
-|------|---------|-------|---------|
-| **Inference memory** | Context window | Current turn | Standard LLM context |
-| **Procedural skills** | `~/.hermes/skills/` | All sessions | Step-by-step procedures the agent creates |
-| **Session history** | SQLite (FTS5) | All sessions on device | Full conversation search |
-| **User model** | Honcho API | Cross-device, cross-session | Persistent user understanding |
+Hermes Agent has two memory systems that can work independently or together. The built-in memory system uses local files and SQLite for persistent facts and session history. The optional Honcho integration adds a cloud-backed AI-native user modeling layer. This document covers both systems in full.
 
 ---
 
-## Session Storage (SQLite)
+## Built-in Memory: Overview
 
-**File:** `~/.hermes/state.db`
+Hermes maintains two local memory files that persist across sessions:
 
-All sessions, messages, and token counts are persisted immediately to SQLite with WAL mode for concurrent access.
+| File | Purpose | Character Limit |
+|------|---------|----------------|
+| **MEMORY.md** | Agent's personal notes — environment facts, conventions, lessons learned | 2,200 chars (~800 tokens) |
+| **USER.md** | User profile — preferences, communication style, expectations | 1,375 chars (~500 tokens) |
 
-### Session Database Schema
-
-```sql
-sessions(
-    id, source, user_id, model, system_prompt,
-    parent_session_id,      -- lineage chain for compressed sessions
-    started_at, ended_at, end_reason,
-    message_count, tool_call_count,
-    input_tokens, output_tokens, title
-)
-
-messages(
-    id, session_id, role, content,
-    tool_call_id, tool_calls, tool_name,
-    timestamp, token_count, finish_reason
-)
-
-messages_fts    -- FTS5 virtual table, auto-indexed
-```
-
-### Searching Past Sessions
-
-```bash
-# Via CLI
-/session_search "how did I fix that docker issue"
-
-# Via tool (called by agent)
-session_search(query="docker networking", max_results=5, context_messages=3)
-```
-
-Returns summarized excerpts from matching conversations.
-
-### Session Commands
-
-```bash
-hermes sessions list               # List recent sessions
-hermes sessions browse             # Interactive browser
-hermes sessions view <id>          # View messages
-hermes sessions export <id>        # Export to JSONL
-hermes sessions export-all         # Export everything
-hermes sessions prune --days 90    # Delete old sessions
-```
-
-### Session Resume
-
-```bash
-hermes --session abc123            # Resume by ID prefix
-hermes --session "my project"      # Resume by title
-```
+Both files are stored in `~/.hermes/memories/` and are injected into the system prompt as a frozen snapshot at session start. The agent manages its own memory via the `memory` tool.
 
 ---
 
-## Procedural Memory (Skills)
+## How Memory Appears in the System Prompt
 
-The most important memory tier for Hermes's self-improvement loop.
-
-When the agent solves a problem for the first time, it can create a skill document capturing the procedure. On future encounters, it loads the skill and applies the known solution.
-
-### How Skills Are Created
-
-The agent uses `skill_manage` to create, update, and delete its own skills:
+At session start, memory entries are loaded from disk and rendered into the system prompt as a frozen block:
 
 ```
-User: "Help me optimize my PyTorch training loop"
-Agent: (solves the problem)
-       (creates skill: pytorch-training-optimization)
-       "I've saved this as a skill for future use."
+══════════════════════════════════════════════
+MEMORY (your personal notes) [67% — 1,474/2,200 chars]
+══════════════════════════════════════════════
+User's project is a Rust web service at ~/code/myapi using Axum + SQLx
+§
+This machine runs Ubuntu 22.04, has Docker and Podman installed
+§
+User prefers concise responses, dislikes verbose explanations
 ```
 
-Next session, `pytorch-training-optimization` appears in the skills index in the system prompt.
+The format includes:
+- A header with the store name (MEMORY or USER PROFILE)
+- Usage percentage and character counts so the agent knows remaining capacity
+- Individual entries separated by `§` (section sign) delimiters
+- Entries can span multiple lines
 
-### Skill Storage
+### Frozen Snapshot Pattern
 
-```
-~/.hermes/skills/
-└── <category>/
-    └── <skill-name>/
-        ├── SKILL.md           # Main instructions
-        ├── references/        # Linked docs
-        ├── templates/         # Output templates
-        └── scripts/           # Helper scripts
-```
-
-See [Skills](skills.md) for full documentation.
+The system prompt injection is captured once at session start and never changes mid-session. This is intentional — it preserves the LLM's prefix cache for performance. When the agent adds, removes, or replaces memory entries during a session, the changes are persisted to disk immediately, but they do not appear in the system prompt until the next session starts. Tool call responses always show the live state.
 
 ---
 
-## Persistent Key-Value Memory
+## Memory Tool Actions
 
-The `memory` tool provides simple persistent storage that appears in the system prompt at session start:
+The agent uses the `memory` tool with these actions:
+
+| Action | Description |
+|--------|-------------|
+| `add` | Add a new memory entry |
+| `replace` | Replace an existing entry using substring matching |
+| `remove` | Remove an entry using substring matching |
+
+There is no `read` action — memory content is automatically injected into the system prompt. The agent sees its memories as part of its conversation context at the start of each session.
+
+### Substring Matching
+
+The `replace` and `remove` actions use short unique substring matching. The `old_text` parameter just needs to be a unique substring that identifies exactly one entry:
 
 ```python
-# Save
-memory(action="save", key="user_preferences", value="prefers Python 3.12, uses pytest")
-
-# Read
-memory(action="read", key="user_preferences")
-
-# Delete
-memory(action="delete", key="user_preferences")
+# If memory contains "User prefers dark mode in all editors"
+memory(action="replace", target="memory",
+       old_text="dark mode",
+       content="User prefers light mode in VS Code, dark mode in terminal")
 ```
 
-**Storage:** `~/.hermes/memories/`
-
-Memories are small facts, preferences, and context that should always be available without taking up conversation space.
+If the substring matches multiple entries, an error is returned asking for a more specific match.
 
 ---
 
-## Honcho Integration (Cross-Session User Modeling)
+## Two Memory Targets
 
-[Honcho](https://app.honcho.dev) is an AI-native user memory platform. Hermes optionally uses it to build persistent understanding of users across sessions and devices.
+### `memory` — Agent's Personal Notes
 
-### Setup
+For information the agent needs to remember about the environment, workflows, and lessons learned:
 
-```bash
-# Install Honcho extras
-pip install -e ".[honcho]"
+- Environment facts (OS, installed tools, project structure)
+- Project conventions and configuration
+- Tool quirks and workarounds discovered
+- Completed task diary entries
+- Skills and techniques that worked
 
-# Configure
-hermes honcho setup
-```
+### `user` — User Profile
 
-Set `HONCHO_API_KEY` in `~/.hermes/.env`.
+For information about the user's identity, preferences, and communication style:
 
-### How Honcho Works
-
-Each conversation turn:
-1. User message → Honcho session updated
-2. Honcho prefetches relevant user context (optionally injected into system prompt)
-3. Agent responds
-4. Assistant message → Honcho session updated (per write_frequency)
-
-Over time, Honcho builds a model of the user's preferences, working style, and history.
-
-### Memory Modes
-
-| Mode | Description |
-|------|-------------|
-| `hybrid` | Auto-inject recent context + Honcho tools available (recommended) |
-| `honcho` | Only Honcho tools — explicit retrieval required |
-| `context` | Only auto-injected context — no tools |
-
-Configure:
-```bash
-hermes honcho mode hybrid
-```
-
-### Recall Modes
-
-| Mode | Description |
-|------|-------------|
-| `hybrid` | Auto-inject + tools available |
-| `context` | Auto-inject only |
-| `tools` | Tools only (no auto-inject) |
-
-### Honcho Tools
-
-When Honcho is enabled, 4 tools become available:
-
-| Tool | Description |
-|------|-------------|
-| `honcho_profile` | Get user peer card (curated facts, fast) |
-| `honcho_search` | Semantic search over user context |
-| `honcho_context` | Ask natural language question about user (uses Honcho LLM) |
-| `honcho_conclude` | Write a conclusion about the user to Honcho (builds long-term model) |
-
-### Session Strategy
-
-Control how directory/project maps to Honcho sessions:
-
-```yaml
-honcho:
-  session_strategy: "per-repo"  # per-session | per-repo | per-directory | global
-
-  # Manual overrides
-  sessions:
-    /home/user/my-project: "main-project"
-    /home/user/client-work: "client"
-```
-
-### Write Frequency
-
-```yaml
-honcho:
-  write_frequency: "async"    # async | turn | session | N (int)
-```
-
-- `async` — Background thread, batch writes (lowest latency)
-- `turn` — Sync per turn (guarantees persistence)
-- `session` — Flush on session end
-- `N` — Every N turns
-
-### Dialectic Reasoning
-
-Honcho's dialectic feature uses an LLM to reason about the user before responding:
-
-```yaml
-honcho:
-  dialectic_reasoning_level: "medium"   # minimal | low | medium | high | max
-  dialectic_max_chars: 600              # Chars of reasoning to inject
-```
-
-Higher levels provide more nuanced user understanding but consume more tokens.
-
-### Management Commands
-
-```bash
-hermes honcho status                    # Show current settings
-hermes honcho sessions                  # List session mappings
-hermes honcho map my-project-session   # Map current dir to session name
-hermes honcho peer                      # Configure peer names
-hermes honcho tokens --context 800     # Set context token budget
-hermes honcho identity SOUL.md         # Seed AI identity
-```
+- Name, role, timezone
+- Communication preferences (concise vs. detailed, format preferences)
+- Pet peeves and things to avoid
+- Workflow habits
+- Technical skill level
 
 ---
 
-## Cron Scheduler
+## What to Save vs. Skip
 
-The cron system runs agent tasks on a schedule and delivers results to messaging platforms.
+The agent saves information proactively — you do not need to ask. It saves when it learns:
 
-### How Cron Works
+| Category | Examples | Target |
+|----------|---------|--------|
+| User preferences | "I prefer TypeScript over JavaScript" | `user` |
+| Environment facts | "This server runs Debian 12 with PostgreSQL 16" | `memory` |
+| Corrections | "Don't use `sudo` for Docker commands, user is in docker group" | `memory` |
+| Conventions | "Project uses tabs, 120-char line width, Google-style docstrings" | `memory` |
+| Completed work | "Migrated database from MySQL to PostgreSQL on 2026-01-15" | `memory` |
+| Explicit requests | "Remember that my API key rotation happens monthly" | `memory` |
 
-1. Cron daemon ticks every 60 seconds (file-locked, single writer)
-2. Due jobs execute in a separate thread with a fresh AIAgent
-3. Output saved to `~/.hermes/cron/output/{job_id}/{timestamp}.md`
-4. Result delivered to configured target
+Skip:
+- Trivial or obvious information: "User asked about Python" (too vague)
+- Easily re-discovered facts: "Python 3.12 supports f-string nesting" (can search this)
+- Raw data dumps: large code blocks, log files, data tables (too big)
+- Session-specific ephemera: temporary file paths, one-off debugging context
+- Information already in context files: `SOUL.md` and `AGENTS.md` content
 
-### Schedule Formats
+---
 
-| Format | Example | Description |
-|--------|---------|-------------|
-| Cron expression | `0 9 * * *` | Standard 5-field cron |
-| Interval | `every 30m` | Recurring every N duration |
-| One-time | `2026-12-25T09:00:00` | ISO 8601 datetime |
-| Natural language | `daily 9am` | Parsed to cron |
+## Capacity Management
 
-### Creating Jobs
+| Store | Limit | Typical entries |
+|-------|-------|----------------|
+| memory | 2,200 chars | 8–15 entries |
+| user | 1,375 chars | 5–10 entries |
 
-```bash
-# Via CLI
-hermes cron add "daily 9am"
-# → Interactive prompts for name, prompt, delivery target
-
-# Via tool (agent creates the job)
-cronjob(
-    action="create",
-    name="daily-brief",
-    prompt="Give me a morning briefing: today's weather, calendar events, and top 3 priorities",
-    schedule="0 9 * * *",
-    deliver="telegram",
-    skills=["google-workspace"]
-)
-```
-
-### Delivery Targets
-
-| Target | Description |
-|--------|-------------|
-| `"origin"` | Back to the chat that created the job |
-| `"local"` | Save to `~/.hermes/cron/output/` only |
-| `"telegram"` | Telegram home channel |
-| `"telegram:123456"` | Specific Telegram chat |
-| `"discord"` | Discord home channel |
-| `"slack"` | Slack home channel |
-| `"email"` | Email home address |
-
-### Managing Jobs
-
-```bash
-hermes cron list          # Show all jobs
-hermes cron status        # Check if running
-hermes cron pause <id>    # Pause
-hermes cron resume <id>   # Resume
-hermes cron run <id>      # Run now
-hermes cron remove <id>   # Delete
-```
-
-### Per-Job Model Override
-
-Jobs can use a different (cheaper) model than the default:
+When an addition would exceed the limit, the tool returns an error:
 
 ```json
 {
-  "model": "google/gemini-3-flash-preview",
-  "provider": "openrouter"
+  "success": false,
+  "error": "Memory at 2,100/2,200 chars. Adding this entry (250 chars) would exceed the limit. Replace or remove existing entries first.",
+  "current_entries": ["..."],
+  "usage": "2,100/2,200"
 }
 ```
 
-### Job Storage
+The agent should read current entries from the error response, identify entries to consolidate or remove, use `replace` to merge related entries, then add the new entry.
+
+Best practice: when memory is above 80% capacity (visible in the system prompt header), consolidate entries proactively.
+
+### Duplicate Prevention
+
+The memory system automatically rejects exact duplicate entries. If you try to add content that already exists, it returns success with a "no duplicate added" message.
+
+---
+
+## Security Scanning
+
+Memory entries are scanned for injection and exfiltration patterns before being accepted, because they are injected into the system prompt. Content matching threat patterns (prompt injection, credential exfiltration, SSH backdoors) or containing invisible Unicode characters is blocked.
+
+---
+
+## Session Search
+
+Beyond `MEMORY.md` and `USER.md`, the agent can search past conversations using the `session_search` tool:
+
+- All CLI and messaging sessions are stored in SQLite at `~/.hermes/state.db` with FTS5 full-text search indexing
+- Search queries return relevant past conversations with summarization
+- The agent can find things discussed weeks ago, even if they are not in the active memory files
+
+```bash
+hermes sessions list    # Browse past sessions
+```
+
+### Memory vs. Session Search
+
+| Feature | Persistent Memory | Session Search |
+|---------|------------------|----------------|
+| Capacity | ~1,300 tokens total | Unlimited (all sessions) |
+| Speed | Instant (already in system prompt) | Requires search and LLM summarization |
+| Use case | Key facts always available | Finding specific past conversations |
+| Management | Manually curated by agent | Automatic — all sessions stored |
+| Token cost | Fixed per session (~1,300 tokens) | On-demand when searched |
+
+Memory is for critical facts that should always be in context. Session search is for "did we discuss X last week?" queries.
+
+---
+
+## Configuration
+
+Control built-in memory in `~/.hermes/config.yaml`:
+
+```yaml
+memory:
+  memory_enabled: true
+  user_profile_enabled: true
+  memory_char_limit: 2200   # ~800 tokens
+  user_char_limit: 1375     # ~500 tokens
+```
+
+Setting `memory_enabled: false` disables `MEMORY.md` injection. Setting `user_profile_enabled: false` disables `USER.md` injection. These are independent toggles.
+
+---
+
+## How to Disable Memory
+
+Set both flags to false in `~/.hermes/config.yaml`:
+
+```yaml
+memory:
+  memory_enabled: false
+  user_profile_enabled: false
+```
+
+Or via CLI:
+
+```bash
+hermes config set memory.memory_enabled false
+hermes config set memory.user_profile_enabled false
+```
+
+The memory files remain on disk. Re-enabling memory loads them again in the next session.
+
+---
+
+## Honcho Integration: Cross-Session User Modeling
+
+Honcho is an AI-native memory system that gives Hermes persistent, cross-session understanding of users. While Hermes has built-in memory (`MEMORY.md` and `USER.md`), Honcho adds a deeper layer of user modeling — learning preferences, goals, and communication style across conversations via a dual-peer architecture where both the user and the AI build representations over time.
+
+### Built-in Memory vs. Honcho Memory
+
+| Feature | Built-in Memory | Honcho Memory |
+|---------|----------------|---------------|
+| Storage | Local files (`~/.hermes/memories/`) | Cloud-hosted Honcho API |
+| Scope | Agent-level notes and user profile | Deep user modeling via dialectic reasoning |
+| Persistence | Across sessions on same machine | Across sessions, machines, and platforms |
+| Query | Injected into system prompt automatically | Prefetched plus on-demand via tools |
+| Content | Manually curated by the agent | Automatically learned from conversations |
+| Write surface | `memory` tool (add/replace/remove) | `honcho_conclude` tool (persist facts) |
+
+In `hybrid` mode (the default when Honcho is enabled), both run side by side.
+
+---
+
+## Honcho Setup
+
+### Interactive Setup
+
+```bash
+hermes honcho setup
+```
+
+The wizard walks through API key, peer names, workspace, memory mode, write frequency, recall mode, and session strategy. It offers to install `honcho-ai` if missing.
+
+### Manual Setup
+
+Install the client library:
+
+```bash
+pip install 'honcho-ai>=2.0.1'
+```
+
+Or install with the extra:
+
+```bash
+pip install -e '.[honcho]'
+```
+
+Get an API key from [app.honcho.dev](https://app.honcho.dev) under Settings > API Keys.
+
+Configure in `~/.honcho/config.json` (shared across all Honcho-enabled applications):
+
+```json
+{
+  "apiKey": "your-honcho-api-key",
+  "hosts": {
+    "hermes": {
+      "workspace": "hermes",
+      "peerName": "your-name",
+      "aiPeer": "hermes",
+      "memoryMode": "hybrid",
+      "writeFrequency": "async",
+      "recallMode": "hybrid",
+      "sessionStrategy": "per-session",
+      "enabled": true
+    }
+  }
+}
+```
+
+Or set the API key via environment variable:
+
+```bash
+hermes config set HONCHO_API_KEY your-key
+```
+
+When an API key is present (either in `~/.honcho/config.json` or as `HONCHO_API_KEY`), Honcho auto-enables unless explicitly set to `"enabled": false`.
+
+---
+
+## Honcho Configuration Reference
+
+### Global Config (`~/.honcho/config.json`)
+
+Settings are scoped to `hosts.hermes`. Root-level keys are shared across all Honcho-enabled tools. Hermes only writes to its own host block (except `apiKey`, which is a shared credential at the root).
+
+**Root-level (shared)**
+
+| Field | Default | Description |
+|-------|---------|-------------|
+| `apiKey` | — | Honcho API key (required, shared across all hosts) |
+| `sessions` | `{}` | Manual session name overrides per directory |
+
+**Host-level (`hosts.hermes`)**
+
+| Field | Default | Description |
+|-------|---------|-------------|
+| `workspace` | `"hermes"` | Workspace identifier |
+| `peerName` | *(derived from system)* | Your identity name for user modeling |
+| `aiPeer` | `"hermes"` | AI assistant identity name |
+| `environment` | `"production"` | Honcho environment |
+| `enabled` | *(auto when API key present)* | Enable/disable Honcho |
+| `saveMessages` | `true` | Whether to sync messages to Honcho |
+| `memoryMode` | `"hybrid"` | Memory mode: `hybrid` or `honcho` |
+| `writeFrequency` | `"async"` | When to write: `async`, `turn`, `session`, or integer N |
+| `recallMode` | `"hybrid"` | Retrieval strategy: `hybrid`, `context`, or `tools` |
+| `sessionStrategy` | `"per-session"` | How sessions are scoped |
+| `sessionPeerPrefix` | `false` | Prefix session names with peer name |
+| `contextTokens` | *(Honcho default)* | Max tokens for auto-injected context |
+| `dialecticReasoningLevel` | `"low"` | Floor for dialectic reasoning: `minimal`, `low`, `medium`, `high`, `max` |
+| `dialecticMaxChars` | `600` | Character cap on dialectic results injected into system prompt |
+| `linkedHosts` | `[]` | Other host keys whose workspaces to cross-reference |
+
+---
+
+## Memory Modes
+
+| Mode | Effect |
+|------|--------|
+| `hybrid` | Write to both Honcho and local files (default) |
+| `honcho` | Honcho only — skip local file writes |
+
+Memory mode can be set globally or per-peer:
+
+```json
+{
+  "memoryMode": {
+    "default": "hybrid",
+    "hermes": "honcho"
+  }
+}
+```
+
+To disable Honcho entirely, set `enabled: false` or remove the API key.
+
+---
+
+## Recall Modes
+
+Controls how Honcho context reaches the agent:
+
+| Mode | Behavior |
+|------|----------|
+| `hybrid` | Auto-injected context plus Honcho tools available (default) |
+| `context` | Auto-injected context only — Honcho tools hidden |
+| `tools` | Honcho tools only — no auto-injected context |
+
+---
+
+## Write Frequency
+
+| Setting | Behavior |
+|---------|----------|
+| `async` | Background thread writes (zero blocking, default) |
+| `turn` | Synchronous write after each conversation turn |
+| `session` | Batched write at session end |
+| *integer N* | Write every N turns |
+
+The default `async` mode has zero blocking impact on response latency. The background writer thread runs independently and flushes automatically at session end.
+
+---
+
+## Session Strategies
+
+| Strategy | Session key | Use case |
+|----------|-------------|----------|
+| `per-session` | Unique per run | Default — fresh session every time |
+| `per-directory` | CWD basename | Each project gets its own session |
+| `per-repo` | Git repo root name | Groups subdirectories under one session |
+| `global` | Fixed `"global"` | Single cross-project session |
+
+Resolution order: manual directory map > session title > strategy-derived key > platform key.
+
+---
+
+## How Async Context Works
+
+Honcho context is fetched asynchronously to avoid blocking the response path:
 
 ```
-~/.hermes/cron/jobs.json                            # Job definitions
-~/.hermes/cron/output/{job_id}/{timestamp}.md       # Job output
-~/.hermes/cron/.tick.lock                           # Prevents concurrent ticks
+User message
+  -> Consume cached Honcho context from the previous turn
+  -> Inject user, AI, and dialectic context into the system prompt
+  -> LLM call
+  -> Assistant response
+  -> Start background fetch for Turn N+1:
+       - Fetch context
+       - Fetch dialectic
+       - Cache for the next turn
+```
+
+Turn 1 is a cold start (no cache). All subsequent turns consume cached results with zero HTTP latency on the response path. The system prompt on Turn 1 uses only static context to preserve prefix cache hits at the LLM provider.
+
+---
+
+## Dual-Peer Architecture
+
+Both the user and the AI have peer representations in Honcho:
+
+- **User peer**: observed from user messages. Honcho learns preferences, goals, communication style.
+- **AI peer**: observed from assistant messages (`observe_me=True`). Honcho builds a representation of the agent's knowledge and behavior.
+
+Both representations are injected into the system prompt when available.
+
+### Dynamic Reasoning Level
+
+Dialectic queries scale reasoning effort with message complexity:
+
+| Message length | Reasoning level |
+|----------------|-----------------|
+| Less than 120 chars | Config default (typically `low`) |
+| 120–400 chars | One level above default (cap: `high`) |
+| More than 400 chars | Two levels above default (cap: `high`) |
+
+`max` is never selected automatically.
+
+---
+
+## Honcho Tools
+
+When Honcho is active, four tools become available to the agent. They are invisible when Honcho is disabled.
+
+### `honcho_profile`
+
+Fast peer card retrieval (no LLM call). Returns a curated list of key facts about the user.
+
+### `honcho_search`
+
+Semantic search over memory (no LLM call). Returns raw excerpts ranked by relevance. Cheaper and faster than `honcho_context` — good for factual lookups.
+
+Parameters:
+- `query` (string) — search query
+- `max_tokens` (integer, optional) — result token budget
+
+### `honcho_context`
+
+Dialectic Q&A powered by Honcho's LLM. Synthesizes an answer from accumulated conversation history.
+
+Parameters:
+- `query` (string) — natural language question
+- `peer` (string, optional) — `"user"` (default) or `"ai"` (queries the assistant's own history and identity)
+
+Example queries:
+```
+"What are this user's main goals?"
+"What communication style does this user prefer?"
+"What topics has this user discussed recently?"
+"What is this user's technical expertise level?"
+```
+
+### `honcho_conclude`
+
+Writes a fact to Honcho memory. Use when the user explicitly states a preference, correction, or project context worth remembering. Feeds into the user's peer card and representation.
+
+Parameters:
+- `conclusion` (string) — the fact to persist
+
+---
+
+## Multi-User Isolation in Gateway Mode
+
+Each gateway session (e.g., a Telegram chat, a Discord channel) gets its own Honcho session context. The session key — derived from the platform and chat ID — is threaded through the entire tool dispatch chain so that Honcho tool calls always execute against the correct session, even when multiple users are messaging concurrently.
+
+This means:
+- `honcho_profile`, `honcho_search`, `honcho_context`, and `honcho_conclude` all resolve the correct session at call time, not at startup
+- Background memory flushes (triggered by `/reset`, `/resume`, or session expiry) preserve the original session key so they write to the correct Honcho session
+- Synthetic flush turns skip Honcho sync to avoid polluting conversation history with internal bookkeeping
+
+### Gateway Session Lifecycle
+
+| Event | What happens to Honcho |
+|-------|------------------------|
+| New message arrives | Agent inherits the gateway's Honcho manager and session key |
+| `/reset` | Memory flush fires with the old session key, then Honcho manager shuts down |
+| `/resume` | Current session is flushed, then the resumed session's Honcho context loads |
+| Session expiry | Automatic flush and shutdown after the configured idle timeout |
+| Gateway stop | All active Honcho managers are flushed and shut down gracefully |
+
+Honcho managers are owned at the gateway session layer (`_honcho_managers` dict) so they persist across requests within the same session and flush at real session boundaries.
+
+---
+
+## Honcho CLI Commands
+
+```bash
+hermes honcho setup                        # Interactive setup wizard
+hermes honcho status                       # Show config and connection status
+hermes honcho sessions                     # List directory -> session name mappings
+hermes honcho map <name>                   # Map current directory to a session name
+hermes honcho peer                         # Show peer names and dialectic settings
+hermes honcho peer --user NAME             # Set user peer name
+hermes honcho peer --ai NAME               # Set AI peer name
+hermes honcho peer --reasoning LEVEL       # Set dialectic reasoning level
+hermes honcho mode                         # Show current memory mode
+hermes honcho mode [hybrid|honcho|local]   # Set memory mode
+hermes honcho tokens                       # Show token budget settings
+hermes honcho tokens --context N           # Set context token cap
+hermes honcho tokens --dialectic N         # Set dialectic char cap
+hermes honcho identity                     # Show AI peer identity
+hermes honcho identity <file>              # Seed AI peer identity from file (SOUL.md, etc.)
+hermes honcho migrate                      # Migration guide: OpenClaw -> Hermes + Honcho
+```
+
+`hermes doctor` includes a Honcho section that validates config, API key, and connection status.
+
+---
+
+## Multi-Host Configuration
+
+Multiple Honcho-enabled tools share `~/.honcho/config.json`. Each tool writes only to its own host block and reads its host block first, falling back to root-level globals:
+
+```json
+{
+  "apiKey": "your-key",
+  "peerName": "eri",
+  "hosts": {
+    "hermes": {
+      "workspace": "my-workspace",
+      "aiPeer": "hermes-assistant",
+      "memoryMode": "honcho",
+      "linkedHosts": ["claude-code"],
+      "contextTokens": 2000,
+      "dialecticReasoningLevel": "medium"
+    },
+    "claude-code": {
+      "workspace": "my-workspace",
+      "aiPeer": "clawd"
+    }
+  }
+}
+```
+
+Resolution: `hosts.<tool>` field > root-level field > default. Both tools share the root `apiKey` and `peerName`, but each has its own `aiPeer` and can have separate workspace settings.
+
+---
+
+## AI Peer Identity
+
+Honcho builds a representation of the AI assistant over time via `observe_me=True`. You can also seed the AI peer explicitly:
+
+```bash
+hermes honcho identity ~/.hermes/SOUL.md
+```
+
+This uploads the file content through Honcho's observation pipeline. The AI peer representation is then injected into the system prompt alongside the user's, giving the agent awareness of its own accumulated identity.
+
+```bash
+hermes honcho identity --show    # Show the current AI peer representation from Honcho
 ```
 
 ---
 
-## Context Compression
+## Migration
 
-When the conversation gets too long, Hermes automatically compresses old turns to free up context.
+### From Local Memory to Honcho
 
-### Compression Trigger
+When Honcho activates on an instance with existing local history, migration runs automatically:
 
-- **Default threshold:** 50% of model's context window
-- **Emergency:** 70% and 90% triggers more aggressive trimming
+1. Prior conversation messages are uploaded as an XML transcript file
+2. Existing `MEMORY.md`, `USER.md`, and `SOUL.md` are uploaded for context
 
-### How It Works
+### From OpenClaw to Hermes + Honcho
 
-1. Token count approaches threshold
-2. Auxiliary LLM (default: Gemini 3 Flash) summarizes old turns
-3. Summary replaces verbose conversation history
-4. Original messages preserved in SQLite (not lost)
-
-### Configuration
-
-```yaml
-compression:
-  enabled: true
-  threshold: 0.50           # Trigger at 50% of context window
-  summary_model: "google/gemini-3-flash-preview"
+```bash
+hermes honcho migrate
 ```
 
-Manual trigger:
-```
-/compress
-```
-
-### Session Lineage
-
-When a session is compressed into a new session, the original session is preserved with `parent_session_id` pointing to the new one. This creates a lineage chain allowing full history reconstruction.
+This walks through converting an OpenClaw native Honcho setup to the shared `~/.honcho/config.json` format.
 
 ---
 
-## Filesystem Checkpoints
+## Honcho Reliability
 
-Hermes can take periodic snapshots of the filesystem before making changes:
-
-```yaml
-checkpoints:
-  enabled: true
-  max_snapshots: 50
-```
-
-Restore:
-```
-/rollback
-```
-
-Shows a list of snapshots with timestamps and changed files. Select one to restore.
-
-**Storage:** `~/.hermes/snapshots/`
+Honcho is fully opt-in — zero behavior change when disabled or unconfigured. All Honcho calls are non-fatal: if the service is unreachable, the agent continues normally using only local memory and session history.
