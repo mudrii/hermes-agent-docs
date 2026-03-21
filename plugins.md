@@ -2,14 +2,14 @@
 
 The plugin system is the primary extension mechanism in Hermes Agent, introduced as a first-class feature in v0.3.0. Plugins let you add custom tools, slash commands, lifecycle hooks, and bundled skills without forking or modifying core Hermes code.
 
-A plugin is a directory dropped into `~/.hermes/plugins/`. When Hermes starts, it discovers and loads all plugins automatically. Your tools appear alongside built-in tools immediately — the model can call them without any extra configuration.
+A plugin is typically stored under `$HERMES_HOME/plugins/` (defaults to `~/.hermes/plugins/`). When Hermes starts, it discovers and loads all eligible plugins automatically. Your tools appear alongside built-in tools immediately — the model can call them without any extra configuration.
 
 ## Plugin Directory Structure
 
 Every plugin is a directory with at minimum a `plugin.yaml` manifest and an `__init__.py` registration module. The conventional layout for a complete plugin is:
 
 ```
-~/.hermes/plugins/my-plugin/
+${HERMES_HOME}/plugins/my-plugin/
 ├── plugin.yaml      # manifest — declares what the plugin provides
 ├── __init__.py      # register() — wires schemas to handlers and hooks
 ├── schemas.py       # tool schemas (what the LLM reads to decide when to call)
@@ -33,13 +33,13 @@ provides_tools:      # list of tool names this plugin provides
 provides_hooks:      # list of hook names this plugin provides
   - post_tool_call
 
-requires_env:        # optional: gate plugin loading on env vars
+requires_env:        # optional: declare env vars required by plugin tools
   - MY_API_KEY       # plugin is disabled if this variable is not set
 ```
 
 The manifest file can be named `plugin.yaml` or `plugin.yml` (both are accepted).
 
-If `requires_env` lists any variable that is missing from the environment, the plugin is skipped at load time with a clear message. No crash, no error in the agent — just a notice that the plugin is disabled due to a missing key.
+`requires_env` is not a hard plugin-level switch in this release. The list is preserved and forwarded into tool registration, but Hermes does not currently skip a plugin's `register()` call based on missing env variables.
 
 ### Manifest Fields Reference
 
@@ -49,7 +49,7 @@ If `requires_env` lists any variable that is missing from the environment, the p
 | `version` | string | No | Version string |
 | `description` | string | No | Human-readable description |
 | `author` | string | No | Author name |
-| `requires_env` | list | No | Environment variables that must be set for the plugin to load |
+| `requires_env` | list | No | Environment variables associated with plugin-provided tools; used when tools are registered/filtered |
 | `provides_tools` | list | No | List of tool names this plugin registers |
 | `provides_hooks` | list | No | List of hook names this plugin registers |
 
@@ -60,20 +60,22 @@ If `requires_env` lists any variable that is missing from the environment, the p
 | Add custom tools | `ctx.register_tool(name, toolset, schema, handler)` |
 | Register lifecycle hooks | `ctx.register_hook("post_tool_call", callback)` |
 | Ship data files | `Path(__file__).parent / "data" / "file.yaml"` |
-| Bundle skills | Copy `skill.md` to `~/.hermes/skills/` at load time |
+| Bundle skills | Copy `skill.md` to `${HERMES_HOME}/skills/` at load time |
 | Gate on env vars | `requires_env: [API_KEY]` in `plugin.yaml` |
 | Conditional tool availability | `check_fn=lambda: _has_optional_lib()` in `register_tool` |
 | Distribute via pip | `[project.entry-points."hermes_agent.plugins"]` in `pyproject.toml` |
 
 ## Plugin Discovery
 
-Hermes discovers plugins from three sources, checked in order:
+Hermes discovers plugins from three sources:
 
 | Source | Path | Use case |
 |--------|------|----------|
-| User plugins | `~/.hermes/plugins/` | Personal plugins |
-| Project plugins | `.hermes/plugins/` | Project-specific plugins |
+| User plugins | `${HERMES_HOME}/plugins/` (or `~/.hermes/plugins/`) | Personal plugins |
+| Project plugins | `.hermes/plugins/` (opt-in) | Project-specific plugins |
 | pip entry points | `hermes_agent.plugins` entry_points group | Distributed packages |
+
+Project plugin discovery is opt-in: only loads when `HERMES_ENABLE_PROJECT_PLUGINS=1`.
 
 Each source can have multiple plugins. All discovered plugins are loaded on startup.
 
@@ -254,12 +256,17 @@ def register(ctx):
     ctx.register_hook("post_tool_call", _on_post_tool_call)
 ```
 
-After starting Hermes, verify with `/plugins`:
+After starting Hermes, verify plugin load state:
 
 ```
 Plugins (1):
   ✓ calculator v1.0.0 (2 tools, 1 hooks)
 ```
+
+The command surface is split:
+
+- Shell workflow: `hermes plugins list` / `hermes plugins install|update|remove <name>`
+- In-session workflow: `/plugins` to list loaded plugins with tool and hook counts
 
 ## Hook Registration in Plugins
 
@@ -349,7 +356,7 @@ pip install hermes-plugin-my-plugin
 On startup, Hermes:
 
 1. Scans `~/.hermes/plugins/` (or `$HERMES_HOME/plugins/`) for subdirectories containing `plugin.yaml` or `plugin.yml`
-2. Scans `.hermes/plugins/` in the current working directory for project-specific plugins
+2. Scans `.hermes/plugins/` in the current working directory for project-specific plugins **only when** `HERMES_ENABLE_PROJECT_PLUGINS=1`
 3. Checks installed packages for the `hermes_agent.plugins` entry points group
 4. For each discovered plugin, imports the module and calls `register(ctx)`
 5. Any plugin whose `register()` raises an exception is disabled with an error logged; Hermes continues

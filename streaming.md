@@ -134,7 +134,13 @@ If an edit receives a 429 rate-limit response, that edit cycle is skipped and th
 
 ### Duplicate Message Prevention
 
-When streaming is active and tokens were delivered via progressive edits, the normal final-response `send()` call is suppressed to prevent duplicate messages. The result dict carries a `_streamed_msg_id` marker that tells the base gateway adapter to skip its normal send path.
+When streaming is active and tokens were delivered via progressive edits, the normal final-response `send()` call is suppressed to prevent duplicate messages.
+
+At the platform boundary this is implemented by a runtime `already_sent` marker:
+
+- `GatewayStreamConsumer.already_sent` in `gateway/stream_consumer.py` is set to `True` after first stream send/edit succeeds.
+- `gateway/run.py` copies that into the agent result (`response["already_sent"] = True`).
+- `gateway/run.py` reads `already_sent` to skip the adapter's standard final-send path.
 
 The final edit uses the post-processed response (with `<think>...</think>` blocks stripped and trailing whitespace cleaned) rather than the raw accumulated stream text.
 
@@ -199,7 +205,10 @@ When a client sends `stream: true`:
 3. A real SSE writer reads the queue and emits `chat.completion.chunk` events as tokens arrive
 4. When `None` is received from the queue (end of stream), the SSE writer sends `data: [DONE]` and closes
 
-For `/v1/responses` with `stream: true`, the events follow the Responses API format (`response.output_text.delta`, `response.completed`).
+For `/v1/responses`, Hermes currently returns a single JSON response (no streaming mode exposed from this endpoint in the released 2026.3.17 code path). Streaming SSE is implemented for:
+
+1. `POST /v1/chat/completions` with `stream: true`.
+2. CLI, messaging gateway platforms, and TTS paths via callback-driven stream consumers.
 
 ---
 
@@ -218,8 +227,9 @@ For `/v1/responses` with `stream: true`, the events follow the Responses API for
 | File | Role |
 |------|------|
 | `run_agent.py` | `_fire_stream_delta()`, `_has_stream_consumers()`, `_interruptible_streaming_api_call()`, `stream_delta_callback` (init param), `stream_callback` (run_conversation param) |
-| `gateway/run.py` | Streaming config reader, queue/callback setup, `stream_preview()` task, skip-final-send logic |
-| `gateway/platforms/base.py` | Checks `_streamed_msg_id` in response handler to suppress duplicate send |
+| `gateway/run.py` | Streaming config reader, queue/callback setup, `stream_preview()` task, `already_sent` skip-final-send logic |
+| `gateway/stream_consumer.py` | Maintains queue + progressive edits and sets `already_sent` when streaming produces visible output |
+| `gateway/platforms/api_server.py` | `/v1/chat/completions` SSE writer, content-chunk emission, `[DONE]` close event |
 | `cli.py` | CLI streaming callback setup, token display with prompt_toolkit integration |
 | `gateway/platforms/api_server.py` | Real SSE writer, streaming callback wiring for `/v1/chat/completions` |
 | `hermes_cli/config.py` | `streaming` config section defaults |
