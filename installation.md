@@ -65,11 +65,9 @@ The Windows installer installs to `%LOCALAPPDATA%\hermes\hermes-agent` by defaul
 4. Installs Node.js v22 LTS if not present (binary download to `~/.hermes/node/`)
 5. Installs ripgrep and ffmpeg via package manager (optional, asks for sudo if needed)
 6. Clones the repository (tries SSH first, falls back to HTTPS)
-7. Initializes the `mini-swe-agent` submodule (terminal tool backend)
-8. Creates a Python virtual environment with `uv venv venv --python 3.11`
-9. Installs all dependencies with `uv pip install -e ".[all]"`, falling back to base install
-10. Installs `mini-swe-agent` as editable package
-11. Installs Node.js dependencies and Playwright Chromium for browser tools
+7. Creates a Python virtual environment with `uv venv venv --python 3.11`
+8. Installs all dependencies with `uv pip install -e ".[all]"`, falling back to base install (no `mini-swe-agent` submodule required as of v0.5.0 -- the Docker and Modal backends are now inlined)
+9. Installs Node.js dependencies and Playwright Chromium for browser tools
 12. Symlinks the `hermes` command into `~/.local/bin`
 13. Adds `~/.local/bin` to your shell's PATH if not already there
 14. Creates the `~/.hermes/` directory structure with config templates
@@ -124,9 +122,7 @@ The script performs these steps in order:
 3. Removes any existing `venv` directory and creates a fresh one with `uv venv venv --python 3.11`
 4. Sets `VIRTUAL_ENV` so uv installs into the correct venv
 5. Installs all extras with `uv pip install -e ".[all]"`, falling back to `uv pip install -e "."` on failure
-6. Installs submodule packages:
-   - `uv pip install -e "./mini-swe-agent"` (terminal tool backend)
-   - `uv pip install -e "./tinker-atropos"` (RL training backend)
+6. Optionally installs the `tinker-atropos` submodule package for RL training (the `mini-swe-agent` submodule was removed in v0.5.0; Docker and Modal backends are now inlined)
 7. Optionally installs `ripgrep` via apt, dnf, brew, or cargo
 8. Creates `.env` from `.env.example` if `.env` does not already exist
 9. Symlinks `venv/bin/hermes` into `~/.local/bin/hermes`
@@ -146,20 +142,14 @@ source ~/.zshrc   # or ~/.bashrc
 
 ### Step 1: Clone the Repository
 
-Always clone with `--recurse-submodules` to pull the required submodules:
+Clone the repository. The `mini-swe-agent` submodule is no longer required as of v0.5.0 (Docker and Modal backends are now inlined). Only `tinker-atropos` remains as an optional submodule for RL training.
 
 ```bash
-git clone --recurse-submodules https://github.com/NousResearch/hermes-agent.git
+git clone https://github.com/NousResearch/hermes-agent.git
 cd hermes-agent
 ```
 
-If you already cloned without the flag:
-
-```bash
-git submodule update --init mini-swe-agent
-```
-
-Note: `tinker-atropos` (RL training) is optional and heavy. To install it later:
+To install the optional RL training backend later:
 
 ```bash
 git submodule update --init tinker-atropos
@@ -221,17 +211,17 @@ Available extras you can combine with `[extra1,extra2]`:
 
 Combine extras: `uv pip install -e ".[messaging,cron,honcho]"`
 
-### Step 5: Install Submodule Packages
+### Step 5: Install Submodule Packages (Optional)
+
+The `mini-swe-agent` submodule was removed in v0.5.0; the Docker and Modal terminal backends are now inlined in the main package. Only the RL training backend remains as an optional submodule:
 
 ```bash
-# Terminal tool backend (required for terminal/command-execution tools)
-uv pip install -e "./mini-swe-agent"
-
-# RL training backend (optional)
+# RL training backend (optional, heavy)
+git submodule update --init tinker-atropos
 uv pip install -e "./tinker-atropos"
 ```
 
-Without `mini-swe-agent`, the terminal toolset is unavailable. Without `tinker-atropos`, RL training tools are unavailable.
+Without `tinker-atropos`, RL training tools are unavailable. All other terminal toolsets are available without submodules.
 
 ### Step 6: Install Node.js Dependencies (Optional)
 
@@ -293,6 +283,90 @@ fish_add_path $HOME/.local/bin
 ```bash
 hermes model    # Select your LLM provider and model
 ```
+
+---
+
+## Method 4: Nix / NixOS (v0.5.0)
+
+A full Nix flake is available as of v0.5.0, contributed by @alt-glitch. It provides a uv2nix build, a NixOS module with two service modes, auto-generated config keys from Python source, and suffix PATHs so agent-installed tools (apt, pip, npm) take priority over Nix store paths.
+
+Supported systems: `x86_64-linux`, `aarch64-linux`, `aarch64-darwin`.
+
+### Run Without Installing
+
+```bash
+nix run github:NousResearch/hermes-agent
+```
+
+### NixOS Module
+
+Add to your NixOS configuration:
+
+```nix
+{
+  inputs.hermes-agent.url = "github:NousResearch/hermes-agent";
+
+  outputs = { nixpkgs, hermes-agent, ... }: {
+    nixosConfigurations.mymachine = nixpkgs.lib.nixosSystem {
+      modules = [
+        hermes-agent.nixosModules.default
+        {
+          services.hermes-agent = {
+            enable = true;
+            settings.model = "anthropic/claude-sonnet-4";
+            environmentFiles = [ config.sops.secrets."hermes/env".path ];
+          };
+        }
+      ];
+    };
+  };
+}
+```
+
+Key NixOS module options:
+
+| Option | Default | Description |
+|--------|---------|-------------|
+| `settings` | `{}` | Declarative config.yaml (attrset, deep-merged) |
+| `environmentFiles` | `[]` | Paths to secret env files (API keys, tokens) |
+| `environment` | `{}` | Non-secret environment variables |
+| `stateDir` | `/var/lib/hermes` | State directory (`HERMES_HOME` lives here) |
+| `workingDirectory` | `stateDir/workspace` | Agent working directory (`MESSAGING_CWD`) |
+| `mcpServers` | `{}` | Declarative MCP server configurations |
+| `addToSystemPackages` | `false` | Add `hermes` CLI to system PATH |
+| `container.enable` | `false` | Enable OCI container mode (see below) |
+
+### Persistent Container Mode
+
+When `container.enable = true`, the NixOS module runs Hermes inside an OCI container (Ubuntu 24.04 by default, Docker or Podman backend). The Nix store is bind-mounted read-only; a persistent writable layer survives restarts and agent updates. On first boot, the container provisions nodejs/npm via apt, uv via curl, and a Python 3.11 venv so the agent can install packages at runtime (`npm i -g`, `pip install`, `uv tool install`). Environment variables are written to `$HERMES_HOME/.env` and read at startup -- no container recreation is needed for env changes.
+
+```nix
+services.hermes-agent = {
+  enable = true;
+  container = {
+    enable = true;
+    backend = "docker";  # or "podman"
+    image = "ubuntu:24.04";
+  };
+};
+```
+
+### Suffix PATHs for Agent-Friendliness
+
+The Nix wrapper uses `--suffix PATH` (not `--prefix`) so that apt/uv/npm-installed tools take priority over Nix store paths. This allows the agent to install and immediately use tools at runtime without rebuilding the derivation.
+
+---
+
+## Supply Chain Note (v0.5.0)
+
+v0.5.0 includes a comprehensive supply chain audit:
+
+- **`litellm`, `typer`, and `platformdirs` removed** from dependencies due to supply chain concerns
+- **All dependency version ranges pinned** (e.g. `openai>=2.21.0,<3`)
+- **`uv.lock` regenerated with hashes** and used by the installer for reproducible installs
+- **CI workflow added** to scan incoming PRs for supply chain attack patterns
+
+These changes mean the dependency set is smaller, faster to install, and more auditable. If you maintained a local patch or override for `litellm`, remove it -- Hermes no longer uses it.
 
 ---
 
@@ -407,10 +481,9 @@ cd hermes-agent
 uv venv venv --python 3.11
 export VIRTUAL_ENV="$(pwd)/venv"
 
-# Install everything
+# Install everything (mini-swe-agent submodule no longer required as of v0.5.0)
 uv pip install -e ".[all]"
-uv pip install -e "./mini-swe-agent"
-uv pip install -e "./tinker-atropos"
+uv pip install -e "./tinker-atropos"  # optional: RL training only
 npm install   # optional: browser tools and WhatsApp
 
 # Configure
@@ -453,10 +526,8 @@ cd /path/to/hermes-agent
 export VIRTUAL_ENV="$(pwd)/venv"
 
 git pull origin main
-git submodule update --init mini-swe-agent
 
 uv pip install -e ".[all]"
-uv pip install -e "./mini-swe-agent"
 
 hermes config check
 hermes config migrate
@@ -476,9 +547,7 @@ You can also update from a connected messaging platform by sending `/update` to 
 | Permission denied during install | Do not use `sudo`. The installer writes to `~/.local/bin` and requires no root access. |
 | `API key not set` | Run `hermes model` to configure your provider, or `hermes config set OPENROUTER_API_KEY your_key` |
 | Missing config after update | Run `hermes config check` then `hermes config migrate` |
-| Submodule directory is empty | Run `git submodule update --init mini-swe-agent` inside the repo root |
 | Node.js not found | Install Node.js v22 from nodejs.org, or re-run the installer which installs it automatically to `~/.hermes/node/` |
-| `mini-swe-agent` install fails | Run `git submodule update --init mini-swe-agent`, then retry `uv pip install -e "./mini-swe-agent"` |
 | Windows git `copy-fd` error | The PowerShell installer sets `windows.appendAtomically=false` automatically. If cloning manually, run `git config --global windows.appendAtomically false` |
 | Windows: git clone fails entirely | The PowerShell installer has a ZIP fallback. Download the repo ZIP from GitHub and extract it manually. |
 

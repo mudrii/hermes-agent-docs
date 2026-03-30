@@ -4,7 +4,7 @@
 
 Hermes Agent is an autonomous AI agent with a built-in learning loop. It creates skills from experience, improves them during use, searches its own past conversations for context, and builds a deepening model of who you are across sessions. It runs on a $5 VPS, a GPU cluster, or serverless infrastructure -- not tied to your laptop.
 
-Current version: **v0.3.0 (v2026.3.17)** -- released March 17, 2026.
+Current version: **v0.5.0 (v2026.3.28)** -- released March 28, 2026.
 
 ---
 
@@ -16,7 +16,8 @@ Hermes Agent is not a coding copilot or a chatbot wrapper. It is a multi-platfor
 - Manages long-running conversations with context compression and session lineage
 - Persists memory, skills, and session history in SQLite across restarts
 - Streams responses token-by-token from the model to the user interface (v0.3.0)
-- Runs as a CLI, a messaging gateway (Telegram, Discord, Slack, WhatsApp, Signal, Email, Home Assistant), or an IDE integration (VS Code, Zed, JetBrains via ACP)
+- Runs as a CLI, a messaging gateway (Telegram, Discord, Slack, WhatsApp, Signal, DingTalk, SMS, Mattermost, Matrix, Webhook, Email, Home Assistant), or an IDE integration (VS Code, Zed, JetBrains via ACP)
+- Exposes an OpenAI-compatible `/v1/chat/completions` API server with REST cron job management (v0.4.0)
 - Delegates work to isolated subagents and spawns scheduled cron jobs
 - Exports training trajectories for SFT data generation and RL fine-tuning
 
@@ -40,7 +41,7 @@ Real-time token-by-token delivery in the CLI and all gateway platforms. Response
 
 ### Multi-Platform Messaging Gateway
 
-Telegram, Discord, Slack, WhatsApp, Signal, Email (IMAP/SMTP), and Home Assistant -- all from a single gateway process. Unified session management, media attachments, voice transcription, and per-platform tool configuration.
+Telegram, Discord, Slack, WhatsApp, Signal, DingTalk, SMS (Twilio), Mattermost, Matrix, Webhook, Email (IMAP/SMTP), and Home Assistant -- all from a single gateway process. Six new adapters were added in v0.4.0. Unified session management, media attachments, voice transcription, and per-platform tool configuration. The gateway auto-reconnects failed platforms with exponential backoff (v0.4.0).
 
 ### Plugin Architecture (v0.3.0)
 
@@ -50,15 +51,40 @@ Drop Python files into `~/.hermes/plugins/` to extend Hermes with custom tools, 
 
 Use any model without code changes. Supported providers:
 
-- **Nous Portal** -- first-class provider; Claude, GPT-5, Gemini via Nous inference (`https://inference-api.nousresearch.com/v1`)
+- **Nous Portal** -- first-class provider; 400+ models via Nous inference (`https://inference-api.nousresearch.com/v1`)
 - **OpenRouter** -- 200+ models (`https://openrouter.ai/api/v1`)
 - **Anthropic** (native, v0.3.0) -- direct API with Claude Code credential auto-discovery, OAuth PKCE flows, and native prompt caching
 - **OpenAI** -- GPT-5 variants via chat completions or Codex Responses API
 - **Vercel AI Gateway** (v0.3.0) -- access Vercel's model catalog and infrastructure (`https://ai-gateway.vercel.sh/v1`)
+- **GitHub Copilot** (v0.4.0) -- OAuth auth, 400k context, token validation
+- **Alibaba Cloud / DashScope** (v0.4.0) -- DashScope v1 runtime
+- **Kilo Code** (v0.4.0) -- direct API-key provider
+- **OpenCode Zen / OpenCode Go** (v0.4.0) -- provider backends
+- **Hugging Face** (v0.5.0) -- HF Inference API with curated agentic model picker and live `/models` probe
 - **z.ai/GLM**, **Kimi/Moonshot**, **MiniMax** -- direct API-key providers
 - **Custom endpoints** -- any OpenAI-compatible API
 
 Switch with `hermes model` -- no code changes, no lock-in.
+
+### OpenAI-Compatible API Server (v0.4.0)
+
+Expose Hermes as an `/v1/chat/completions` endpoint with a `/api/jobs` REST API for cron job management. Hardened with input limits, field whitelists, SQLite-backed response persistence across restarts, CORS origin protection, and `Idempotency-Key` support (v0.5.0). The API server exposes its own `hermes-api-server` toolset.
+
+### @ Context References (v0.4.0)
+
+Claude Code-style `@file` and `@url` context injection with tab completions in the CLI. Files and web pages are inserted directly into the conversation. Access is restricted to the workspace -- reading secrets outside the workspace is blocked.
+
+### MCP Server Management CLI (v0.4.0)
+
+`hermes mcp` commands for installing, configuring, and authenticating MCP servers, with a full OAuth 2.1 PKCE flow for remote MCP servers. MCP servers are exposed as standalone toolsets and are configurable interactively in `hermes tools`.
+
+### Plugin Lifecycle Hooks (v0.5.0)
+
+`pre_llm_call`, `post_llm_call`, `on_session_start`, and `on_session_end` hooks now fire in the agent loop and CLI/gateway, completing the plugin hook system. Plugins can also register slash commands and extend the TUI.
+
+### Nix Flake (v0.5.0)
+
+Full uv2nix build, NixOS module with persistent container mode, auto-generated config keys from Python source, and suffix PATHs for agent-friendliness. See [installation.md](installation.md) for Nix installation details. Contributed by @alt-glitch.
 
 ### Concurrent Tool Execution (v0.3.0)
 
@@ -125,11 +151,10 @@ Key Python dependencies (from `pyproject.toml`):
 | `prompt_toolkit` | Interactive CLI TUI |
 | `rich` | Terminal output formatting |
 | `pyyaml` | Configuration file parsing |
-| `pydantic>=2.0` | Data validation |
+| `pydantic>=2.12.5` | Data validation |
 | `faster-whisper>=1.0.0` | Local voice transcription |
-| `firecrawl-py` | Web content extraction |
-| `litellm>=1.75.5` | Terminal backend (mini-swe-agent) |
-| `edge-tts` | Free text-to-speech (no API key needed) |
+| `firecrawl-py>=4.16.0` | Web content extraction |
+| `edge-tts>=7.2.7` | Free text-to-speech (no API key needed) |
 
 Optional extras (install with `pip install "hermes-agent[extra]"`):
 
@@ -173,10 +198,37 @@ hermes model        # Choose your LLM provider and model
 hermes tools        # Configure which tools are enabled (curses UI)
 hermes setup        # Run the full setup wizard (configures everything at once)
 hermes gateway      # Start the messaging gateway (Telegram, Discord, etc.)
+hermes mcp          # Install, configure, and authenticate MCP servers (v0.4.0)
 hermes claw migrate # Migrate settings and memories from OpenClaw
 hermes doctor       # Diagnose configuration issues across all providers
 hermes update       # Update to the latest version (with auto-restart for gateway)
 ```
+
+---
+
+## CLI vs Messaging Quick Reference
+
+Hermes has two entry points: start the terminal UI with `hermes`, or run the gateway and talk to it from Telegram, Discord, Slack, WhatsApp, Signal, or other platforms. Once you are in a conversation, many slash commands are shared across both interfaces.
+
+| Action | CLI | Messaging platforms |
+|---------|-----|---------------------|
+| Start chatting | `hermes` | Run `hermes gateway setup` + `hermes gateway start`, then send the bot a message |
+| Start fresh conversation | `/new` or `/reset` | `/new` or `/reset` |
+| Resume a named session | `/resume [session]` (v0.5.0) | `/resume [session]` (v0.5.0) |
+| Change model | `hermes model` | `hermes model` |
+| Set a personality | `/personality [name]` | `/personality [name]` |
+| Retry or undo the last turn | `/retry`, `/undo` | `/retry`, `/undo` |
+| Compress context / check usage | `/compress`, `/usage`, `/insights [--days N]` | `/compress`, `/usage`, `/insights [days]` |
+| Toggle config status bar | `/statusbar` (v0.4.0) | -- |
+| Queue a prompt without interrupting | `/queue [prompt]` (v0.4.0) | `/queue [prompt]` (v0.4.0) |
+| Switch approval mode | `/permission [mode]` (v0.4.0) | `/permission [mode]` (v0.4.0) |
+| Open an interactive browser session | `/browser` (v0.4.0) | -- |
+| Show live cost / usage in gateway | -- | `/cost` (v0.4.0) |
+| Approve / deny a pending command | -- | `/approve`, `/deny` (v0.4.0) |
+| Toggle tool output verbosity | -- | `/verbose` (v0.5.0) |
+| Browse skills | `/skills` or `/<skill-name>` | `/skills` or `/<skill-name>` |
+| Interrupt current work | `Ctrl+C` or send a new message | `/stop` or send a new message |
+| Platform-specific status | `/platforms` | `/status`, `/sethome` |
 
 ---
 
@@ -187,7 +239,7 @@ hermes update       # Update to the latest version (with auto-restart for gatewa
 | Document | Contents |
 |----------|----------|
 | [architecture.md](architecture.md) | Component diagram, agent loop, context compression, session storage, internal design |
-| [changelog.md](changelog.md) | v0.3.0 and v0.2.0 release notes with full feature lists |
+| [changelog.md](changelog.md) | v0.5.0, v0.4.0, v0.3.0 and v0.2.0 release notes with full feature lists |
 | [streaming.md](streaming.md) | Unified streaming infrastructure, token delivery, platform support (v0.3.0) |
 
 ### Setup & Configuration
