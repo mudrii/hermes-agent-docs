@@ -1,6 +1,31 @@
 # Browser Automation
 
-Hermes Agent includes a full browser automation toolset with multiple backend options. The browser toolset must be enabled in your configuration before the tools are available to the model.
+Hermes Agent includes a full browser automation toolset with multiple backend options. The `/browser` CLI command was introduced in v0.4.0 ([#2273](https://github.com/NousResearch/hermes-agent/pull/2273), [#1814](https://github.com/NousResearch/hermes-agent/pull/1814)) alongside the underlying browser tool system. The browser toolset must be enabled in your configuration before the tools are available to the model.
+
+## `/browser` CLI Command (v0.4.0)
+
+The `/browser` slash command provides an interactive browser workflow from the CLI without needing to phrase tool calls explicitly. It is available in both CLI and gateway modes.
+
+```
+/browser                          Start an interactive browser session
+/browser connect                  Attach to Chrome at ws://localhost:9222
+/browser connect ws://host:port   Attach to a specific CDP endpoint
+/browser status                   Show current connection and active sessions
+/browser disconnect               Detach CDP connection, return to local/cloud mode
+```
+
+**Interactive session workflow:**
+
+1. Type `/browser` and provide a starting URL or task description
+2. The agent calls `browser_navigate` to load the page
+3. Call `browser_snapshot` to read the accessibility tree and get ref IDs
+4. Use `browser_click`, `browser_type`, `browser_press`, etc. to interact
+5. Call `browser_vision` for screenshot-based visual analysis when the accessibility tree is insufficient
+6. Call `browser_close` when done to release the session
+
+The underlying mechanism uses the `agent-browser` CLI (a Node.js wrapper around Chromium) in local mode, or CDP (Chrome DevTools Protocol) when connected via `/browser connect`. The accessibility tree representation (ariaSnapshot) is provided by `agent-browser` and uses ref IDs (`@e1`, `@e2`, ...) for element addressing. Cloud backends (Browserbase, Browser Use) are selected via `browser.cloud_provider` in config.yaml and bypass the local `agent-browser` entirely.
+
+---
 
 ## Backend Options
 
@@ -309,6 +334,20 @@ If paid features aren't available on your plan, Hermes automatically falls back 
 - Browser automation involves real HTTP requests; web services may log interactions
 - Session recording stores video files locally in `~/.hermes/browser_recordings/`; clean these up if they contain sensitive information
 
+## v0.4.0 and v0.5.0 Changes
+
+| Change | PR | Release |
+|--------|-----|---------|
+| `/browser` interactive CLI command | [#2273](https://github.com/NousResearch/hermes-agent/pull/2273), [#1814](https://github.com/NousResearch/hermes-agent/pull/1814) | v0.4.0 |
+| SSRF protection added to `browser_navigate` | [#3058](https://github.com/NousResearch/hermes-agent/pull/3058) | v0.5.0 |
+| Browser command timeout configurable via `browser.command_timeout` in config.yaml | [#2801](https://github.com/NousResearch/hermes-agent/pull/2801) | v0.5.0 |
+| `browser_vision` respects `auxiliary.vision.timeout` config | [#2901](https://github.com/NousResearch/hermes-agent/pull/2901) | v0.5.0 |
+| 402 insufficient credits error handled gracefully in vision tool | [#2802](https://github.com/NousResearch/hermes-agent/pull/2802) | v0.5.0 |
+| Race condition fix in browser session creation | [#1721](https://github.com/NousResearch/hermes-agent/pull/1721) | v0.4.0 |
+| macOS Homebrew paths added to browser PATH resolution | [#2713](https://github.com/NousResearch/hermes-agent/pull/2713) | v0.5.0 |
+
+---
+
 ## Limitations
 
 - **Text-based interaction** — relies on accessibility tree, not pixel coordinates
@@ -316,3 +355,4 @@ If paid features aren't available on your plan, Hermes automatically falls back 
 - **Session timeout** — cloud sessions expire based on your provider's plan settings
 - **Cost** — cloud sessions consume provider credits; use `browser_close` when done. Use `/browser connect` for free local browsing.
 - **No file downloads** — cannot download files from the browser
+- **SSRF protection** — `browser_navigate` blocks requests to RFC-1918 addresses and localhost (added v0.5.0, [#3058](https://github.com/NousResearch/hermes-agent/pull/3058))

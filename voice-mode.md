@@ -1,6 +1,6 @@
 # Voice Mode
 
-Hermes Agent supports full voice interaction across CLI and messaging platforms, introduced as a complete feature in v0.3.0. You can talk to the agent using your microphone, hear spoken replies, and hold live voice conversations in Discord voice channels.
+Hermes Agent supports full voice interaction across CLI and messaging platforms, introduced as a complete feature in v0.3.0 and extended in v0.4.0. You can talk to the agent using your microphone, hear spoken replies, and hold live voice conversations in Discord voice channels.
 
 ## Voice Mode Variants
 
@@ -315,7 +315,7 @@ If `faster-whisper` is installed, voice mode works with zero API keys for STT. T
 | **OpenAI TTS** | Good | Paid | ~1.5s | Yes |
 | **NeuTTS** | Good | Free | Depends on CPU/GPU | No |
 
-Edge TTS default voice is `en-US-AriaNeural` (322 voices, 74 languages available). NeuTTS is a local on-device provider run via subprocess from `tools/neutts_synth.py` using the `neuphonic/neutts-air-q4-gguf` model by default.
+Edge TTS default voice is `en-US-AriaNeural` (322 voices, 74 languages available). NeuTTS is a local on-device provider run via subprocess from `tools/neutts_synth.py` using the `neuphonic/neutts-air-q4-gguf` model by default. In v0.4.0 NeuTTS was promoted from an optional skill to a first-class built-in TTS provider with a setup flow ([#1657](https://github.com/NousResearch/hermes-agent/pull/1657), [#1664](https://github.com/NousResearch/hermes-agent/pull/1664)). The `neutts` provider is now available in `tts.provider` without installing a separate skill.
 
 For **streaming TTS** in CLI voice mode (sentence-by-sentence), ElevenLabs uses the `eleven_flash_v2_5` model by default (faster than `eleven_multilingual_v2`). This can be overridden via `tts.elevenlabs.streaming_model_id` in config.yaml. Streaming TTS outputs PCM audio at 24kHz and plays through sounddevice. If sounddevice is unavailable, it falls back to a temporary WAV file played through system audio players.
 
@@ -337,6 +337,15 @@ Text is automatically cleaned before TTS: markdown formatting, code blocks, URLs
 
 - STT: local (install `faster-whisper`)
 - TTS: Edge TTS (no key required)
+
+## v0.4.0 Changes
+
+- **NeuTTS promoted to first-class provider** -- NeuTTS (local on-device TTS) is now a built-in provider with an interactive setup wizard. Install with `python -m pip install neutts[all]`; no separate skill required ([#1657](https://github.com/NousResearch/hermes-agent/pull/1657), [#1664](https://github.com/NousResearch/hermes-agent/pull/1664)).
+- **STT tool added** -- A `stt` tool is now available in the tool registry, letting the agent invoke Whisper transcription as an explicit tool call alongside the automatic voice-mode transcription ([#2072](https://github.com/NousResearch/hermes-agent/pull/2072)). Uses the same provider stack (`tools/transcription_tools.py`) as the voice pipeline.
+- **OpenAI TTS `base_url` support** -- The `openai` TTS provider now accepts a custom `base_url`, enabling use with self-hosted or proxy TTS endpoints ([#2064](https://github.com/NousResearch/hermes-agent/pull/2064)).
+- **Voice channel TTS fix with streaming** -- Discord voice channel TTS output was silent when streaming mode was enabled; this is fixed ([#2322](https://github.com/NousResearch/hermes-agent/pull/2322)).
+
+---
 
 ## Troubleshooting
 

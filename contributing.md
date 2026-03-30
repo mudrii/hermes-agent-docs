@@ -73,12 +73,12 @@ export VIRTUAL_ENV="$(pwd)/venv"
 
 # Install with all extras plus dev tools
 uv pip install -e ".[all,dev]"
-uv pip install -e "./mini-swe-agent"
-uv pip install -e "./tinker-atropos"
 
 # Optional: browser tools and WhatsApp bridge
 npm install
 ```
+
+> **v0.5.0 note:** The `mini-swe-agent` submodule and the `swe-rex`-based Modal backend were removed in v0.5.0 ([#2804](https://github.com/NousResearch/hermes-agent/pull/2804), [#3538](https://github.com/NousResearch/hermes-agent/pull/3538)). Do not install `./mini-swe-agent` or `./tinker-atropos` unless you are working specifically on RL training (use `uv pip install -e ".[rl]"` for that).
 
 ### Configure for Development
 
@@ -515,6 +515,16 @@ When contributing security-sensitive code:
 
 If your PR affects security, note it explicitly in the PR description.
 
+### Supply Chain Guidelines (v0.5.0)
+
+All PRs are scanned automatically by the supply chain audit CI workflow ([#2816](https://github.com/NousResearch/hermes-agent/pull/2816)) for patterns associated with dependency confusion, typosquatting, and malicious package injection. When adding or updating dependencies:
+
+- Use explicit upper-bound version pins (e.g., `>=2.0.0,<3`) in `pyproject.toml` -- never bare package names or `>=x` without an upper bound
+- Run `uv lock` after changing `pyproject.toml` to regenerate `uv.lock` with hashes
+- If you are adding a new package, include a comment in `pyproject.toml` explaining its purpose -- the CI scanner flags unexplained new additions
+- Do not use packages that have known supply chain compromise history -- check the issue tracker and release notes before proposing a new dependency
+- The `litellm`, `typer`, and `platformdirs` packages were removed for security reasons in v0.5.0; do not re-add them ([#2796](https://github.com/NousResearch/hermes-agent/pull/2796))
+
 Existing security layers to understand before contributing:
 
 | Layer | Implementation |
@@ -597,6 +607,21 @@ test(tools): add unit tests for file_operations
 - Include steps to reproduce
 - Check existing issues before creating duplicates
 - For security vulnerabilities, please report privately (do not open a public issue)
+
+---
+
+## New Slash Commands (v0.4.0)
+
+v0.4.0 added several slash commands relevant to contributors testing their changes:
+
+| Command | Purpose |
+|---------|---------|
+| `/browser` | Open an interactive browser session from the CLI ([#2273](https://github.com/NousResearch/hermes-agent/pull/2273), [#1814](https://github.com/NousResearch/hermes-agent/pull/1814)) |
+| `/queue` | Queue a prompt for the agent without interrupting the current run ([#2191](https://github.com/NousResearch/hermes-agent/pull/2191)) |
+| `/permission` | Switch approval mode dynamically during a session ([#2207](https://github.com/NousResearch/hermes-agent/pull/2207)) |
+| `/statusbar` | Toggle the persistent config bar showing model and provider ([#2240](https://github.com/NousResearch/hermes-agent/pull/2240)) |
+| `/cost` | Show live pricing and usage in gateway mode ([#2180](https://github.com/NousResearch/hermes-agent/pull/2180)) |
+| `/approve` and `/deny` | Gateway: explicit approval commands replacing bare-text approval ([#2002](https://github.com/NousResearch/hermes-agent/pull/2002)) |
 
 ---
 

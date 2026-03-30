@@ -1,6 +1,6 @@
 # Security
 
-Hermes Agent is designed with a defense-in-depth security model. This page covers every security boundary -- from command approval to container isolation to user authorization, credential handling, PII redaction, and tirith scanning.
+Hermes Agent is designed with a defense-in-depth security model. This page covers every security boundary -- from command approval to container isolation to user authorization, credential handling, PII redaction, and tirith scanning. Sections marked **v0.4.0** and **v0.5.0** document changes introduced in those releases.
 
 ---
 
@@ -117,6 +117,33 @@ Approval state is thread-safe and keyed by session. Each session maintains its o
 
 ---
 
+## Supply Chain Hardening (v0.5.0)
+
+v0.5.0 included a comprehensive supply chain audit (PRs [#2796](https://github.com/NousResearch/hermes-agent/pull/2796), [#2810](https://github.com/NousResearch/hermes-agent/pull/2810), [#2812](https://github.com/NousResearch/hermes-agent/pull/2812), [#2816](https://github.com/NousResearch/hermes-agent/pull/2816), [#3073](https://github.com/NousResearch/hermes-agent/pull/3073)).
+
+### litellm Removal
+
+The `litellm`, `typer`, and `platformdirs` packages were removed from `pyproject.toml` after a compromise assessment ([#2796](https://github.com/NousResearch/hermes-agent/pull/2796)). Hermes previously relied on litellm as a provider abstraction layer; that functionality is now provided directly through the native `openai`, `anthropic`, and custom HTTP clients already present in the codebase. Verify the absence by inspecting `pyproject.toml` -- neither `litellm` nor `typer` appears in any dependency block.
+
+### Pinned Dependency Ranges
+
+All dependency version ranges in `pyproject.toml` are now pinned with explicit upper bounds (e.g., `openai>=2.21.0,<3`, `requests>=2.33.0,<3`) to reduce the window for malicious version-bump attacks ([#2810](https://github.com/NousResearch/hermes-agent/pull/2810)). Several pins address specific CVEs:
+
+| Package | Constraint | Reason |
+|---------|-----------|--------|
+| `requests` | `>=2.33.0,<3` | CVE-2026-25645 |
+| `PyJWT[crypto]` | `>=2.12.0,<3` | CVE-2026-32597 |
+
+### uv.lock with Hashes
+
+`uv.lock` is regenerated with cryptographic hashes for every dependency entry and is consumed by the installer during `hermes setup` ([#2812](https://github.com/NousResearch/hermes-agent/pull/2812)). This ensures that every package installed during setup matches an exact, pre-verified artifact -- any tampered package would fail the hash check before it reaches disk. Reproducibility: two machines running `hermes setup` from the same lockfile install byte-for-byte identical packages regardless of upstream registry state.
+
+### CI Supply Chain Scanning
+
+A GitHub Actions workflow was added that runs automatically on every pull request and scans for supply chain attack patterns ([#2816](https://github.com/NousResearch/hermes-agent/pull/2816)). The workflow flags suspicious additions such as new packages with typosquatting-like names, unexpected `install_requires` mutations, and patterns used in known supply chain attacks. This provides a continuous audit layer for all external contributions.
+
+---
+
 ## Tirith Pre-Exec Security Scanning
 
 Hermes integrates the tirith binary (`tools/tirith_security.py`) as an additional pre-exec security layer that scans commands for content-level threats invisible to regex pattern matching:
@@ -133,10 +160,14 @@ Tirith runs as a subprocess before every terminal command execution. Its exit co
 | Exit code | Action | Meaning |
 |-----------|--------|---------|
 | 0 | `allow` | Command is safe |
-| 1 | `block` | Command is blocked (no approval possible) |
+| 1 | `block` | Verdict presented for approval (see v0.5.0 change below) |
 | 2 | `warn` | Warning shown, user can approve |
 
 JSON stdout from tirith enriches findings and summary text but never overrides the exit code verdict.
+
+### Approvable Block Verdicts (v0.5.0)
+
+Prior to v0.5.0, a tirith exit code of `1` hard-blocked command execution with no recourse. As of v0.5.0 ([#3428](https://github.com/NousResearch/hermes-agent/pull/3428)), block verdicts are now surfaced as an approval prompt rather than an unconditional halt. This allows the agent owner to override a false positive without disabling tirith entirely. The prompt displays the tirith finding alongside the command and requires an explicit `[o]nce`, `[s]ession`, or `[a]lways` acknowledgement -- the same flow as dangerous-command approval. In gateway/messaging mode, the agent sends the findings to chat and waits for an `/approve` or `/deny` response.
 
 ### Auto-Install
 
@@ -448,6 +479,27 @@ For production gateway deployments, use `docker`, `modal`, or `daytona` to isola
 
 ---
 
+## Additional Security Hardening (v0.4.0 and v0.5.0)
+
+The following security fixes shipped across v0.4.0 and v0.5.0:
+
+| Change | PR | Release |
+|--------|-----|---------|
+| SSRF protection added to `browser_navigate` | [#3058](https://github.com/NousResearch/hermes-agent/pull/3058) | v0.5.0 |
+| SSRF protection added to `vision_tools` and `web_tools` | [#2679](https://github.com/NousResearch/hermes-agent/pull/2679) | v0.4.0 |
+| Restrict subagent toolsets to parent's enabled set | [#3269](https://github.com/NousResearch/hermes-agent/pull/3269) | v0.5.0 |
+| Prevent zip-slip path traversal in self-update | [#3250](https://github.com/NousResearch/hermes-agent/pull/3250) | v0.5.0 |
+| Prevent shell injection in `_expand_path` via `~user` path suffix | [#2685](https://github.com/NousResearch/hermes-agent/pull/2685) | v0.4.0 |
+| Normalize input before dangerous command detection | [#3260](https://github.com/NousResearch/hermes-agent/pull/3260) | v0.5.0 |
+| Block untrusted browser-origin API server access (CORS) | [#2451](https://github.com/NousResearch/hermes-agent/pull/2451) | v0.4.0 |
+| Block sandbox backend credentials from subprocess env | [#1658](https://github.com/NousResearch/hermes-agent/pull/1658) | v0.4.0 |
+| Block `@file` references from reading secrets outside workspace | [#2601](https://github.com/NousResearch/hermes-agent/pull/2601) | v0.4.0 |
+| Malicious code pattern pre-exec scanner for `terminal_tool` | [#2245](https://github.com/NousResearch/hermes-agent/pull/2245) | v0.4.0 |
+| PKCE verifier leak fix + OAuth refresh Content-Type | [#1775](https://github.com/NousResearch/hermes-agent/pull/1775) | v0.4.0 |
+| Prevent Anthropic token leaking to third-party providers | [#2389](https://github.com/NousResearch/hermes-agent/pull/2389) | v0.4.0 |
+
+---
+
 ## MCP Credential Handling
 
 MCP (Model Context Protocol) server subprocesses receive a filtered environment to prevent accidental credential leakage.
@@ -623,7 +675,7 @@ Existing protections to be aware of:
 |-------|---------------|
 | Sudo password piping | Uses `shlex.quote()` to prevent shell injection |
 | Dangerous command detection | Regex patterns in `tools/approval.py` with user approval flow |
-| Tirith pre-exec scanning | Content-level threat detection via `tools/tirith_security.py` |
+| Tirith pre-exec scanning | Content-level threat detection via `tools/tirith_security.py`; block verdicts are now approvable (v0.5.0, [#3428](https://github.com/NousResearch/hermes-agent/pull/3428)) |
 | Smart approval | Auxiliary LLM risk assessment (`tools/approval.py`) |
 | Cron prompt injection | Scanner in `tools/cronjob_tools.py` blocks instruction-override patterns |
 | Write deny list | Protected paths resolved via `os.path.realpath()` to prevent symlink bypass |
@@ -632,5 +684,8 @@ Existing protections to be aware of:
 | Container hardening | Docker: all capabilities dropped, no privilege escalation, PID limits, size-limited tmpfs |
 | PII redaction | `agent/redact.py` masks 20+ secret patterns in all log output |
 | Memory content scanning | `tools/memory_tool.py` blocks injection/exfiltration in memory entries |
+| Supply chain hardening | Pinned deps, `uv.lock` with hashes, litellm removed, CI PR scanning (v0.5.0, [#2796](https://github.com/NousResearch/hermes-agent/pull/2796)–[#3073](https://github.com/NousResearch/hermes-agent/pull/3073)) |
+| SSRF protection | `browser_navigate`, `vision_tools`, `web_tools` block internal network requests (v0.4.0–v0.5.0) |
+| Subagent toolset restriction | Subagents inherit only the parent's enabled toolset (v0.5.0, [#3269](https://github.com/NousResearch/hermes-agent/pull/3269)) |
 
 If your PR affects security, note it explicitly in the PR description.

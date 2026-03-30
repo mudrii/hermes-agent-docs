@@ -1,6 +1,6 @@
 # Architecture
 
-This page is the authoritative map of Hermes Agent internals for v0.3.0 (v2026.3.17). The project is organized around a shared agent core that serves multiple platform frontends, a centralized provider router, a SQLite session store, and a set of loosely-coupled optional subsystems.
+This page is the authoritative map of Hermes Agent internals, updated through v0.5.0 (v2026.3.28). The project is organized around a shared agent core that serves multiple platform frontends, a centralized provider router, a SQLite session store, and a set of loosely-coupled optional subsystems.
 
 ---
 
@@ -11,6 +11,8 @@ This page is the authoritative map of Hermes Agent internals for v0.3.0 (v2026.3
 |  hermes          Interactive terminal CLI (cli.py)                    |
 |  hermes-agent    Programmatic runner (run_agent.py main())            |
 |  hermes-acp      ACP editor integration server (acp_adapter/entry.py)|
+|  API server      OpenAI-compatible /v1/chat/completions endpoint      |
+|                  (gateway platform, activated via hermes gateway)     |
 +------------------------------+----------------------------------------+
                                |
                                v
@@ -51,7 +53,8 @@ This page is the authoritative map of Hermes Agent internals for v0.3.0 (v2026.3
                                v
 +--- Session Storage ---------------------------------------------------+
 |  hermes_state.py -> SessionDB                                         |
-|  SQLite WAL mode, schema v5, FTS5 full-text search                   |
+|  SQLite WAL mode, schema v6, FTS5 full-text search                   |
+|  New in v0.5.0: reasoning, reasoning_details, codex_reasoning_items  |
 |  Default: ~/.hermes/state.db (override via HERMES_HOME)              |
 +------------------------------+----------------------------------------+
                                |
@@ -380,9 +383,9 @@ Skills are filtered by:
 
 Override via the `HERMES_HOME` environment variable. The file is created automatically.
 
-### Schema (v5)
+### Schema (v6)
 
-The `SessionDB` maintains schema version 5 (`SCHEMA_VERSION = 5`). Migrations run automatically on startup, stepping through each version sequentially.
+The `SessionDB` maintains schema version 6 (`SCHEMA_VERSION = 6`). Migrations run automatically on startup, stepping through each version sequentially. Schema v6 was introduced in v0.5.0 ([#2974](https://github.com/NousResearch/hermes-agent/pull/2974)) to persist reasoning data across gateway session turns.
 
 **`sessions` table:**
 
@@ -429,6 +432,9 @@ The `SessionDB` maintains schema version 5 (`SCHEMA_VERSION = 5`). Migrations ru
 | `timestamp` | REAL NOT NULL | Unix timestamp |
 | `token_count` | INTEGER | Per-message token estimate |
 | `finish_reason` | TEXT | Model finish reason (added in schema v2) |
+| `reasoning` | TEXT | Raw reasoning text extracted from `<think>` blocks or native reasoning (schema v6) |
+| `reasoning_details` | TEXT | JSON serialized structured reasoning detail objects (schema v6) |
+| `codex_reasoning_items` | TEXT | JSON serialized Codex reasoning items for Responses API sessions (schema v6) |
 
 **`messages_fts` virtual table:** FTS5 full-text search over message content, with triggers to auto-index on insert, update, and delete.
 
@@ -450,6 +456,7 @@ idx_messages_session       ON messages(session_id, timestamp)
 | v3 | Added `title` column to `sessions` |
 | v4 | Added unique index on `title` (NULLs allowed) |
 | v5 | Added `cache_read_tokens`, `cache_write_tokens`, `reasoning_tokens`, billing columns (`billing_provider`, `billing_base_url`, `billing_mode`), and cost columns (`estimated_cost_usd`, `actual_cost_usd`, `cost_status`, `cost_source`, `pricing_version`) |
+| v6 | Added `reasoning`, `reasoning_details`, `codex_reasoning_items` columns to `messages` to persist reasoning across gateway turns (v0.5.0, [#2974](https://github.com/NousResearch/hermes-agent/pull/2974)) |
 
 ### Thread Safety
 
@@ -722,6 +729,52 @@ Uses `zoneinfo.ZoneInfo` for IANA timezone names. Invalid timezone values log a 
 `InsightsEngine` analyzes historical session data from the SQLite state database to produce usage insights: token consumption, cost estimates, tool usage patterns, activity trends, model/platform breakdowns, and session metrics.
 
 Usage: `InsightsEngine(db).generate(days=30)` returns a report dict; `format_terminal(report)` renders it for the CLI.
+
+---
+
+## Architectural Changes in v0.4.0 and v0.5.0
+
+### Dependency Removals
+
+**mini-swe-agent removed (v0.5.0, [#2804](https://github.com/NousResearch/hermes-agent/pull/2804)):** The `mini-swe-agent` submodule and its accompanying Docker and Modal backends were inlined directly into `tools/environments/docker.py` and `tools/environments/modal.py`. The submodule install step (`uv pip install -e "./mini-swe-agent"`) is no longer required.
+
+**swe-rex replaced with native Modal SDK (v0.5.0, [#3538](https://github.com/NousResearch/hermes-agent/pull/3538)):** The Modal terminal backend previously delegated container operations through the `swe-rex` library, which required tunnel management and additional process coordination. The backend now calls the Modal SDK directly: `Sandbox.create.aio` for container creation and `exec.aio` for command execution. This removes the tunnel layer entirely and simplifies the `modal` extra in `pyproject.toml` to just `modal>=1.0.0,<2`.
+
+### Plugin Lifecycle Hooks (v0.5.0, [#3542](https://github.com/NousResearch/hermes-agent/pull/3542))
+
+The plugin hook system that was wired up in v0.4.0 ([#2333](https://github.com/NousResearch/hermes-agent/pull/2333)) at the TUI layer now fires through the full agent loop and both CLI and gateway entry paths. Four hooks are active:
+
+| Hook | Fires when |
+|------|-----------|
+| `pre_llm_call` | Immediately before each API call to the LLM |
+| `post_llm_call` | Immediately after the LLM response is received |
+| `on_session_start` | When a new session is started (CLI start, gateway turn start) |
+| `on_session_end` | When a session ends (clean exit, reset, or timeout) |
+
+Plugins register hooks via `hermes plugins install`. Plugin toolset visibility in `hermes tools` and standalone processes was also fixed in v0.5.0 ([#3457](https://github.com/NousResearch/hermes-agent/pull/3457)): toolsets registered by plugins are now included in the toolset discovery pass that runs at startup.
+
+### Always-Streaming Approach (v0.5.0, [#3120](https://github.com/NousResearch/hermes-agent/pull/3120))
+
+The agent loop now always prefers streaming API calls. Previously, API calls could be issued non-streaming when no stream consumers were attached, which caused subagents to hang waiting for large responses. The new policy: if the provider supports streaming, use it; fall back to non-streaming only if the stream itself fails ([#3020](https://github.com/NousResearch/hermes-agent/pull/3020)). This eliminated a class of hung-subagent bugs in gateway mode.
+
+### Canonical Config Path: `get_hermes_home()` (v0.5.0, [#3062](https://github.com/NousResearch/hermes-agent/pull/3062))
+
+`get_hermes_home()` in `hermes_constants.py` is now the single source of truth for the Hermes home directory. All previously scattered inline calls to `Path.home() / ".hermes"` or `os.environ.get("HERMES_HOME", ...)` were consolidated to import and call this function. The function reads the `HERMES_HOME` environment variable and falls back to `~/.hermes`:
+
+```python
+def get_hermes_home() -> Path:
+    return Path(os.getenv("HERMES_HOME", Path.home() / ".hermes"))
+```
+
+A companion `get_hermes_dir(new_subpath, old_name)` handles backward-compatible subdirectory resolution: new installs use the consolidated layout (e.g., `cache/images`), existing installs that already have the legacy path (e.g., `image_cache`) continue to use it without migration.
+
+### Streaming Schema v6 and Reasoning Persistence (v0.5.0, [#2974](https://github.com/NousResearch/hermes-agent/pull/2974))
+
+Prior to v0.5.0, reasoning content extracted from `<think>` blocks or native reasoning fields was only available in the current turn's streaming callbacks and was discarded before the message was persisted. Schema v6 adds three columns to the `messages` table (`reasoning`, `reasoning_details`, `codex_reasoning_items`) so that reasoning is stored alongside assistant messages. The gateway's session restore path reads these columns back, allowing multi-turn gateway sessions to retain and replay reasoning context across connection resets.
+
+### Plugin Toolset Discovery Ordering (v0.5.0, [#3457](https://github.com/NousResearch/hermes-agent/pull/3457))
+
+`model_tools.py` now runs a plugin discovery pass before building the final toolset list. Previously, toolsets contributed by installed plugins were invisible to `hermes tools` (the tool selection TUI) and to standalone processes that did not go through the full CLI startup path. The fix moves plugin toolset registration to an earlier phase so all toolsets -- built-in and plugin-provided -- are present when the toolset selector and any external process queries the registry.
 
 ---
 
