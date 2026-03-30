@@ -314,3 +314,21 @@ Cron jobs run in a completely fresh agent session. The prompt must contain every
 Scheduled task prompts are scanned for prompt-injection and credential-exfiltration patterns at creation and update time. Prompts containing invisible Unicode tricks, SSH backdoor attempts, or obvious secret-exfiltration payloads are blocked.
 
 Cron agents run with `disabled_toolsets=["cronjob"]` — they cannot recursively create more cron jobs, preventing runaway scheduling loops.
+
+## REST API for Cron Management
+
+The gateway's API server (when enabled) exposes a REST API for cron job management at `/api/jobs`. This provides programmatic create, read, update, delete, pause, resume, and trigger operations over HTTP using the same Bearer token auth as the OpenAI endpoints.
+
+See [api-server.md](api-server.md#cron-jobs-rest-api) for the full endpoint reference.
+
+## What's New
+
+### v0.4.0
+
+- `/api/jobs` REST API introduced via the API server platform adapter (PR #1756, #2450). Provides full CRUD + pause/resume/run operations over HTTP.
+
+### v0.5.0
+
+- **Prevent recurring job re-fire on gateway crash/restart loop** (PR #3396) — For recurring cron jobs (interval and cron-expression schedules), `next_run_at` is now advanced to the next future occurrence _before_ the job executes. If the gateway crashes mid-run, the job will not re-fire immediately on restart. One-shot jobs are left unchanged so they can retry on restart.
+- **Mark cron session as ended after job completes** (PR #2998) — Cron job sessions are now properly closed in the session database after execution.
+- **Auto-repair `jobs.json` with invalid control characters** (PR #3537) — If `jobs.json` contains bare control characters (from a crash or corruption), the scheduler automatically repairs and rewrites the file on the next load.

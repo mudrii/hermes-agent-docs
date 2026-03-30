@@ -403,3 +403,14 @@ Or edit `~/.hermes/.env` directly to add API keys.
 ### Tool outputs not appearing in editor
 
 Different ACP client implementations render tool activity differently. File diffs, terminal output, and text previews are passed as structured content blocks. If your editor's ACP plugin does not render them, check the plugin's documentation for supported content types.
+
+## What's New
+
+### v0.4.0
+
+No changes to the ACP adapter in v0.4.0.
+
+### v0.5.0
+
+- **Plugin lifecycle hooks activated** (PR #3542) — `pre_llm_call`, `post_llm_call`, `on_session_start`, and `on_session_end` hooks now fire in the ACP agent loop, enabling plugin authors to hook into ACP sessions.
+- **Fix plugin toolsets invisible in standalone processes** (PR #3457) — Plugin-registered toolsets are now visible in `hermes tools` and in the ACP server process.

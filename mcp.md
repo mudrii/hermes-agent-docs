@@ -387,6 +387,102 @@ mcp_servers:
       max_tool_rounds: 5
 ```
 
+## hermes mcp CLI
+
+The `hermes mcp` subcommand group (v0.4.0, PR #2465) provides interactive MCP server lifecycle management directly from the command line.
+
+### Subcommands
+
+```bash
+hermes mcp serve                              # Run Hermes as an MCP server for editors
+hermes mcp add <name> --url <endpoint>        # Add an HTTP MCP server
+hermes mcp add <name> --command <cmd>         # Add a stdio MCP server
+hermes mcp remove <name>                      # Remove a server and clean up tokens
+hermes mcp list                               # List all configured servers
+hermes mcp test <name>                        # Test connection and list available tools
+hermes mcp configure <name>                   # Toggle individual tools on/off
+```
+
+### hermes mcp add
+
+Discovery-first: connects to the server, lists its tools, and lets you select which ones to register.
+
+```bash
+# Add an HTTP server
+hermes mcp add stripe --url "https://mcp.stripe.com"
+
+# Add with OAuth 2.1 auth
+hermes mcp add ink --url "https://mcp.ml.ink/mcp" --auth oauth
+
+# Add a stdio server
+hermes mcp add github --command npx --args @modelcontextprotocol/server-github
+```
+
+When `--auth oauth` is specified, `hermes mcp add` initiates the OAuth 2.1 PKCE flow:
+
+1. Discovers the authorization endpoint from the MCP server's OAuth metadata
+2. Generates a PKCE code verifier and challenge
+3. Opens the browser to the authorization URL
+4. Starts a local callback server to receive the authorization code
+5. Exchanges the code for tokens (access + refresh)
+6. Stores tokens securely in `~/.hermes/.env` under `MCP_<NAME>_API_KEY`
+
+**Note (v0.5.0):** The Hermes-native PKCE OAuth implementation was removed in v0.5.0 (PR #3107). MCP servers that require OAuth must use the standard OAuth 2.1 flow via `--auth oauth`. The flow above uses the standard MCP SDK OAuth support, not a Hermes-specific implementation.
+
+### hermes mcp remove
+
+Removes the server from `config.yaml` and deletes any stored OAuth tokens.
+
+### hermes mcp test
+
+Temporarily connects to the server and lists all available tools with their descriptions. Useful for verifying configuration before starting the gateway.
+
+```bash
+hermes mcp test github
+# Auth: OAuth 2.1 PKCE
+# Found 8 tools: create_issue, list_issues, ...
+```
+
+### hermes mcp serve
+
+Starts Hermes as an MCP server itself — exposes Hermes' messaging platform conversations as MCP tools so that MCP clients (Claude Code, Cursor, Codex) can read messages, send messages, and manage approvals across all connected gateway platforms.
+
+```bash
+hermes mcp serve
+hermes mcp serve --verbose
+```
+
+MCP client config (e.g. `claude_desktop_config.json`):
+
+```json
+{
+  "mcpServers": {
+    "hermes": {
+      "command": "hermes",
+      "args": ["mcp", "serve"]
+    }
+  }
+}
+```
+
+## What's New
+
+### v0.4.0 (PR #2465)
+
+- `hermes mcp` subcommand group introduced
+- `add`, `remove`, `list`, `test`, `configure`, and `serve` subcommands
+- OAuth 2.1 PKCE flow for HTTP MCP servers that require authentication
+- Interactive tool selection during `hermes mcp add`
+- `hermes mcp serve` exposes gateway conversations to MCP clients
+- Expose MCP servers as standalone named toolsets (`mcp-<name>`) (PR #1907)
+- Interactive MCP tool configuration in `hermes tools` (PR #1694)
+
+### v0.5.0 (PR #3107, #3252, #3077)
+
+- **Removed Hermes-native PKCE OAuth** (PR #3107) — The custom Hermes PKCE implementation was removed. MCP OAuth now delegates entirely to the standard MCP SDK OAuth 2.1 flow.
+- **MCP toolset resolution for runtime and config** (PR #3252) — MCP toolsets are now properly resolved in both live sessions and static config.
+- **MCP tool name collision protection** (PR #3077) — Duplicate tool names across MCP servers are now detected and handled gracefully.
+
 ## Quickstart
 
 1. Install MCP support (included in the standard install, but can be added separately):

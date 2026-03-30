@@ -257,3 +257,17 @@ The prefill messages file must contain a JSON array of `{role, content}` dicts.
 The `BatchRunner` class initializes with all configuration, loads the dataset, creates batches, and manages checkpoints. Processing is parallelized using Python's `multiprocessing.Pool` with `imap_unordered` for efficient parallel execution. Each batch processes prompts sequentially within a worker process. A `multiprocessing.Lock` protects checkpoint writes from concurrent worker updates.
 
 Context files (`SOUL.md`, `AGENTS.md`) are skipped during batch runs (`skip_context_files=True`) to prevent local project context from contaminating trajectories. Persistent memory is also skipped (`skip_memory=True`).
+
+## What's New
+
+### v0.4.0
+
+No changes to the batch runner in v0.4.0.
+
+### v0.5.0
+
+- **mini-swe-agent dependency removed** (PR #2804) — The `mini_swe_runner.py` script previously delegated Docker and Modal execution to the external `mini-swe-agent` package. Both backends are now inlined directly into Hermes. If you previously installed `mini-swe-agent` as a dependency, it is no longer required.
+
+  The `mini_swe_runner.py` file itself remains in the repository as a standalone SWE runner (compatible with Hermes' trajectory format), but it now uses Hermes' built-in `environments/` backends rather than the removed dependency.
+
+- **Replace swe-rex with native Modal SDK** (PR #3538) — The Modal backend previously used the `swe-rex` library for tunnel management. It now uses the Modal SDK directly (`Sandbox.create.aio` + `exec.aio`), eliminating the tunnel layer and simplifying deployments. No configuration changes are required; the `--env modal` flag in `mini_swe_runner.py` continues to work as before.

@@ -146,7 +146,73 @@ Lists `hermes-agent` as an available model. Required by most frontends for model
 
 ### GET /health
 
-Health check endpoint. Returns `{"status": "ok"}`.
+Health check endpoint. Returns `{"status": "ok", "platform": "hermes-agent"}`.
+
+## Cron Jobs REST API
+
+The API server exposes a REST API for managing scheduled jobs. All endpoints require the same Bearer token auth as the OpenAI endpoints (if `API_SERVER_KEY` is configured).
+
+### GET /api/jobs
+
+List all cron jobs.
+
+Query parameters:
+- `include_disabled=true` — include disabled jobs (omitted by default)
+
+**Response:** `{"jobs": [...]}`
+
+### POST /api/jobs
+
+Create a new cron job.
+
+**Request:**
+
+```json
+{
+  "name": "Morning report",
+  "schedule": "0 9 * * *",
+  "prompt": "Check Hacker News for AI news and summarize",
+  "deliver": "local",
+  "skills": ["blogwatcher"],
+  "repeat": 5
+}
+```
+
+Fields:
+- `name` (required) — max 200 characters
+- `schedule` (required) — cron expression, interval (`every 2h`), or one-shot delay (`30m`)
+- `prompt` — task instruction, max 5 000 characters
+- `deliver` — delivery target (`local`, `origin`, `telegram`, etc.)
+- `skills` — list of skill names to load
+- `repeat` — positive integer; limits execution count
+
+**Response:** `{"job": {...}}`
+
+### GET /api/jobs/{job_id}
+
+Get a single job by ID. Returns `{"job": {...}}` or 404.
+
+### PATCH /api/jobs/{job_id}
+
+Update a job. Accepted fields: `name`, `schedule`, `prompt`, `deliver`, `skills`, `skill`, `repeat`, `enabled`. All other keys are silently ignored.
+
+**Response:** `{"job": {...}}`
+
+### DELETE /api/jobs/{job_id}
+
+Delete a job. Returns `{"ok": true}` or 404.
+
+### POST /api/jobs/{job_id}/pause
+
+Pause a running job. Returns `{"job": {...}}`.
+
+### POST /api/jobs/{job_id}/resume
+
+Resume a paused job. Returns `{"job": {...}}`.
+
+### POST /api/jobs/{job_id}/run
+
+Trigger immediate execution on the next scheduler tick. Returns `{"job": {...}}`.
 
 ## System Prompt Handling
 
@@ -174,7 +240,21 @@ Configure the key via the `API_SERVER_KEY` environment variable. If no key is se
 
 ## CORS
 
-The API server includes CORS headers on all responses (`Access-Control-Allow-Origin: *`), so browser-based frontends can connect directly without a proxy.
+CORS is controlled by the `API_SERVER_CORS_ORIGINS` setting. By default no CORS headers are sent, which means non-browser clients (curl, Python SDK, mobile apps) work without restriction, while browser-based frontends require an explicit origin allowlist.
+
+Configure allowed origins as a comma-separated list:
+
+```bash
+API_SERVER_CORS_ORIGINS=http://localhost:3000,https://my-chat.example.com
+```
+
+Use `*` to allow any origin (equivalent to the old open-CORS behaviour):
+
+```bash
+API_SERVER_CORS_ORIGINS=*
+```
+
+Requests from an unlisted browser origin receive a `403` response. The `Idempotency-Key` header is included in CORS preflight responses (`Access-Control-Allow-Headers`), so clients that send idempotency keys work correctly from the browser (PR #3530).
 
 ## Configuration
 
@@ -186,6 +266,7 @@ The API server includes CORS headers on all responses (`Access-Control-Allow-Ori
 | `API_SERVER_PORT` | `8642` | HTTP server port |
 | `API_SERVER_HOST` | `127.0.0.1` | Bind address (localhost only by default) |
 | `API_SERVER_KEY` | _(none)_ | Bearer token for authentication |
+| `API_SERVER_CORS_ORIGINS` | _(none)_ | Comma-separated allowed browser origins, or `*` for any |
 
 All configuration is via environment variables in `~/.hermes/.env`. `config.yaml` support for these settings is not yet available.
 
@@ -223,9 +304,49 @@ response = client.chat.completions.create(
 print(response.choices[0].message.content)
 ```
 
+## Security Features
+
+The API server is hardened with several built-in protections (PR #2450, #2451, #2456, #2472):
+
+- **Request body limit** — POST bodies larger than 1 MB are rejected with a `413` response (OpenAI-format error envelope).
+- **Field whitelist on job updates** — `PATCH /api/jobs/{id}` only accepts `name`, `schedule`, `prompt`, `deliver`, `skills`, `skill`, `repeat`, and `enabled`. All other keys are silently ignored.
+- **Job ID format validation** — Job IDs must match `[a-f0-9]{12}` before any cron operation executes.
+- **SQLite-backed response persistence** — `POST /v1/responses` stores responses in `~/.hermes/response_store.db`. Responses survive gateway restarts (up to the 100-entry LRU cap).
+- **CORS origin protection** — Browser requests from unlisted origins are rejected with a `403`. Non-browser clients (no `Origin` header) are always allowed.
+- **Input length limits on cron** — `name` is capped at 200 characters; `prompt` is capped at 5 000 characters.
+
+## Idempotency
+
+Both `POST /v1/chat/completions` and `POST /v1/responses` support the `Idempotency-Key` header (PR #2903, #3530). Send the same key with the same request body and the cached response is returned without re-running the agent. The cache is in-memory with a 5-minute TTL and a 1 000-entry LRU cap.
+
+```bash
+curl http://localhost:8642/v1/chat/completions \
+  -H "Content-Type: application/json" \
+  -H "Idempotency-Key: req_abc123" \
+  -d '{"model": "hermes-agent", "messages": [{"role": "user", "content": "Hello"}]}'
+```
+
+## What's New
+
+### v0.4.0 (PR #1756, #2450, #2456, #2451, #2472)
+
+- OpenAI-compatible API server introduced as a gateway platform adapter
+- `POST /v1/chat/completions` and `POST /v1/responses` endpoints
+- `/api/jobs` REST API for cron job management
+- Request body size limits, field whitelists, and CORS origin protection
+- SQLite-backed response persistence for `previous_response_id` chaining
+- Idempotency-Key support on both endpoints (PR #2903)
+
+### v0.5.0 (PR #3427, #3530, #3537, #3304)
+
+- **Cancel orphaned agent + true interrupt on SSE disconnect** (PR #3427) — When a streaming client disconnects, the agent's `interrupt()` method is called to stop in-progress LLM API calls, and the asyncio task is cancelled. Previously, disconnects left orphaned agent threads running to completion.
+- **Allow `Idempotency-Key` in CORS headers** (PR #3530) — Browser frontends that send idempotency keys now work correctly without CORS preflight errors.
+- **Auto-repair `jobs.json` with invalid control characters** (PR #3537) — If `jobs.json` contains bare control characters (e.g., from a crash mid-write), the file is automatically repaired on load and rewritten with proper JSON escaping.
+- **Explicit `hermes-api-server` toolset** (PR #3304) — The API server platform now has its own named toolset in `platform_toolsets.api_server` configuration.
+
 ## Limitations
 
-- **Response storage is in-memory** — stored responses for `previous_response_id` are lost on gateway restart. Maximum 100 stored responses (LRU eviction).
+- **Response storage cap** — Maximum 100 stored responses (SQLite-backed LRU). Oldest entries are evicted when the cap is reached.
 - **No file upload** — vision/document analysis via uploaded files is not yet supported through the API.
 - **Model field is cosmetic** — the `model` field in requests is accepted but the actual LLM model used is configured server-side in `config.yaml`.
 - **Config via env only** — `config.yaml` support for API server settings is not yet available.
