@@ -401,6 +401,14 @@ Vector similarity search and embedding databases for RAG, semantic search, and A
 | `parallel-cli` | Parallel CLI agent-native web search, extraction, deep research, enrichment, FindAll, and monitoring. JSON output and non-interactive flows. | `research/parallel-cli` |
 | `polymarket` | Query Polymarket prediction market data — search markets, prices, orderbooks, and price history. Read-only via public REST APIs. | `research/polymarket` |
 
+### red-teaming
+
+Skills for red-teaming model robustness, jailbreaking, and safety bypass research. Added in v0.5.0 (PR [#3157](https://github.com/NousResearch/hermes-agent/pull/3157)).
+
+| Skill | Description | Path |
+|-------|-------------|------|
+| `godmode` | Jailbreak API-served LLMs using G0DM0D3 techniques — Parseltongue input obfuscation (33 techniques), GODMODE CLASSIC system prompt templates, ULTRAPLINIAN multi-model racing, encoding escalation, and Hermes-native prefill/system prompt integration. Use when a user wants to bypass safety filters, jailbreak a model, or red-team model robustness. | `red-teaming/godmode` |
+
 ### smart-home
 
 | Skill | Description | Path |
@@ -444,6 +452,12 @@ Browse all: `hermes skills browse --source official`
 |-------|-------------|------|
 | `base` | Query Base (Ethereum L2) blockchain data with USD pricing — wallet balances, token info, transaction details, gas analysis, contract inspection, whale detection, and live network stats. Uses Base RPC + CoinGecko. No API key required. | `blockchain/base` |
 | `solana` | Query Solana blockchain data with USD pricing — wallet balances, token portfolios, transaction details, NFTs, whale detection, and live network stats. Uses Solana RPC + CoinGecko. No API key required. | `blockchain/solana` |
+
+### devops
+
+| Skill | Description | Path |
+|-------|-------------|------|
+| `docker-management` | Manage Docker containers, images, volumes, networks, and Compose stacks — lifecycle ops, debugging, cleanup, and Dockerfile optimization. Added in v0.5.0 (PR [#3060](https://github.com/NousResearch/hermes-agent/pull/3060)). | `devops/docker-management` |
 
 ### creative
 
@@ -666,6 +680,21 @@ hermes chat --toolsets skills -q "Show me the axolotl skill"
 ```
 
 The `plan` skill demonstrates custom slash command behavior. Running `/plan [request]` tells Hermes to inspect context if needed, write a markdown implementation plan instead of executing the task, and save the result under `.hermes/plans/` relative to the active workspace/backend working directory.
+
+## Skills System Changes in v0.4.0 and v0.5.0
+
+### v0.5.0
+
+- **Env var passthrough** (PR [#2807](https://github.com/NousResearch/hermes-agent/pull/2807)) — Skills and user config can now declare environment variables that pass through to agent subprocesses. Skills can declare which env vars they need propagated by adding them to `required_environment_variables`; the runtime injects matching vars into subprocess environments so helper scripts and tool calls see them without manual export.
+- **Skills prompt caching** (PR [#3421](https://github.com/NousResearch/hermes-agent/pull/3421)) — The skills list prompt is built once via a shared `skill_utils` module and cached. Subsequent turns in the same session reuse the cached skills block, reducing time-to-first-token (TTFT) on long sessions.
+- **Avoid redundant file re-reads** (PR [#2992](https://github.com/NousResearch/hermes-agent/pull/2992)) — Skill condition checks no longer re-read `SKILL.md` files that were already parsed during the initial scan.
+- **New bundled skills** — `red-teaming/godmode` (PR [#3157](https://github.com/NousResearch/hermes-agent/pull/3157))
+- **New optional skills** — `devops/docker-management` (PR [#3060](https://github.com/NousResearch/hermes-agent/pull/3060))
+- **OpenClaw migration v2** (PR [#2906](https://github.com/NousResearch/hermes-agent/pull/2906)) — 17 new modules and terminal recap for migrating from OpenClaw to Hermes Agent
+
+### v0.4.0
+
+- **Background memory/skill review** (PR [#2235](https://github.com/NousResearch/hermes-agent/pull/2235)) — Inline memory and skill review nudges were replaced with background review that runs asynchronously after each turn and delivers results to the user when findings are significant, reducing distraction during normal conversations.
 
 ## Prerequisite Validation
 

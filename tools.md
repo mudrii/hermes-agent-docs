@@ -343,6 +343,56 @@ Handlers must return a JSON string. Errors must be returned as `{"error": "messa
 
 Dangerous terminal commands trigger an approval callback in supported environments. The callback is configured by the platform (CLI, gateway, etc.) and can block or allow the command.
 
+## Tool-Use Enforcement (v0.5.0)
+
+GPT-family models (gpt, codex) have a tendency to describe what they intend to do — "I will now run the tests" — without actually making the tool call. v0.5.0 (PR [#3528](https://github.com/NousResearch/hermes-agent/pull/3528)) added two mechanisms to address this.
+
+### GPT_TOOL_USE_GUIDANCE (`TOOL_USE_ENFORCEMENT_GUIDANCE`)
+
+`TOOL_USE_ENFORCEMENT_GUIDANCE` is a system prompt block injected for models whose name contains `"gpt"` or `"codex"` (case-insensitive match against `TOOL_USE_ENFORCEMENT_MODELS`). It instructs the model to call tools immediately rather than promising future action. The exact text from `agent/prompt_builder.py`:
+
+```
+# Tool-use enforcement
+You MUST use your tools to take action — do not describe what you would do
+or plan to do without actually doing it. When you say you will perform an
+action (e.g. 'I will run the tests', 'Let me check the file', 'I will create
+the project'), you MUST immediately make the corresponding tool call in the same
+response. Never end your turn with a promise of future action — execute it now.
+Keep working until the task is actually complete. Do not stop with a summary of
+what you plan to do next time. If you have tools available that can accomplish
+the task, use them instead of telling the user what you would do.
+Every response should either (a) contain tool calls that make progress, or
+(b) deliver a final result to the user. Responses that only describe intentions
+without acting are not acceptable.
+```
+
+### `agent.tool_use_enforcement` config key
+
+The injection behavior is controlled by `agent.tool_use_enforcement` in `~/.hermes/config.yaml` (default: `"auto"`):
+
+```yaml
+agent:
+  tool_use_enforcement: auto   # default — inject for gpt and codex model families
+  # tool_use_enforcement: true       # always inject, all models
+  # tool_use_enforcement: false      # never inject
+  # tool_use_enforcement: always     # alias for true
+  # tool_use_enforcement: off        # alias for false
+  # tool_use_enforcement: ["deepseek", "gemini"]   # inject only for these model substrings
+```
+
+| Value | Behavior |
+|-------|----------|
+| `"auto"` (default) | Inject for models matching `TOOL_USE_ENFORCEMENT_MODELS` (`"gpt"`, `"codex"`) |
+| `true` / `"always"` / `"yes"` / `"on"` | Always inject, regardless of model |
+| `false` / `"never"` / `"no"` / `"off"` | Never inject |
+| list of strings | Inject when the model name contains any of the listed substrings (case-insensitive) |
+
+### Budget warning stripping
+
+Hermes injects `[BUDGET WARNING: Iteration N/M. ...]` markers into tool-result messages when the agent is approaching its iteration limit. These warnings are scoped to a single turn — if they leaked into replayed conversation history on subsequent turns, models would see a stale "almost at limit" signal and begin avoiding tool calls unnecessarily.
+
+v0.5.0 (PR [#3528](https://github.com/NousResearch/hermes-agent/pull/3528)) added `_strip_budget_warnings_from_history()`, which runs at the start of each new turn and removes these markers in-place from `role: tool` message content before the history is replayed to the model.
+
 ## How to Add a Custom Tool (via Plugin)
 
 Adding a native tool touches three files:

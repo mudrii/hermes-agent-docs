@@ -87,6 +87,7 @@ Tools gated on environment variables or runtime conditions (`send_message`, `hon
 | Toolset | Kind | Description |
 |---------|------|-------------|
 | `hermes-acp` | platform | Editor integration (VS Code, Zed, JetBrains) — coding-focused tools without messaging, audio, or clarify UI. Includes `web_search`, `web_extract`, `terminal`, `process`, file tools, `vision_analyze`, skills tools, all browser tools, `todo`, `memory`, `session_search`, `execute_code`, `delegate_task`. |
+| `hermes-api-server` | platform | OpenAI-compatible API server — full agent tools accessible via HTTP without interactive UI tools (`clarify`, `send_message`). Added in v0.5.0 (PR [#3304](https://github.com/NousResearch/hermes-agent/pull/3304)). |
 | `hermes-cli` | platform | Full interactive CLI toolset — all default tools including cronjob management. Uses `_HERMES_CORE_TOOLS`. |
 | `hermes-discord` | platform | Discord bot toolset — full access with dangerous command approval. Same tools as `hermes-cli`. |
 | `hermes-email` | platform | Email bot toolset (IMAP/SMTP). Same tools as `hermes-cli`. |
@@ -97,6 +98,28 @@ Tools gated on environment variables or runtime conditions (`send_message`, `hon
 | `hermes-telegram` | platform | Telegram bot toolset — full access for personal use. Same tools as `hermes-cli`. |
 | `hermes-whatsapp` | platform | WhatsApp bot toolset. Same tools as `hermes-cli`. |
 | `hermes-gateway` | composite | Union of all messaging platform toolsets (includes `hermes-telegram`, `hermes-discord`, `hermes-whatsapp`, `hermes-slack`, `hermes-signal`, `hermes-homeassistant`, `hermes-email`, `hermes-sms`). |
+
+## Plugin Toolsets (v0.5.0)
+
+Plugin-provided toolsets are now visible in `hermes tools` and standalone processes. Prior to v0.5.0 (PR [#3457](https://github.com/NousResearch/hermes-agent/pull/3457)), plugin tools registered successfully but their toolset entries were invisible to the toolset TUI and command-line listing.
+
+The `get_plugin_toolsets()` function in `hermes_cli/plugins.py` groups all plugin-registered tool names by their toolset key, resolves the plugin description, and returns `(key, label, description)` tuples. Each plugin toolset is prefixed with a plug icon in the `hermes tools` display.
+
+Plugin toolsets appear under a separate "Plugin Toolsets" section in `hermes tools` and can be enabled or disabled per platform in `config.yaml` using the toolset name, exactly like built-in toolsets:
+
+```yaml
+toolsets:
+  enabled:
+    - my-plugin        # toolset name declared in ctx.register_tool(..., toolset="my-plugin")
+```
+
+Plugin tools are discovered after built-in tools and MCP tools. The discovery order in `model_tools.py` is:
+
+1. `_discover_tools()` — all core tool modules
+2. `discover_mcp_tools()` — MCP server tools
+3. `discover_plugins()` — plugin tools (registered via `ctx.register_tool`)
+
+Toolset resolution in `get_plugin_toolsets()` runs after all three discovery steps complete, ensuring plugin toolsets are fully populated before they are read.
 
 ## Dynamic Toolsets
 
@@ -276,7 +299,7 @@ Composite:
   debugging, safe
 
 Platform:
-  hermes-acp, hermes-cli, hermes-discord, hermes-email,
+  hermes-acp, hermes-api-server, hermes-cli, hermes-discord, hermes-email,
   hermes-gateway, hermes-homeassistant, hermes-signal, hermes-slack,
   hermes-sms, hermes-telegram, hermes-whatsapp
 

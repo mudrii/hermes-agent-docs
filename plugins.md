@@ -288,10 +288,90 @@ Available hooks in plugins:
 |------|------|-----------|
 | `pre_tool_call` | Before any tool runs | `tool_name`, `args`, `task_id` |
 | `post_tool_call` | After any tool returns | `tool_name`, `args`, `result`, `task_id` |
-| `pre_llm_call` | Before LLM API call | `messages`, `model` |
-| `post_llm_call` | After LLM response | `messages`, `response`, `model` |
-| `on_session_start` | Session begins | `session_id`, `platform` |
-| `on_session_end` | Session ends | `session_id`, `platform` |
+| `pre_llm_call` | Before each LLM API call per turn | `session_id`, `user_message`, `conversation_history`, `is_first_turn`, `model`, `platform` |
+| `post_llm_call` | After the turn's tool-calling loop completes | `session_id`, `user_message`, `assistant_response`, `conversation_history`, `model`, `platform` |
+| `on_session_start` | New session created (not on continuation) | `session_id`, `model`, `platform` |
+| `on_session_end` | End of every `run_conversation` call | `session_id`, `completed`, `interrupted`, `model`, `platform` |
+
+The `pre_llm_call` and `post_llm_call` hooks fire once per user turn (not once per internal API call). `pre_llm_call` can optionally return a dict with a `"context"` key whose string value is appended to the ephemeral system prompt for that turn only — it is not persisted to the session DB or prompt cache. All four hooks were activated in v0.5.0 (PR [#3542](https://github.com/NousResearch/hermes-agent/pull/3542)).
+
+## Plugin Lifecycle Hooks (v0.5.0)
+
+Prior to v0.5.0, only `pre_tool_call` and `post_tool_call` fired. The four session-level and LLM-level hooks (`pre_llm_call`, `post_llm_call`, `on_session_start`, `on_session_end`) were defined but not wired into the agent loop. As of v0.5.0 (PR [#3542](https://github.com/NousResearch/hermes-agent/pull/3542)) all six hooks are fully active in the CLI, gateway, and cron sessions.
+
+### Execution order within a turn
+
+```
+on_session_start        ← once, when a brand-new session is created
+pre_llm_call            ← once per user turn, before the tool-calling loop
+  [tool-calling loop]
+    pre_tool_call       ← before each tool
+    post_tool_call      ← after each tool
+post_llm_call           ← once per user turn, after the loop completes
+on_session_end          ← at the end of every run_conversation call
+```
+
+### Complete plugin example with all six hooks
+
+```python
+# ~/.hermes/plugins/my-observer/__init__.py
+import json
+import logging
+from datetime import datetime
+from pathlib import Path
+
+logger = logging.getLogger(__name__)
+
+_LOG = Path.home() / ".hermes" / "logs" / "my-observer.jsonl"
+
+
+def _log(record: dict) -> None:
+    _LOG.parent.mkdir(parents=True, exist_ok=True)
+    with open(_LOG, "a") as f:
+        f.write(json.dumps({"ts": datetime.now().isoformat(), **record}) + "\n")
+
+
+def _on_session_start(session_id, model, platform, **kwargs):
+    _log({"event": "session_start", "session_id": session_id,
+          "model": model, "platform": platform})
+
+
+def _on_pre_llm_call(session_id, user_message, conversation_history,
+                     is_first_turn, model, platform, **kwargs):
+    _log({"event": "pre_llm_call", "session_id": session_id,
+          "turn_msg_len": len(user_message), "history_len": len(conversation_history)})
+    # Optionally inject ephemeral context into this turn's system prompt:
+    # return {"context": "Today is Monday. Reminder: prefer metric units."}
+
+
+def _on_post_llm_call(session_id, user_message, assistant_response,
+                      conversation_history, model, platform, **kwargs):
+    _log({"event": "post_llm_call", "session_id": session_id,
+          "response_len": len(assistant_response or "")})
+
+
+def _on_session_end(session_id, completed, interrupted, model, platform, **kwargs):
+    _log({"event": "session_end", "session_id": session_id,
+          "completed": completed, "interrupted": interrupted})
+
+
+def _on_pre_tool_call(tool_name, args, task_id, **kwargs):
+    _log({"event": "pre_tool_call", "tool": tool_name, "task_id": task_id})
+
+
+def _on_post_tool_call(tool_name, args, result, task_id, **kwargs):
+    _log({"event": "post_tool_call", "tool": tool_name, "task_id": task_id,
+          "result_len": len(result or "")})
+
+
+def register(ctx):
+    ctx.register_hook("on_session_start", _on_session_start)
+    ctx.register_hook("pre_llm_call", _on_pre_llm_call)
+    ctx.register_hook("post_llm_call", _on_post_llm_call)
+    ctx.register_hook("on_session_end", _on_session_end)
+    ctx.register_hook("pre_tool_call", _on_pre_tool_call)
+    ctx.register_hook("post_tool_call", _on_post_tool_call)
+```
 
 ## Shipping Data Files
 
@@ -355,12 +435,18 @@ pip install hermes-plugin-my-plugin
 
 On startup, Hermes:
 
-1. Scans `~/.hermes/plugins/` (or `$HERMES_HOME/plugins/`) for subdirectories containing `plugin.yaml` or `plugin.yml`
-2. Scans `.hermes/plugins/` in the current working directory for project-specific plugins **only when** `HERMES_ENABLE_PROJECT_PLUGINS=1`
-3. Checks installed packages for the `hermes_agent.plugins` entry points group
-4. For each discovered plugin, imports the module and calls `register(ctx)`
-5. Any plugin whose `register()` raises an exception is disabled with an error logged; Hermes continues
-6. Discovery runs only once per process (idempotent via `_discovered` flag)
+1. Built-in tools are discovered first — `model_tools._discover_tools()` imports every core tool module
+2. MCP tools are discovered next — `discover_mcp_tools()` connects to configured MCP servers
+3. Plugin tools are discovered last — `discover_plugins()` scans all three sources and calls `register(ctx)` for each plugin
+4. `get_plugin_toolsets()` then groups plugin-registered tool names by their toolset key so they appear in `hermes tools` and standalone processes (PR [#3457](https://github.com/NousResearch/hermes-agent/pull/3457), v0.5.0)
+
+Within plugin discovery, sources are checked in this order:
+
+1. `~/.hermes/plugins/` (or `$HERMES_HOME/plugins/`) — subdirectories with `plugin.yaml` or `plugin.yml`
+2. `.hermes/plugins/` in the current working directory — **only when** `HERMES_ENABLE_PROJECT_PLUGINS=1`
+3. Installed packages — packages in the `hermes_agent.plugins` entry points group
+
+For each plugin found, Hermes imports the module and calls `register(ctx)`. Any plugin whose `register()` raises an exception is disabled with an error logged; Hermes continues loading remaining plugins. Discovery runs only once per process (idempotent).
 
 ## Managing Plugins
 

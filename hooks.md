@@ -181,6 +181,8 @@ async def handle(event_type: str, context: dict):
 
 ## Plugin Hooks
 
+Plugin hooks were activated in v0.5.0 (PR [#3542](https://github.com/NousResearch/hermes-agent/pull/3542)). Prior to v0.5.0, only `pre_tool_call` and `post_tool_call` fired. All six hooks now fire in the CLI, gateway, and cron sessions.
+
 Plugin hooks are registered inside a plugin's `register(ctx)` function. They fire during any Hermes session (CLI, gateway, or cron), not just the gateway.
 
 ```python
@@ -193,16 +195,16 @@ def register(ctx):
     ctx.register_hook("on_session_end", on_session_end)
 ```
 
-Available plugin hooks:
+Available plugin hooks and their exact keyword arguments (from `run_agent.py`):
 
-| Hook | When | Arguments |
-|------|------|-----------|
+| Hook | When fires | Keyword arguments |
+|------|------------|-------------------|
 | `pre_tool_call` | Before any tool runs | `tool_name`, `args`, `task_id` |
 | `post_tool_call` | After any tool returns | `tool_name`, `args`, `result`, `task_id` |
-| `pre_llm_call` | Before LLM API call | `messages`, `model` |
-| `post_llm_call` | After LLM response | `messages`, `response`, `model` |
-| `on_session_start` | Session begins | `session_id`, `platform` |
-| `on_session_end` | Session ends | `session_id`, `platform` |
+| `pre_llm_call` | Once per user turn, before the tool-calling loop | `session_id`, `user_message`, `conversation_history`, `is_first_turn`, `model`, `platform` |
+| `post_llm_call` | Once per user turn, after the tool-calling loop | `session_id`, `user_message`, `assistant_response`, `conversation_history`, `model`, `platform` |
+| `on_session_start` | Once when a brand-new session is created | `session_id`, `model`, `platform` |
+| `on_session_end` | At the end of every `run_conversation` call | `session_id`, `completed`, `interrupted`, `model`, `platform` |
 
 Plugin hook handlers receive keyword arguments. Always use `**kwargs` to stay forward-compatible:
 
@@ -212,6 +214,53 @@ def _on_post_tool_call(tool_name, args, result, task_id, **kwargs):
 ```
 
 Plugin hooks are observers only. They cannot modify tool arguments or return values.
+
+### pre_llm_call: injecting ephemeral context
+
+`pre_llm_call` is unique among plugin hooks — its return value is collected by the agent core. Return a dict with a `"context"` key and the string value is appended to the system prompt for the current turn only. It is not persisted to the session DB or prompt cache.
+
+```python
+def _before_llm(session_id, user_message, conversation_history,
+                is_first_turn, model, platform, **kwargs):
+    # Inject dynamic context for this turn
+    if is_first_turn:
+        return {"context": "User's timezone: Europe/London"}
+    # Return None (or nothing) to inject nothing
+```
+
+### Using plugin hooks for logging, metrics, and cost tracking
+
+```python
+import json
+import time
+from pathlib import Path
+
+_LOG = Path.home() / ".hermes" / "logs" / "metrics.jsonl"
+_turn_start: dict = {}
+
+
+def _pre_llm(session_id, user_message, model, platform, **kwargs):
+    _turn_start[session_id] = time.monotonic()
+
+
+def _post_llm(session_id, assistant_response, model, platform, **kwargs):
+    elapsed = time.monotonic() - _turn_start.pop(session_id, time.monotonic())
+    record = {
+        "session": session_id,
+        "model": model,
+        "platform": platform,
+        "response_chars": len(assistant_response or ""),
+        "elapsed_s": round(elapsed, 2),
+    }
+    _LOG.parent.mkdir(parents=True, exist_ok=True)
+    with open(_LOG, "a") as f:
+        f.write(json.dumps(record) + "\n")
+
+
+def register(ctx):
+    ctx.register_hook("pre_llm_call", _pre_llm)
+    ctx.register_hook("post_llm_call", _post_llm)
+```
 
 ## Hook Lifecycle Summary
 
@@ -225,14 +274,14 @@ For gateway hooks:
 6. `session:reset` — fires when the user runs `/new` or `/reset`
 7. `command:*` — fires for every slash command with command name and args
 
-For plugin hooks:
+For plugin hooks (fully active since v0.5.0):
 
-1. `on_session_start` — session created
-2. `pre_llm_call` — just before each LLM API request
-3. `pre_tool_call` — just before each tool execution
-4. `post_tool_call` — just after each tool returns
-5. `post_llm_call` — just after each LLM response
-6. `on_session_end` — session ends
+1. `on_session_start` — fires once when a new session is first created
+2. `pre_llm_call` — fires once per user turn, before the tool-calling loop
+3. `pre_tool_call` — fires just before each tool execution inside the loop
+4. `post_tool_call` — fires just after each tool returns inside the loop
+5. `post_llm_call` — fires once per user turn, after the loop completes
+6. `on_session_end` — fires at the end of every `run_conversation` call
 
 ## Error Handling
 
