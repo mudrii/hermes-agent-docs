@@ -50,6 +50,48 @@ checkpoints:
 
 When disabled, the Checkpoint Manager is a no-op and never attempts git operations.
 
+---
+
+## Context Compression and Checkpoints
+
+Checkpoints and context compression are independent systems, but they interact:
+
+- Checkpoints snapshot the **filesystem** before destructive tool calls.
+- Context compression summarizes the **conversation history** to free context window space.
+
+Both can be active simultaneously. `/compress` triggers manual compression without creating a filesystem checkpoint. `/rollback` restores the filesystem and undoes the corresponding conversation turns.
+
+---
+
+## v0.4.0 Compression Changes (PR #2323, #1727, #2224)
+
+The context compressor was overhauled in v0.4.0:
+
+- **Structured summaries** replace flat text: the compressor generates a structured summary with iterative updates rather than a single-pass summary block.
+- **Token-budget tail protection**: the compressor calculates a tail budget and always preserves the most recent `protect_last_n` messages regardless of compression pressure.
+- **Configurable `summary_base_url`**: the summarization model can be pointed at any OpenAI-compatible endpoint.
+- **Fallback model support**: if the primary summary model fails, the compressor falls back to the next available model.
+
+---
+
+## v0.5.0 Compression Changes (PR #2554)
+
+- **Ratio-based scaling replaces `summary_target_tokens`**: the deprecated `summary_target_tokens` key is removed. Token budget for retained content is now computed as `target_ratio × threshold × context_length`.
+- **`target_ratio`, `protect_last_n`, `threshold`** are exposed as first-class keys in `DEFAULT_CONFIG` (sourced from `hermes_cli/config.py`).
+- Summary output is capped at 12K tokens internally.
+- On `/clear` and `/new`, the compressor summary and turn counter are reset (PR #3102).
+
+### Current DEFAULT_CONFIG values (sourced from `hermes_cli/config.py`)
+
+| Key | Default | Description |
+|-----|---------|-------------|
+| `compression.enabled` | `true` | Enable auto-compression |
+| `compression.threshold` | `0.50` | Trigger at 50% of context limit |
+| `compression.target_ratio` | `0.20` | Preserve 20% of threshold as tail |
+| `compression.protect_last_n` | `20` | Always keep last 20 messages |
+| `compression.summary_model` | `""` | Empty = use main model |
+| `compression.summary_provider` | `"auto"` | Auto-select provider |
+
 ## Listing Checkpoints
 
 From a CLI session:

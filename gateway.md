@@ -2,7 +2,7 @@
 
 The Hermes gateway is the long-running background process that connects Hermes Agent to external messaging platforms. It manages incoming messages, session state, platform authentication, cron scheduling, and outbound delivery — all through a single unified pipeline.
 
-This document covers v0.2.0 (v2026.3.12) and v0.3.0 (v2026.3.17).
+This document covers v0.2.0 through v0.5.0 (v2026.3.28).
 
 ---
 
@@ -40,6 +40,7 @@ flowchart TB
             mx[Matrix]
             dt[DingTalk]
             api["API Server (OpenAI-compatible)"]
+            wh[Webhook]
         end
 
         store["Session store (per chat)"]
@@ -59,6 +60,7 @@ flowchart TB
     mx --> store
     dt --> store
     api --> store
+    wh --> store
     store --> agent
     cron --> store
 ```
@@ -373,6 +375,7 @@ Note: DingTalk and Home Assistant do not auto-enable from environment variables 
 | Email | `EMAIL_ADDRESS`, `EMAIL_PASSWORD`, `EMAIL_IMAP_HOST`, `EMAIL_SMTP_HOST`, `EMAIL_ALLOWED_USERS` |
 | SMS | `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_PHONE_NUMBER`, `SMS_ALLOWED_USERS` |
 | DingTalk | `DINGTALK_CLIENT_ID`, `DINGTALK_CLIENT_SECRET`, `DINGTALK_ALLOWED_USERS` |
+| Webhook | No credential env vars — authentication is per-route via HMAC `secret` in `config.yaml` |
 | API Server | `API_SERVER_ENABLED`, `API_SERVER_KEY`, `API_SERVER_PORT`, `API_SERVER_HOST` |
 
 ---
@@ -475,7 +478,7 @@ whatsapp:
 
 ---
 
-## Approval System and /stop Command (v0.3.0)
+## Approval System and /stop Command
 
 ### Smart Approvals
 
@@ -484,6 +487,12 @@ v0.3.0 introduced a Codex-inspired approval system. When the agent tries to run 
 > This command is potentially dangerous (recursive delete). Reply "yes" to approve.
 
 Reply `yes` or `y` to approve, `no` or `n` to deny. The system remembers your decisions using a policy table and applies them to future similar commands, avoiding repeated prompts for commands you've already approved.
+
+v0.4.0 replaced bare text confirmation with explicit `/approve` and `/deny` commands ([PR #2002](https://github.com/NousResearch/hermes-agent/pull/2002)). The agent now prompts:
+
+> This command is potentially dangerous. Reply `/approve` to allow or `/deny` to block.
+
+The old `yes`/`no` text responses no longer work for approvals in gateway mode.
 
 ### /stop Command
 
@@ -511,7 +520,11 @@ These commands are available in any connected messaging platform:
 | `/retry` | Retry the last message |
 | `/undo` | Remove the last exchange |
 | `/status` | Show session info |
-| `/stop` | Stop the running agent (v0.3.0) |
+| `/stop` | Stop the running agent |
+| `/approve` | Approve a pending dangerous-command request (v0.4.0, PR #2002) |
+| `/deny` | Deny a pending dangerous-command request (v0.4.0, PR #2002) |
+| `/cost` | Show live pricing and usage for this session (v0.4.0, PR #2180) |
+| `/verbose` | Toggle tool output verbosity from chat (v0.5.0, PR #3262) |
 | `/sethome` | Set this chat as the home channel |
 | `/compress` | Manually compress conversation context |
 | `/title [name]` | Set or show the session title |
@@ -547,7 +560,8 @@ Each platform has its own named toolset. The toolset name determines which tools
 | Mattermost | `hermes-mattermost` | Full tools including terminal |
 | Matrix | `hermes-matrix` | Full tools including terminal |
 | DingTalk | `hermes-dingtalk` | Full tools including terminal |
-| API Server | `hermes` (default) | Full tools including terminal |
+| Webhook | `hermes-webhook` | Full tools including terminal |
+| API Server | `hermes-api-server` | Full tools including terminal |
 
 Per-platform tool configuration is managed via `hermes tools`, which provides a curses UI for enabling and disabling tools on a per-platform basis.
 
@@ -747,3 +761,26 @@ When a message is delivered to a platform via `send_message` or cron delivery, t
 | `gateway/platforms/homeassistant.py` | Home Assistant WebSocket event adapter |
 | `gateway/platforms/api_server.py` | OpenAI-compatible API server |
 | `gateway/platforms/sms.py` | Twilio webhook SMS adapter |
+| `gateway/platforms/webhook.py` | Generic inbound webhook adapter |
+
+---
+
+## Changelog
+
+### v0.4.0 (v2026.3.23)
+
+- **Auto-reconnect with exponential backoff** — failed platform adapters reconnect automatically without requiring a gateway restart ([PR #2584](https://github.com/NousResearch/hermes-agent/pull/2584)).
+- **Gateway prompt caching** — `AIAgent` instances are now cached per session in the gateway. The Anthropic API's prompt cache is preserved across turns: the system prompt, injected skills, and all assistant turns accumulate cache tokens between messages. Practical effect: on Anthropic, turns after the first in a long conversation incur no re-compute cost for the context already seen. Cache signatures include the full auth token so sessions are never shared between credentials ([PR #2282](https://github.com/NousResearch/hermes-agent/pull/2282), [#2284](https://github.com/NousResearch/hermes-agent/pull/2284), [#2361](https://github.com/NousResearch/hermes-agent/pull/2361)).
+- **`/approve` and `/deny` commands** — replaced bare `yes`/`no` text in the approval flow with explicit slash commands ([PR #2002](https://github.com/NousResearch/hermes-agent/pull/2002)).
+- **`/cost` command** — shows live pricing and usage tracking in gateway mode ([PR #2180](https://github.com/NousResearch/hermes-agent/pull/2180)).
+- **6 new platform adapters** — Signal, DingTalk, SMS (Twilio), Mattermost, Matrix, and Webhook added ([PR #2206](https://github.com/NousResearch/hermes-agent/pull/2206), [#1685](https://github.com/NousResearch/hermes-agent/pull/1685), [#1688](https://github.com/NousResearch/hermes-agent/pull/1688), [#1683](https://github.com/NousResearch/hermes-agent/pull/1683), [#2166](https://github.com/NousResearch/hermes-agent/pull/2166)).
+
+### v0.5.0 (v2026.3.28)
+
+- **Telegram Private Chat Topics** — project-based conversations with per-topic skill binding in a single Telegram chat ([PR #3163](https://github.com/NousResearch/hermes-agent/pull/3163)). When a topic's `thread_id` is not found (deleted topic), the adapter falls back to sending without a thread instead of failing ([PR #3390](https://github.com/NousResearch/hermes-agent/pull/3390)).
+- **Progress thread fallback scoped to Slack only** — the generic progress-thread fallback that was firing on all platforms is now scoped to Slack only ([PR #3488](https://github.com/NousResearch/hermes-agent/pull/3488)).
+- **User-local bin paths in systemd unit** — the generated systemd service unit now includes `~/.local/bin` and other user-local bin paths in `PATH`, so tools installed via `pip install --user` are found when the service runs at boot ([PR #3527](https://github.com/NousResearch/hermes-agent/pull/3527)).
+- **AsyncOpenAI/httpx cross-loop deadlock fix** — prevents a deadlock that could occur in gateway mode when `AsyncOpenAI` clients were shared across asyncio event loops ([PR #2701](https://github.com/NousResearch/hermes-agent/pull/2701)).
+- **Transcript preserved on `/compress`** — running `/compress` or hygiene compression no longer discards the session transcript ([PR #3556](https://github.com/NousResearch/hermes-agent/pull/3556)).
+- **`/verbose` command** — toggle tool output verbosity from any connected chat without restarting the gateway ([PR #3262](https://github.com/NousResearch/hermes-agent/pull/3262)).
+- **Matrix added to PLATFORMS dict** — Matrix was missing from the global platforms registry, causing it not to appear in `hermes gateway status` ([PR #3473](https://github.com/NousResearch/hermes-agent/pull/3473)).

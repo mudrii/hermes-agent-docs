@@ -192,6 +192,19 @@ Beyond `MEMORY.md` and `USER.md`, the agent can search past conversations using 
 hermes sessions list    # Browse past sessions
 ```
 
+### Recent Sessions Mode (v0.5.0 — PR #2533)
+
+Calling `session_search` with **no query** returns recent sessions instead of performing a keyword search. Each result includes the session title, a short preview, and a timestamp. This gives the agent a compact overview of recent work without requiring a specific search term.
+
+```python
+session_search()              # Returns recent sessions with titles, previews, timestamps
+session_search(query="auth")  # Full-text search across all sessions
+```
+
+### Session Search Fallback Preview (v0.5.0 — PR #3478)
+
+When LLM-based summarization fails (e.g., model unavailable), `session_search` falls back to a plain-text excerpt from the raw transcript instead of returning an empty result. The preview is truncated at a safe token limit.
+
 ### Memory vs. Session Search
 
 | Feature | Persistent Memory | Session Search |
@@ -203,6 +216,29 @@ hermes sessions list    # Browse past sessions
 | Token cost | Fixed per session (~1,300 tokens) | On-demand when searched |
 
 Memory is for critical facts that should always be in context. Session search is for "did we discuss X last week?" queries.
+
+---
+
+## Session Lifecycle Commands (v0.5.0)
+
+### `/resume` Command (PR #3315)
+
+The `/resume [name]` slash command resumes a previously-named session. In v0.5.0 the CLI handler was added alongside a `reopen_session` API on the `SessionDB` class. This allows the session transcript to be reopened and continued, flushing the current session context and loading the target session's history.
+
+```
+/resume my-project        # Resume the session titled "my-project"
+/resume                   # Open session picker
+```
+
+When a session is resumed:
+1. The current session's memories are flushed.
+2. The resumed session's conversation history is loaded.
+3. The session ID and title are restored.
+4. Honcho context for the resumed session loads (if Honcho is enabled).
+
+### Session Config Surfacing on `/new`, `/reset`, Auto-Reset (PR #3321)
+
+In v0.5.0, when a new session starts — via `/new`, `/reset`, or automatic idle/daily reset — Hermes displays the active session configuration to the user. This includes the current model, provider, toolsets, and key settings, so users can confirm the session started with the expected configuration.
 
 ---
 
@@ -513,9 +549,11 @@ This means:
 |-------|------------------------|
 | New message arrives | Agent inherits the gateway's Honcho manager and session key |
 | `/reset` | Memory flush fires with the old session key, then Honcho manager shuts down |
-| `/resume` | Current session is flushed, then the resumed session's Honcho context loads |
+| `/resume` | Current session is flushed, then the resumed session's Honcho context loads (v0.5.0 — PR #3315) |
 | Session expiry | Automatic flush and shutdown after the configured idle timeout |
 | Gateway stop | All active Honcho managers are flushed and shut down gracefully |
+
+**`reopen_session` API (v0.5.0 — PR #3315):** The `SessionDB` class exposes a `reopen_session(session_id)` method that re-attaches the database to an existing session, loading its transcript and metadata. This is the internal mechanism used by `/resume` and by gateway session restoration after a restart.
 
 Honcho managers are owned at the gateway session layer so they persist across requests within the same session and flush at real session boundaries.
 

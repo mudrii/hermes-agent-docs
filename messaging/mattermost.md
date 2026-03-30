@@ -4,7 +4,7 @@ Hermes Agent integrates with Mattermost as a bot, letting you chat with your AI 
 
 No external Mattermost library is required — the adapter uses `aiohttp`, which is already a Hermes dependency.
 
-This document covers v0.2.0 (v2026.3.12) and v0.3.0 (v2026.3.17).
+This document covers v0.2.0 through v0.5.0 (v2026.3.28).
 
 ---
 
@@ -222,3 +222,12 @@ Always set `MATTERMOST_ALLOWED_USERS` to restrict who can interact with the bot.
 - Works with both Mattermost Team Edition (free) and Enterprise Edition
 - No extra dependencies required — the adapter uses `aiohttp` which is already included with Hermes Agent
 - Store the bot token in `~/.hermes/.env` with file permissions `600`
+
+---
+
+## Changelog
+
+- **v0.4.0:** Mattermost adapter added with `@`-mention-only channel filter ([PR #1683](https://github.com/NousResearch/hermes-agent/pull/1683), [#2443](https://github.com/NousResearch/hermes-agent/pull/2443)).
+- **v0.4.0:** MIME type detection for media attachments ([PR #2329](https://github.com/NousResearch/hermes-agent/pull/2329)).
+- **v0.5.0:** Media download retry added ([PR #3323](https://github.com/NousResearch/hermes-agent/pull/3323)).
+- **v0.5.0:** Request timeouts added ([PR #3258](https://github.com/NousResearch/hermes-agent/pull/3258)).

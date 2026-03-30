@@ -6,7 +6,7 @@ Signal is the most privacy-focused mainstream messenger — end-to-end encrypted
 
 The Signal adapter uses `httpx` (already a core Hermes dependency) for all communication. No additional Python packages are required beyond `signal-cli` itself.
 
-This document covers v0.2.0 (v2026.3.12) and v0.3.0 (v2026.3.17).
+This document covers v0.2.0 through v0.5.0 (v2026.3.28).
 
 ---
 
@@ -195,6 +195,8 @@ This applies to both Hermes gateway logs and the global redaction system.
 The adapter monitors the SSE connection and automatically reconnects if:
 - The connection drops (with exponential backoff: 2s → 60s)
 - No activity is detected for 120 seconds (pings signal-cli to verify)
+
+**v0.5.0:** SSE keepalive comment lines (empty event frames that signal-cli sends periodically) are now treated as connection activity, preventing false "stale connection" reconnects ([PR #3316](https://github.com/NousResearch/hermes-agent/pull/3316)).
 
 ---
 

@@ -45,7 +45,8 @@ Running `hermes` with no arguments starts an interactive chat session.
 | Command | Purpose |
 |---------|---------|
 | `hermes chat` | Interactive or one-shot chat with the agent. |
-| `hermes model` | Interactively choose the default provider and model. |
+| `hermes model` | Interactively choose the default provider and model. As of v0.5.0 (PR #3080), this is the canonical way to switch models; the `/model` slash command was removed from CLI and gateway. |
+| `hermes mcp` | Manage MCP servers (v0.4.0 — PR #2465). See [`hermes mcp`](#hermes-mcp) below. |
 | `hermes gateway` | Run or manage the messaging gateway service. |
 | `hermes setup` | Interactive setup wizard for all or part of the configuration. |
 | `hermes whatsapp` | Configure and pair the WhatsApp bridge. |
@@ -146,6 +147,43 @@ Interactive provider and model selector. Use this to:
 - Save the new default into `config.yaml`.
 
 The selected provider and model are persisted to `~/.hermes/config.yaml` under the `model:` key so later sessions use the saved selection even when `HERMES_INFERENCE_PROVIDER` is not set in the shell.
+
+**v0.5.0 (PR #3080):** The `/model` slash command was removed from both CLI and gateway. `hermes model` is the sole canonical way to switch the default provider and model. A shared `switch_model()` pipeline (PR #2795, #2799) handles custom endpoints and provider-aware routing for both CLI and gateway.
+
+---
+
+## `hermes mcp`
+
+```bash
+hermes mcp <subcommand>
+```
+
+Manage MCP (Model Context Protocol) servers. Introduced in v0.4.0 (PR #2465). Supports full OAuth 2.1 PKCE authentication flow for MCP servers that require it.
+
+### Subcommands
+
+| Subcommand | Description |
+|------------|-------------|
+| `add <name> --url <endpoint>` | Add an HTTP/SSE MCP server. |
+| `add <name> --command <cmd> [--args <args...>]` | Add a stdio MCP server. |
+| `remove <name>` | Remove a configured MCP server. |
+| `list` | List all configured MCP servers and their status. |
+| `test <name>` | Test connection to an MCP server and list its tools. |
+| `configure <name>` (alias: `config`) | Interactive tool enable/disable for a server. |
+| `serve` | Run Hermes itself as an MCP server. |
+
+### Examples
+
+```bash
+hermes mcp list
+hermes mcp add github --command npx --args @modelcontextprotocol/server-github
+hermes mcp add ink --url "https://mcp.ml.ink/mcp"
+hermes mcp test github
+hermes mcp configure github
+hermes mcp remove github
+```
+
+Use `/reload-mcp` inside a session to reload MCP servers from `config.yaml` without restarting.
 
 ---
 
@@ -546,9 +584,10 @@ Slash commands are dispatched from a central `COMMAND_REGISTRY` in `hermes_cli/c
 | `/rollback [number]` | Yes | Yes | List or restore filesystem checkpoints. |
 | `/stop` | Yes | Yes | Kill all running background processes. |
 | `/background <prompt>` (alias: `/bg`) | Yes | Yes | Run a prompt in a separate background session. Results appear as a panel when the task finishes. |
-| `/resume [name]` | Yes | Yes | Resume a previously-named session. |
-| `/approve [session\|always]` | -- | Yes | Approve a pending dangerous command. |
-| `/deny` | -- | Yes | Deny a pending dangerous command. |
+| `/queue <prompt>` (alias: `/q`) | Yes | Yes | Queue a prompt for the next turn without interrupting the currently running agent (v0.4.0 — PR #2191, #2469). |
+| `/resume [name]` | Yes | Yes | Resume a previously-named session (v0.5.0 — PR #3315). |
+| `/approve [session\|always]` | -- | Yes | Approve a pending dangerous command. Replaced bare text approval in v0.4.0 (PR #2002). |
+| `/deny` | -- | Yes | Deny a pending dangerous command. Replaced bare text denial in v0.4.0 (PR #2002). |
 | `/status` | -- | Yes | Show session info. |
 | `/sethome` (alias: `/set-home`) | -- | Yes | Set this chat as the home channel for cron/notification delivery. |
 
@@ -557,15 +596,18 @@ Slash commands are dispatched from a central `COMMAND_REGISTRY` in `hermes_cli/c
 | Command | CLI | Messaging | Description |
 |---------|-----|-----------|-------------|
 | `/config` | Yes | -- | Show current configuration. |
-| `/model [name]` | Yes | Yes | Show or change the current model. Supports `provider:model` syntax. |
 | `/provider` | Yes | Yes | Show available providers and current provider. |
 | `/prompt [text]` | Yes | -- | View/set custom system prompt. Subcommand: `clear`. |
 | `/personality [name]` | Yes | Yes | Set a predefined personality. |
-| `/statusbar` (alias: `/sb`) | Yes | -- | Toggle the context/model status bar. |
-| `/verbose` | Yes | -- | Cycle tool progress display: off -> new -> all -> verbose. |
+| `/statusbar` (alias: `/sb`) | Yes | -- | Toggle the persistent context/model status bar showing model and provider info (v0.4.0 — PR #2240, #1917). |
+| `/permission [mode]` | Yes | -- | Switch the approval mode dynamically during a session (v0.4.0 — PR #2207). Modes: `manual`, `smart`, `off`. |
+| `/verbose` | Yes | -- | Cycle tool progress display: off -> new -> all -> verbose. Also config-gated for gateway via `display.tool_progress_command`. |
 | `/reasoning [level\|show\|hide]` | Yes | Yes | Manage reasoning effort and display. Levels: `none`, `low`, `minimal`, `medium`, `high`, `xhigh`. Subcommands: `show`, `hide`, `on`, `off`. |
+| `/cost` | -- | Yes | Show live pricing and usage tracking in gateway mode (v0.4.0 — PR #2180). |
 | `/skin [name]` | Yes | -- | Show or change the display skin/theme. |
 | `/voice [on\|off\|tts\|status]` | Yes | Yes | Toggle voice mode. Recording key defaults to `Ctrl+B` (configurable via `voice.record_key` in `config.yaml`). |
+
+> **v0.5.0 note (PR #3080):** `/model` was removed from CLI and gateway. Use `hermes model` from the shell to switch the active provider and model.
 
 ### Tools and Skills Commands
 
@@ -573,7 +615,7 @@ Slash commands are dispatched from a central `COMMAND_REGISTRY` in `hermes_cli/c
 |---------|-----|-----------|-------------|
 | `/tools [list\|disable\|enable] [name...]` | Yes | -- | Manage tools for the current session. Disabling a tool removes it from the agent's toolset and triggers a session reset. |
 | `/toolsets` | Yes | -- | List available toolsets. |
-| `/browser [connect\|disconnect\|status]` | Yes | -- | Manage local Chrome CDP connection. `connect` attaches browser tools (default: `ws://localhost:9222`). |
+| `/browser [connect\|disconnect\|status]` | Yes | -- | Manage local Chrome CDP connection. `connect` attaches browser tools (default: `ws://localhost:9222`). Also enables interactive browser sessions from the CLI (v0.4.0 — PR #2273, #1814). |
 | `/skills [search\|browse\|inspect\|install]` | Yes | -- | Search, install, inspect, or manage skills from online registries. |
 | `/cron [list\|add\|create\|edit\|pause\|resume\|run\|remove]` | Yes | -- | Manage scheduled tasks. |
 | `/reload-mcp` (alias: `/reload_mcp`) | Yes | Yes | Reload MCP servers from `config.yaml`. |
@@ -605,6 +647,40 @@ Slash commands are dispatched from a central `COMMAND_REGISTRY` in `hermes_cli/c
 ### Quick Commands
 
 User-defined quick commands from `quick_commands` in `~/.hermes/config.yaml` are available as slash commands. They run shell commands directly without invoking the LLM. See [configuration.md](./configuration.md) for the `quick_commands` schema.
+
+---
+
+## @ Context References (v0.4.0)
+
+Introduced in v0.4.0 (PR #2343, #2482), `@` context references let you inject file content or web pages directly into a message. They are processed before the message is sent to the LLM. Tab completion is supported in the interactive CLI.
+
+### Syntax
+
+```
+@file:<path>      Inject a local file relative to cwd
+@folder:<path>    Inject all files in a directory
+@url:<url>        Fetch and inject a web page
+@diff             Inject the current git diff
+```
+
+### Examples
+
+```
+What does this file do? @file:src/main.py
+Summarize @url:https://example.com/docs
+Review @folder:src/api/ and find any bugs
+What changed? @diff
+```
+
+The CLI prints a summary of injected references and their token cost before sending:
+
+```
+  [@ context: 2 ref(s), 1430 tokens]
+```
+
+References that attempt to read files outside the workspace are blocked for security (PR #2601).
+
+In the gateway (Telegram, Discord, etc.), `@` expansion works identically — `preprocess_context_references_async` runs on any message containing `@` before dispatch.
 
 ---
 

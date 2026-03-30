@@ -2,7 +2,7 @@
 
 Hermes Agent integrates with DingTalk (钉钉) as a chatbot, letting you chat with your AI assistant through direct messages or group chats. The bot connects via DingTalk's Stream Mode — a long-lived WebSocket connection that requires no public URL or webhook server — and replies using markdown-formatted messages through DingTalk's session webhook API.
 
-This document covers v0.2.0 (v2026.3.12) and v0.3.0 (v2026.3.17).
+This document covers v0.2.0 through v0.5.0 (v2026.3.28).
 
 ---
 
@@ -197,3 +197,10 @@ Always set `DINGTALK_ALLOWED_USERS` to restrict who can interact with the bot. W
 
 - Store credentials in `~/.hermes/.env` with file permissions `600`
 - The Client Secret grants control of your DingTalk app — protect it like a password
+
+---
+
+## Changelog
+
+- **v0.4.0:** DingTalk adapter added ([PR #1685](https://github.com/NousResearch/hermes-agent/pull/1685), [#1690](https://github.com/NousResearch/hermes-agent/pull/1690), [#1692](https://github.com/NousResearch/hermes-agent/pull/1692)).
+- **v0.5.0:** Request timeouts added to keep the adapter responsive during network issues ([PR #3258](https://github.com/NousResearch/hermes-agent/pull/3258)).

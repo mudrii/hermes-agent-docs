@@ -4,7 +4,7 @@ Hermes connects to SMS through the [Twilio](https://www.twilio.com/) API. People
 
 The SMS gateway shares credentials with the optional telephony skill. If you have already set up Twilio for voice calls or one-off SMS, the gateway works with the same `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, and `TWILIO_PHONE_NUMBER`.
 
-This document covers v0.2.0 (v2026.3.12) and v0.3.0 (v2026.3.17).
+This document covers v0.2.0 through v0.5.0 (v2026.3.28).
 
 ---
 
@@ -166,3 +166,10 @@ SMS has no built-in encryption. Do not use SMS for sensitive operations unless y
 - Store Twilio credentials in `~/.hermes/.env` with file permissions `600`
 - Phone numbers are partially redacted in logs, but review your log retention policy
 - The Twilio Auth Token grants full access to your Twilio account — protect it accordingly
+
+---
+
+## Changelog
+
+- **v0.4.0:** SMS (Twilio) adapter added ([PR #1688](https://github.com/NousResearch/hermes-agent/pull/1688)).
+- **v0.5.0:** Request timeouts added ([PR #3258](https://github.com/NousResearch/hermes-agent/pull/3258)).

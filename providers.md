@@ -26,6 +26,7 @@ All providers are registered in `PROVIDER_REGISTRY` in `hermes_cli/auth.py`. The
 | `kilocode` | Kilo Code | API key | `https://api.kilo.ai/api/gateway` |
 | `opencode-zen` | OpenCode Zen | API key | `https://opencode.ai/zen/v1` |
 | `opencode-go` | OpenCode Go | API key | `https://opencode.ai/zen/go/v1` |
+| `huggingface` | Hugging Face Inference API | API key | `https://api-inference.huggingface.co/v1` |
 | custom | Any OpenAI-compatible endpoint | API key | User-configured |
 
 ### Provider Aliases
@@ -46,6 +47,7 @@ The following aliases are recognized in `--provider`, `/model provider:model`, a
 | `aigateway`, `vercel`, `vercel-ai-gateway` | `ai-gateway` |
 | `kilo`, `kilo-code`, `kilo-gateway` | `kilocode` |
 | `dashscope`, `aliyun`, `qwen`, `alibaba-cloud` | `alibaba` |
+| `hf`, `hf-inference`, `hugging-face` | `huggingface` |
 
 ---
 
@@ -140,6 +142,8 @@ gemini-3-flash
 gemini-3.0-pro-preview
 deepseek-v3.2
 ```
+
+The Nous Portal now supports 400+ models (v0.5.0). **v0.5.0:** Portal model slugs are aligned with OpenRouter naming conventions ([PR #3253](https://github.com/NousResearch/hermes-agent/pull/3253)).
 
 ---
 
@@ -299,6 +303,7 @@ hermes chat --provider anthropic
 - Hermes preflights Anthropic credential refresh before native Messages API calls.
 - Hermes retries once on a `401` after rebuilding the Anthropic client as a fallback path.
 - Base URL can be overridden via `model.base_url` in `config.yaml`.
+- **v0.5.0:** Per-model native output limits replace the previously hardcoded 16K `max_tokens` cap. Opus 4.6 uses a 128K output limit; Sonnet 4.6 uses 64K ([PR #3426](https://github.com/NousResearch/hermes-agent/pull/3426), [#3444](https://github.com/NousResearch/hermes-agent/pull/3444)). This fixes "Response truncated" errors and thinking-budget exhaustion on long tasks.
 
 **Aliases:** `--provider claude` and `--provider claude-code` both map to `--provider anthropic`.
 
@@ -388,7 +393,7 @@ hermes chat --provider zai --model glm-5
 | `Z_AI_API_KEY` | Alias for `GLM_API_KEY` |
 | `GLM_BASE_URL` | Override Z.AI base URL. Default: `https://api.z.ai/api/paas/v4`. |
 
-**Static model catalog:** `glm-5`, `glm-4.7`, `glm-4.5`, `glm-4.5-flash`
+**Static model catalog:** `glm-5`, `glm-5-turbo` (added v0.5.0, [PR #3095](https://github.com/NousResearch/hermes-agent/pull/3095)), `glm-4.7`, `glm-4.5`, `glm-4.5-flash`
 
 ---
 
@@ -437,6 +442,8 @@ hermes chat --provider minimax-cn --model MiniMax-M2.7
 
 **Static model catalog:** `MiniMax-M2.7`, `MiniMax-M2.7-highspeed`, `MiniMax-M2.5`, `MiniMax-M2.5-highspeed`, `MiniMax-M2.1`
 
+**v0.5.0:** The automatic `/v1` → `/anthropic` URL correction that MiniMax endpoints require can now be disabled by setting `MINIMAX_SKIP_PATH_REWRITE=true` ([PR #3553](https://github.com/NousResearch/hermes-agent/pull/3553)).
+
 ---
 
 ### Alibaba Cloud (DashScope)
@@ -452,11 +459,13 @@ hermes chat --provider alibaba --model qwen3.5-plus
 | Variable | Description |
 |----------|-------------|
 | `DASHSCOPE_API_KEY` | Alibaba Cloud DashScope API key (required) |
-| `DASHSCOPE_BASE_URL` | Override DashScope base URL. Default: `https://dashscope-intl.aliyuncs.com/apps/anthropic`. |
+| `DASHSCOPE_BASE_URL` | Override DashScope base URL. Default: `https://dashscope-intl.aliyuncs.com/compatible-mode/v1`. |
 
 **Aliases:** `dashscope`, `qwen`, `aliyun`, `alibaba-cloud` also accepted.
 
 **Static model catalog:** `qwen3.5-plus`, `qwen3-max`, `qwen3-coder-plus`, `qwen3-coder-next`, `qwen-plus-latest`, `qwen3.5-flash`, `qwen-vl-max`
+
+**v0.5.0:** Default endpoint and model list corrected ([PR #3484](https://github.com/NousResearch/hermes-agent/pull/3484)).
 
 ---
 
@@ -518,6 +527,48 @@ hermes chat --provider opencode-go --model glm-5
 
 ---
 
+### Hugging Face
+
+First-class Hugging Face Inference API integration added in v0.5.0 ([PR #3419](https://github.com/NousResearch/hermes-agent/pull/3419), [#3440](https://github.com/NousResearch/hermes-agent/pull/3440)).
+
+```bash
+hermes chat --provider huggingface --model meta-llama/Llama-3.3-70B-Instruct
+```
+
+**Setup:** Run `hermes model` and select Hugging Face. The setup wizard prompts for your HF token and opens an interactive model picker.
+
+**Model picker:** The wizard presents a curated list of agentic-capable models mapped to their OpenRouter equivalents. These are the same models used on OpenRouter but served directly from HF Inference. When a provider has 8 or more curated model entries, the wizard skips the live `/models` API probe for speed — the curated list is used directly.
+
+**Authentication:**
+
+```bash
+hermes config set HF_TOKEN hf_...
+```
+
+Or set the standard HuggingFace environment variable (the Hermes variable takes precedence):
+
+```bash
+export HUGGING_FACE_HUB_TOKEN=hf_...
+```
+
+**Environment variables:**
+
+| Variable | Description |
+|----------|-------------|
+| `HF_TOKEN` | HuggingFace API token (primary) |
+| `HUGGING_FACE_HUB_TOKEN` | Standard HF Hub token (fallback) |
+| `HF_BASE_URL` | Override Inference API base URL. Default: `https://api-inference.huggingface.co/v1`. |
+
+**Permanent config:**
+
+```yaml
+model:
+  provider: "huggingface"
+  default: "meta-llama/Llama-3.3-70B-Instruct"
+```
+
+---
+
 ### Custom / Self-Hosted Endpoints
 
 Any server implementing `/v1/chat/completions` works.
@@ -539,6 +590,15 @@ LLM_MODEL=your-model-name
 ```
 
 When saved via `hermes model`, the endpoint is persisted to `config.yaml` under `model.base_url` and `model.provider: custom`. It continues to work even when `OPENAI_BASE_URL` is not exported in the current shell.
+
+**v0.5.0:** The `custom` provider is now preserved exactly as configured — it is no longer silently remapped to `openrouter` when no explicit API key is detected ([PR #2792](https://github.com/NousResearch/hermes-agent/pull/2792)).
+
+**v0.5.0:** Root-level `provider` and `base_url` keys in `config.yaml` are now read directly into the model config, so you can specify them at the top level without nesting under `model:` ([PR #3112](https://github.com/NousResearch/hermes-agent/pull/3112)):
+
+```yaml
+provider: custom
+base_url: http://localhost:8000/v1
+```
 
 **Environment variables:**
 

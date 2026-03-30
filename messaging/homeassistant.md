@@ -7,7 +7,7 @@ Hermes Agent integrates with [Home Assistant](https://www.home-assistant.io/) in
 
 Both are activated by setting `HASS_TOKEN`. The `homeassistant` toolset is automatically enabled when `HASS_TOKEN` is set.
 
-This document covers v0.2.0 (v2026.3.12) and v0.3.0 (v2026.3.17).
+This document covers v0.2.0 through v0.5.0 (v2026.3.28).
 
 ---
 
@@ -228,3 +228,9 @@ Agent automatically:
 | "Blocked domain" error | The service domain you called is in the blocked list for security reasons. Use HA automations or scripts instead for those actions. |
 | Connection drops frequently | Check HA logs for WebSocket errors. Ensure your HA instance is accessible from the machine running Hermes. |
 | Tool calls fail with "entity not found" | Verify the entity ID is correct using `ha_list_entities`. Entity IDs must match the pattern `domain.name`. |
+
+---
+
+## Changelog
+
+- **v0.5.0:** Request timeouts added to HA REST API calls ([PR #3258](https://github.com/NousResearch/hermes-agent/pull/3258)).

@@ -189,14 +189,14 @@ Constant in source: `MAX_DEPTH = 2` in `tools/delegate_tool.py`.
 - **Interrupt propagation** — interrupting the parent interrupts all active children via the `_active_children` registry
 - Only the final summary enters the parent's context, keeping token usage efficient
 - Subagents inherit the parent's **API key and provider configuration** unless overridden in delegation config
-- Subagents share the parent's **iteration budget** via `shared_budget = parent_agent.iteration_budget`
+- **v0.5.0 (PR #3004):** Subagents now have **independent iteration budgets**. Each subagent gets its own `max_iterations` counter (default: 50 per `delegation.max_iterations`). Previously, subagents shared the parent's budget, causing them to hit the limit prematurely when the parent had already consumed many turns.
 
 ## Configuration
 
 ```yaml
 # In ~/.hermes/config.yaml
 delegation:
-  max_iterations: 50                        # Max turns per child (default: 50)
+  max_iterations: 50                        # Max turns per child (default: 50). v0.5.0: each subagent gets its own independent budget.
   default_toolsets: ["terminal", "file", "web"]  # Default toolsets
   model: "google/gemini-3-flash-preview"             # Optional model override
   provider: "openrouter"                             # Optional provider override
@@ -211,6 +211,33 @@ delegation:
 When `delegation.provider` is configured, subagents resolve the full credential bundle (base_url, api_key, api_mode) through the same runtime provider system used by CLI/gateway startup. Supported provider names: `openrouter`, `nous`, `zai`, `kimi-coding`, `minimax`.
 
 When `delegation.base_url` is set instead of `delegation.provider`, the subagent connects directly to that OpenAI-compatible endpoint. The API key is taken from `delegation.api_key` or falls back to `OPENAI_API_KEY`. Special URL patterns are auto-detected: ChatGPT Codex URLs use the `codex_responses` API mode, and `api.anthropic.com` URLs use `anthropic_messages` mode.
+
+---
+
+## Third-Party Session Isolation (v0.5.0 — PR #3255)
+
+The `--source` flag on `hermes chat` isolates sessions by their origin label. When subagents or tools spawn child processes with `--source <label>`, their sessions are stored separately and do not mix with interactive sessions in `hermes sessions list` or `session_search`.
+
+```bash
+hermes chat --source my-automation -q "Run the nightly checks"
+```
+
+This is useful when scripts or CI pipelines invoke Hermes alongside interactive use — the automated sessions stay isolated from the interactive history.
+
+---
+
+## @ Context References as Delegation Input (v0.4.0 — PR #2343, #2482)
+
+You can use `@file`, `@url`, `@diff`, and `@folder` references in the `context` field passed to `delegate_task`. The references are expanded before the subagent receives them:
+
+```python
+delegate_task(
+    goal="Review the recent changes and write a summary",
+    context="Here is the current diff:\n@diff\n\nMain file: @file:src/main.py"
+)
+```
+
+The expansion happens in the parent before the subagent starts, so the subagent receives the injected content directly — no `@` syntax reaches the subagent.
 
 ## Delegation vs execute_code
 

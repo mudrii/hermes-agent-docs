@@ -80,6 +80,17 @@ model:
   api_mode: ""                  # Optional: chat_completions | codex_responses | anthropic_messages
 ```
 
+**v0.5.0 (PR #3112):** Root-level `provider` and `base_url` keys are now also read from `config.yaml` as a shorthand when you don't want to nest them under `model:`:
+
+```yaml
+# Root-level shorthand (v0.5.0):
+provider: "openrouter"
+base_url: "https://openrouter.ai/api/v1"
+model: "anthropic/claude-opus-4.6"
+```
+
+When both root-level and `model.provider` / `model.base_url` are set, the `model:` block takes precedence.
+
 `config.yaml` `model.provider` takes priority over the `HERMES_INFERENCE_PROVIDER` environment variable. This prevents a stale shell export from silently overriding the endpoint a user last selected in `hermes model`.
 
 ---
@@ -90,7 +101,17 @@ model:
 agent:
   max_turns: 90             # Max tool-calling iterations per conversation turn. Default: 90.
   reasoning_effort: ""      # "" = medium (default). Options: xhigh, high, medium, low, minimal, none.
+  tool_use_enforcement: "auto"  # v0.5.0 (PR #3551). See below.
 ```
+
+**`tool_use_enforcement`** (v0.5.0 — PR #3551): Injects system-prompt guidance that tells the model to actually call tools instead of describing intended actions. Fixes GPT model reliability.
+
+| Value | Behavior |
+|-------|----------|
+| `"auto"` (default) | Apply guidance only to `gpt` and `codex` model names |
+| `true` | Force on for all models |
+| `false` | Disable for all models |
+| `["gpt", "codex", "gemini"]` | Apply to any model whose name contains one of the listed substrings |
 
 **Budget pressure:** When the agent approaches the iteration limit, Hermes injects warnings into tool results:
 
@@ -213,9 +234,21 @@ Routes short, simple turns to a cheap model. Falls back to the primary model if 
 compression:
   enabled: true                                     # Toggle compression on/off. Default: true.
   threshold: 0.50                                   # Compress at this % of context limit. Default: 0.50.
+  target_ratio: 0.20                                # v0.5.0: fraction of threshold to keep as recent tail. Default: 0.20.
+  protect_last_n: 20                                # v0.5.0: min recent messages to preserve. Default: 20.
   summary_model: "google/gemini-3-flash-preview"    # Model for summarization
   summary_provider: "auto"                          # Provider: "auto", "openrouter", "nous", "codex", "main", etc.
   summary_base_url: null                            # Custom OpenAI-compatible endpoint (overrides provider)
+```
+
+**v0.4.0 (PR #2323):** Context compression was overhauled to use structured summaries with iterative updates, a configurable `summary_base_url`, and token-budget tail protection.
+
+**v0.5.0 (PR #2554):** The deprecated `summary_target_tokens` key was replaced by ratio-based scaling. `target_ratio` and `protect_last_n` are now the canonical controls and are exposed in `DEFAULT_CONFIG`. Summary output is capped at 12K tokens internally.
+
+**Post-compression tail budget formula:**
+```
+tail_budget = target_ratio × threshold × context_length
+# Example: 1M context, threshold=0.50, target_ratio=0.20 → 100K tokens of recent tail
 ```
 
 All compression settings are in `config.yaml` only -- no environment variables.
@@ -377,19 +410,27 @@ voice:
 
 ### Streaming
 
-**CLI streaming:**
+**CLI streaming** (`display.streaming`):
 
 ```yaml
 display:
-  streaming: true               # Stream tokens to terminal in real-time
-  show_reasoning: true          # Also stream reasoning/thinking tokens (optional)
+  streaming: false              # Stream tokens to terminal in real-time. Default: false.
+  show_reasoning: false         # Also display reasoning/thinking tokens when streaming. Default: false.
+```
+
+**v0.4.0 (PR #2340):** CLI streaming mode was introduced with full spinner and tool-progress display during streaming turns (PR #2161). Reasoning/thinking blocks display when `show_reasoning` is `true` (PR #2118). Context pressure warnings appear in both CLI and gateway (PR #2159).
+
+Enable CLI streaming:
+```yaml
+display:
+  streaming: true
 ```
 
 **Gateway streaming (Telegram, Discord, Slack):**
 
 ```yaml
 streaming:
-  enabled: true                 # Enable progressive message editing
+  enabled: false                # Enable progressive message editing. Default: false.
   edit_interval: 0.3            # Seconds between message edits
   buffer_threshold: 40          # Characters before forcing an edit flush
   cursor: " ▉"                  # Cursor shown during streaming

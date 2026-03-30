@@ -4,7 +4,7 @@ Hermes connects to Slack using Socket Mode — a WebSocket-based connection that
 
 Classic Slack apps (RTM API) were fully deprecated in March 2025. Hermes uses the modern Bolt SDK with Socket Mode.
 
-This document covers v0.2.0 (v2026.3.12) and v0.3.0 (v2026.3.17).
+This document covers v0.2.0 through v0.5.0 (v2026.3.28).
 
 ---
 
@@ -256,3 +256,11 @@ Always set `SLACK_ALLOWED_USERS` with the Member IDs of authorized users. Withou
 - Store tokens in `~/.hermes/.env` with file permissions `600`
 - Socket Mode means no public endpoint is exposed — one less attack surface
 - Rotate tokens periodically via the Slack app settings
+
+---
+
+## Changelog
+
+- **v0.5.0:** Tool call progress messages are now sent to the correct Slack thread ([PR #3063](https://github.com/NousResearch/hermes-agent/pull/3063)).
+- **v0.5.0:** Progress thread fallback logic is now scoped to Slack only and no longer fires on other platforms ([PR #3488](https://github.com/NousResearch/hermes-agent/pull/3488)).
+- **v0.5.0:** Media download retry added ([PR #3323](https://github.com/NousResearch/hermes-agent/pull/3323)).

@@ -2,7 +2,7 @@
 
 Hermes integrates with Discord as a bot using the `discord.py` library. The bot receives messages, processes them through the full Hermes Agent pipeline (tool use, memory, reasoning), and responds in real time. It supports text, voice messages, file attachments, images, video, and voice channels.
 
-This document covers v0.2.0 (v2026.3.12) and v0.3.0 (v2026.3.17).
+This document covers v0.2.0 through v0.5.0 (v2026.3.28).
 
 ---
 
@@ -280,3 +280,10 @@ Hermes supports joining Discord voice channels, listening to users speaking, and
 ## Security
 
 Always set `DISCORD_ALLOWED_USERS`. Without it, the gateway denies all users by default. Only add User IDs of people you trust — authorized users have full access to the agent's capabilities including terminal access.
+
+---
+
+## Changelog
+
+- **v0.4.0:** Document caching and text-file injection ([PR #2503](https://github.com/NousResearch/hermes-agent/pull/2503)). Persistent typing indicator for DMs ([PR #2468](https://github.com/NousResearch/hermes-agent/pull/2468)). DM vision support for inline images and attachments ([PR #2186](https://github.com/NousResearch/hermes-agent/pull/2186)).
+- **v0.5.0:** Phantom typing indicator after agent turn completes is now stopped correctly ([PR #3003](https://github.com/NousResearch/hermes-agent/pull/3003)).

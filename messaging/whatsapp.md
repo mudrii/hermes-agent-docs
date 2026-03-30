@@ -2,7 +2,7 @@
 
 Hermes connects to WhatsApp through a built-in bridge based on **Baileys**. This works by emulating a WhatsApp Web session — not through the official WhatsApp Business API. No Meta developer account or Business verification is required.
 
-This document covers v0.2.0 (v2026.3.12) and v0.3.0 (v2026.3.17).
+This document covers v0.2.0 through v0.5.0 (v2026.3.28).
 
 ---
 
@@ -191,3 +191,10 @@ Always set `WHATSAPP_ALLOWED_USERS` with phone numbers (country code included, w
 - Use a **dedicated phone number** to isolate risk from your personal account
 - If you suspect compromise, unlink the device from WhatsApp → Settings → Linked Devices
 - Phone numbers in logs are partially redacted, but review your log retention policy
+
+---
+
+## Changelog
+
+- **v0.4.0:** Outbound `send_message` routing ([PR #1769](https://github.com/NousResearch/hermes-agent/pull/1769)). LID format self-chat support ([PR #1667](https://github.com/NousResearch/hermes-agent/pull/1667)). Restart on bridge child exit ([PR #2334](https://github.com/NousResearch/hermes-agent/pull/2334)).
+- **v0.5.0:** Download of documents, audio, and video media from messages ([PR #2978](https://github.com/NousResearch/hermes-agent/pull/2978)).

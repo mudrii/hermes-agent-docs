@@ -4,6 +4,10 @@ Hermes v0.3.0 (v2026.3.17) introduced a unified streaming infrastructure that de
 
 Streaming is implemented via PR [#1538](https://github.com/NousResearch/hermes-agent/pull/1538).
 
+**v0.4.0 changes (PR #2340, #2161, #2118, #2159):** CLI streaming mode added. Spinner and tool progress display now work correctly during streaming turns. Reasoning/thinking blocks display alongside streamed text when `show_reasoning` is enabled. Context pressure warnings appear in both CLI and gateway.
+
+**v0.5.0 changes (PR #3120, #3020, #2974):** Always-prefer-streaming mode prevents hung subagents. Non-streaming fallback is restored after stream failures. Reasoning fields are persisted across gateway turns with schema v6 columns.
+
 ---
 
 ## What Unified Streaming Is
@@ -163,17 +167,25 @@ When streaming is active in the CLI:
 
 ### config.yaml
 
+**CLI streaming** (controls display in the interactive terminal):
+
+```yaml
+display:
+  streaming: false        # Stream tokens to terminal. Default: false (v0.3.0), added in v0.4.0.
+  show_reasoning: false   # Show reasoning/thinking blocks during streaming. Default: false.
+```
+
+**Gateway streaming** (controls progressive message editing on Telegram, Discord, Slack):
+
 ```yaml
 streaming:
-  enabled: false          # Master switch (default: off)
-  cli: true               # Per-platform override
-  telegram: true
-  discord: true
-  slack: true
-  api_server: true        # API server always streams when client requests it
-  edit_interval: 1.5      # Seconds between message edits (default: 1.5)
-  min_tokens: 20          # Tokens before first display (default: 20)
+  enabled: false          # Master switch for gateway streaming (default: off)
+  edit_interval: 0.3      # Seconds between message edits
+  buffer_threshold: 40    # Characters before forcing an edit flush
+  cursor: " ▉"            # Cursor shown during active streaming
 ```
+
+> **v0.4.0 note (PR #2340):** CLI streaming was added as a display mode. The gateway `streaming.enabled` key remains `false` by default in `cli-config.yaml.example`. The `display.streaming` key is the CLI-specific toggle.
 
 ### Environment variable
 
@@ -191,6 +203,55 @@ HERMES_STREAMING_ENABLED=true
 ### Graceful degradation
 
 If the LLM provider does not support streaming, or the streaming connection fails for any reason, the agent falls back silently to the non-streaming path. The user sees the full response as a single block, as in v0.2.0 and earlier. This fallback is handled within `_interruptible_streaming_api_call()` which catches exceptions and retries via `_interruptible_api_call()`.
+
+**v0.5.0 (PR #3020):** Safe non-streaming fallback is explicitly restored after stream failures, fixing a regression introduced by the always-prefer-streaming change (PR #3120).
+
+### Always-prefer-streaming (v0.5.0 — PR #3120)
+
+When subagents are spawned via `delegate_task`, Hermes always prefers a streaming API call over a blocking call. This prevents subagents from hanging when the parent's event loop is occupied. If streaming fails, the non-streaming fallback activates transparently.
+
+---
+
+## Spinner and Tool Progress During Streaming (v0.4.0 — PR #2161)
+
+Before v0.4.0, the spinner and tool-progress display were suppressed when streaming was active. In v0.4.0, both display concurrently with streamed text:
+
+- The spinner shows during model think/generation phases between token bursts.
+- Tool call previews (the "preparing terminal…" lines) appear when the model emits tool arguments.
+- The response box renders as tokens arrive; the bottom border appears on the end-of-stream signal.
+
+The `display.streaming` key must be `true` in `config.yaml` to activate CLI streaming.
+
+---
+
+## Reasoning Blocks During Streaming (v0.4.0 — PR #2118)
+
+When `display.show_reasoning: true` is set, reasoning/thinking tokens from models that produce them (Claude with extended thinking, GLM, Gemini) are displayed above the final response in a collapsible reasoning box. The box renders incrementally as reasoning tokens arrive, then the text response follows.
+
+---
+
+## Context Pressure Warnings (v0.4.0 — PR #2159)
+
+When the conversation context approaches the model's limit during a streaming turn, Hermes injects a warning into the UI. This appears in both CLI and gateway:
+
+- CLI: displayed as a dim status line between streaming turns.
+- Gateway: delivered as a notice message to the chat.
+
+The warning threshold is controlled by `compression.threshold` in `config.yaml`.
+
+---
+
+## Persisting Reasoning Across Gateway Turns (v0.5.0 — PR #2974)
+
+For gateway sessions (Telegram, Discord, etc.), the session database schema v6 adds three columns to persist reasoning data across turns:
+
+| Column | Contents |
+|--------|----------|
+| `reasoning` | Raw reasoning text extracted from `<think>...</think>` blocks or native thinking content |
+| `reasoning_details` | Structured details (signature, model-specific fields) |
+| `codex_reasoning_items` | Codex-specific reasoning summary items |
+
+This allows the agent to carry forward reasoning context on model turns that follow tool calls, preserving coherence across multi-turn tool-use sequences in long gateway conversations.
 
 ---
 

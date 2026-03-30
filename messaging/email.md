@@ -4,7 +4,7 @@ Hermes can receive and reply to emails using standard IMAP and SMTP protocols. S
 
 The Email adapter uses Python's built-in `imaplib`, `smtplib`, and `email` modules. No additional Python packages are required.
 
-This document covers v0.2.0 (v2026.3.12) and v0.3.0 (v2026.3.17).
+This document covers v0.2.0 through v0.5.0 (v2026.3.28).
 
 ---
 
@@ -192,3 +192,10 @@ Use a dedicated email account. Do not use your personal email — the agent stor
 - Set `EMAIL_ALLOWED_USERS` to restrict who can interact with the agent
 - The password is stored in `~/.hermes/.env` — protect this file (`chmod 600`)
 - IMAP uses SSL (port 993) and SMTP uses STARTTLS (port 587) by default — connections are encrypted
+
+---
+
+## Changelog
+
+- **v0.5.0:** Unbounded growth of the `_seen_uids` set (which tracks processed messages) is now capped, preventing memory growth on high-volume inboxes ([PR #3490](https://github.com/NousResearch/hermes-agent/pull/3490)).
+- **v0.5.0:** Request timeouts added ([PR #3258](https://github.com/NousResearch/hermes-agent/pull/3258)).

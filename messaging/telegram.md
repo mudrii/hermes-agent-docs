@@ -2,7 +2,7 @@
 
 Hermes integrates with Telegram as a full-featured conversational bot using the [python-telegram-bot](https://python-telegram-bot.org/) library. Once connected, you can chat from any device, send voice memos that get auto-transcribed, receive scheduled task results, and use the agent in group chats or Telegram forum topics.
 
-This document covers v0.2.0 (v2026.3.12) and v0.3.0 (v2026.3.17).
+This document covers v0.2.0 through v0.5.0 (v2026.3.28).
 
 ---
 
@@ -150,6 +150,31 @@ Group chat IDs are negative numbers (e.g., `-1001234567890`). Your personal DM c
 
 Telegram supergroups can have forum mode enabled, which creates named topics (threads). The adapter fully supports forum topic session isolation — each topic gets its own session. The `thread_id` from the Telegram message is used as part of the session key.
 
+### Private Chat Topics (v0.5.0)
+
+Private Chat Topics ([PR #3163](https://github.com/NousResearch/hermes-agent/pull/3163)) extend forum-style topics to any supergroup by mapping each topic to a distinct Hermes project. Each topic gets its own isolated session with its own conversation history — sending a message in topic A does not affect the session in topic B within the same group.
+
+**Per-topic skill binding:** You can bind a specific skill to a topic so the agent automatically loads a particular skill context when that topic is active. Configure this in `~/.hermes/gateway.json` or via `hermes gateway setup`:
+
+```json
+{
+  "platforms": {
+    "telegram": {
+      "extra": {
+        "topic_skills": {
+          "42": "code-review",
+          "87": "devops"
+        }
+      }
+    }
+  }
+}
+```
+
+Keys are Telegram `thread_id` values (as strings); values are skill names.
+
+**Thread not found fallback:** If a reply targets a topic whose `thread_id` no longer exists (the topic was deleted), the adapter falls back to sending the message without a thread ID instead of raising an error ([PR #3390](https://github.com/NousResearch/hermes-agent/pull/3390)).
+
 ### Message Formatting
 
 The adapter converts standard markdown to Telegram MarkdownV2 format. Protected regions (code blocks, inline code) are extracted first so their contents are never modified. Conversions applied:
@@ -210,9 +235,9 @@ The adapter uses a scoped lock file to prevent two gateway instances from pollin
 
 When the agent tries to run a potentially dangerous command, it asks for approval in the chat:
 
-> This command is potentially dangerous (recursive delete). Reply "yes" to approve.
+> This command is potentially dangerous (recursive delete). Reply `/approve` to allow or `/deny` to block.
 
-Reply `yes`/`y` to approve or `no`/`n` to deny.
+Use `/approve` to allow the command or `/deny` to block it. This was changed from bare `yes`/`no` text in v0.4.0 ([PR #2002](https://github.com/NousResearch/hermes-agent/pull/2002)).
 
 ---
 

@@ -4,7 +4,7 @@ Hermes Agent integrates with Matrix, the open, federated messaging protocol. Mat
 
 Hermes works with any Matrix homeserver — Synapse, Conduit, Dendrite, or matrix.org.
 
-This document covers v0.2.0 (v2026.3.12) and v0.3.0 (v2026.3.17).
+This document covers v0.2.0 through v0.5.0 (v2026.3.28).
 
 ---
 
@@ -252,6 +252,12 @@ When E2EE is enabled, Hermes:
 If `matrix-nio[e2e]` is not installed or `libolm` is missing, the bot falls back to a plain (unencrypted) client automatically with a warning in the logs.
 
 Do not delete the `~/.hermes/matrix/store/` directory — the bot loses its encryption keys and you will need to verify the device again in your Matrix client.
+
+### Access-Token Hardening (v0.5.0)
+
+v0.5.0 hardened E2EE access-token handling ([PR #3562](https://github.com/NousResearch/hermes-agent/pull/3562)). The access token is now validated and rotated defensively on startup to prevent sessions from using stale tokens that cause silent decryption failures. If you run E2EE and see "could not decrypt event" errors after upgrading, re-authenticate by setting a fresh `MATRIX_ACCESS_TOKEN` and restarting the gateway.
+
+**v0.5.0** also added exponential backoff for `SyncError` in the sync loop ([PR #3280](https://github.com/NousResearch/hermes-agent/pull/3280)), preventing tight reconnect loops during homeserver maintenance windows.
 
 ---
 
