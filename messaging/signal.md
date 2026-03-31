@@ -6,7 +6,7 @@ Signal is the most privacy-focused mainstream messenger — end-to-end encrypted
 
 The Signal adapter uses `httpx` (already a core Hermes dependency) for all communication. No additional Python packages are required beyond `signal-cli` itself.
 
-This document covers v0.2.0 through v0.5.0 (v2026.3.28).
+This document covers v0.2.0 through v0.6.0 (v2026.3.30).
 
 ---
 
@@ -223,3 +223,22 @@ Always configure access controls. The bot has terminal access by default. Withou
 - Keep groups disabled unless you specifically need group support
 - Signal's end-to-end encryption protects message content in transit
 - The signal-cli session data in `~/.local/share/signal-cli/` contains account credentials — protect it like a password
+
+---
+
+## v0.6.0 Changes
+
+### URL-encoded phone numbers fix ([PR #3670](https://github.com/NousResearch/hermes-agent/pull/3670)) — @kshitijk4poor
+
+Phone numbers in E.164 format (e.g., `+15551234567`) contain a `+` character that requires URL encoding when used in signal-cli's JSON-RPC API paths. v0.6.0 fixes the adapter to properly URL-encode phone numbers as `%2B15551234567`, resolving delivery failures that affected some international number formats.
+
+Additionally, the attachment RPC parameter name used when sending files was corrected to match the signal-cli API, fixing attachment delivery failures introduced in a previous signal-cli version.
+
+No configuration changes are needed — the fix is applied automatically.
+
+---
+
+## Changelog
+
+- **v0.6.0:** URL-encoded phone numbers and corrected attachment RPC parameter ([PR #3670](https://github.com/NousResearch/hermes-agent/pull/3670)).
+- **v0.5.0:** SSE keepalive comment lines treated as connection activity to prevent false reconnects ([PR #3316](https://github.com/NousResearch/hermes-agent/pull/3316)).

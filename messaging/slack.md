@@ -4,7 +4,7 @@ Hermes connects to Slack using Socket Mode — a WebSocket-based connection that
 
 Classic Slack apps (RTM API) were fully deprecated in March 2025. Hermes uses the modern Bolt SDK with Socket Mode.
 
-This document covers v0.2.0 through v0.5.0 (v2026.3.28).
+This document covers v0.2.0 through v0.6.0 (v2026.3.30).
 
 ---
 
@@ -259,8 +259,50 @@ Always set `SLACK_ALLOWED_USERS` with the Member IDs of authorized users. Withou
 
 ---
 
+## Multi-Workspace OAuth (v0.6.0)
+
+v0.6.0 allows a single Hermes gateway to connect to **multiple Slack workspaces** simultaneously. Each workspace gets its own bot token, and the correct token is resolved per incoming event.
+
+### Token file
+
+Save OAuth tokens for each workspace in `~/.hermes/slack_tokens.json`:
+
+```json
+{
+  "T01ABC2DEF": {
+    "token": "xoxb-workspace-one-token",
+    "team_name": "My Company"
+  },
+  "T09XYZ3GHI": {
+    "token": "xoxb-workspace-two-token",
+    "team_name": "Side Project"
+  }
+}
+```
+
+Keys are Slack Team IDs (the `T...` value visible in the workspace URL). Hermes loads this file on startup and merges the tokens with any bot tokens already configured via `SLACK_BOT_TOKEN`.
+
+### config.yaml / env var
+
+`SLACK_BOT_TOKEN` (single-workspace) continues to work unchanged. To add workspaces, create the token file above — no additional config key is needed.
+
+```bash
+# Single workspace (existing behavior)
+SLACK_BOT_TOKEN=xoxb-single-workspace-token
+SLACK_APP_TOKEN=xapp-your-app-token
+
+# Multi-workspace: add slack_tokens.json and keep SLACK_APP_TOKEN
+```
+
+Tokens from the file are merged with `SLACK_BOT_TOKEN`. Duplicate tokens are ignored automatically.
+
+PR [#3903](https://github.com/NousResearch/hermes-agent/pull/3903)
+
+---
+
 ## Changelog
 
+- **v0.6.0:** Multi-workspace OAuth token file support ([PR #3903](https://github.com/NousResearch/hermes-agent/pull/3903)).
 - **v0.5.0:** Tool call progress messages are now sent to the correct Slack thread ([PR #3063](https://github.com/NousResearch/hermes-agent/pull/3063)).
 - **v0.5.0:** Progress thread fallback logic is now scoped to Slack only and no longer fires on other platforms ([PR #3488](https://github.com/NousResearch/hermes-agent/pull/3488)).
 - **v0.5.0:** Media download retry added ([PR #3323](https://github.com/NousResearch/hermes-agent/pull/3323)).

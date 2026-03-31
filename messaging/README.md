@@ -1,8 +1,8 @@
 # Messaging Platforms
 
-The Hermes gateway supports 12 messaging platforms plus an OpenAI-compatible API server. All platforms share the same session model, authorization system, and chat commands — only the setup steps and platform-specific quirks differ.
+The Hermes gateway supports 14 messaging platforms plus an OpenAI-compatible API server. All platforms share the same session model, authorization system, and chat commands — only the setup steps and platform-specific quirks differ.
 
-This section covers v0.2.0 (v2026.3.12) and v0.3.0 (v2026.3.17).
+This section covers v0.2.0 (v2026.3.12) through v0.6.0 (v2026.3.30).
 
 ---
 
@@ -18,6 +18,8 @@ This section covers v0.2.0 (v2026.3.12) and v0.3.0 (v2026.3.17).
 | [Email](email.md) | IMAP + SMTP | Email credentials | No | — | No |
 | [Matrix](matrix.md) | matrix-nio (sync) | Access token or password | No | Audio attachments | Yes |
 | [Mattermost](mattermost.md) | REST API + WebSocket | Bot token | No | Audio attachments | Yes |
+| [Feishu / Lark](feishu.md) | WebSocket or Webhook | App ID + Secret | No (WebSocket) / Yes (Webhook) | — | No |
+| [WeCom](wecom.md) | AI Bot WebSocket | Bot ID + Secret | No | — | No |
 | [DingTalk](dingtalk.md) | Stream Mode (WebSocket) | Client ID + Secret | No | — | No |
 | [Home Assistant](homeassistant.md) | WebSocket + REST | Long-lived access token | No | — | No |
 | [SMS (Twilio)](sms.md) | Twilio webhook | Account SID + Auth token | Yes | — | No |
@@ -98,6 +100,8 @@ Each platform has a named toolset that determines which tools the agent can use:
 | Home Assistant | `hermes-homeassistant` | `ha_list_entities`, `ha_get_state`, `ha_call_service`, `ha_list_services` |
 | Mattermost | `hermes-mattermost` | — |
 | Matrix | `hermes-matrix` | — |
+| Feishu / Lark | `hermes-feishu` | — |
+| WeCom | `hermes-wecom` | — |
 | DingTalk | `hermes-dingtalk` | — |
 | API Server | `hermes` | — |
 
@@ -115,6 +119,8 @@ All toolsets include full terminal access, file operations, web search, and othe
 - [Email](email.md) — IMAP/SMTP polling, thread headers, attachment handling
 - [Matrix](matrix.md) — Any homeserver, E2EE, room auto-join
 - [Mattermost](mattermost.md) — Self-hosted, thread reply mode, REST API
+- [Feishu / Lark](feishu.md) — WebSocket or Webhook, message cards, group @mention gating (v0.6.0)
+- [WeCom](wecom.md) — AI Bot WebSocket, Enterprise WeChat, configurable DM/group policies (v0.6.0)
 - [DingTalk](dingtalk.md) — Stream Mode, no public URL required
 - [Home Assistant](homeassistant.md) — State change events, smart home tools
 - [SMS (Twilio)](sms.md) — Twilio webhook, plain text, 1600 char limit

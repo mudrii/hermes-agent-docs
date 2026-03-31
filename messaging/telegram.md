@@ -2,7 +2,7 @@
 
 Hermes integrates with Telegram as a full-featured conversational bot using the [python-telegram-bot](https://python-telegram-bot.org/) library. Once connected, you can chat from any device, send voice memos that get auto-transcribed, receive scheduled task results, and use the agent in group chats or Telegram forum topics.
 
-This document covers v0.2.0 through v0.5.0 (v2026.3.28).
+This document covers v0.2.0 through v0.6.0 (v2026.3.30).
 
 ---
 
@@ -267,3 +267,94 @@ Use `/approve` to allow the command or `/deny` to block it. This was changed fro
 ## Security
 
 Always set `TELEGRAM_ALLOWED_USERS`. Without it, the gateway denies all users by default. Never share your bot token publicly — if compromised, revoke it immediately via BotFather's `/revoke` command.
+
+---
+
+## Webhook Mode (v0.6.0)
+
+By default the adapter uses **long polling** — it makes outbound requests to Telegram. In v0.6.0, **webhook mode** is available as an alternative. Telegram pushes updates to your HTTP endpoint instead of waiting for the adapter to poll. Webhook mode is faster and better suited for cloud platforms (Fly.io, Railway) where inbound HTTP traffic can wake a suspended container.
+
+### Requirements
+
+- A publicly reachable HTTPS URL pointing to your server
+- Port 443, 80, 88, or 8443 (Telegram requirement)
+
+### Enabling webhook mode
+
+Set the following environment variables before starting the gateway:
+
+```bash
+TELEGRAM_WEBHOOK_URL=https://your-server.example.com/telegram   # Required
+TELEGRAM_WEBHOOK_PORT=8443                                        # Local listen port (default: 8443)
+TELEGRAM_WEBHOOK_SECRET=your-random-secret-token                  # Optional but recommended
+```
+
+Hermes registers the webhook with Telegram automatically on startup. No manual `setWebhook` call is needed.
+
+### Reverting to polling
+
+Remove `TELEGRAM_WEBHOOK_URL` from your environment and restart the gateway. Hermes will fall back to long polling automatically.
+
+PR [#3880](https://github.com/NousResearch/hermes-agent/pull/3880)
+
+---
+
+## Group Mention Gating (v0.6.0)
+
+v0.6.0 adds configurable **group mention gating** — you can control when the bot responds in group and supergroup chats.
+
+### `TELEGRAM_REQUIRE_MENTION`
+
+Set this to `true` to make the bot ignore group messages unless it is explicitly triggered:
+
+```bash
+TELEGRAM_REQUIRE_MENTION=true
+```
+
+When `TELEGRAM_REQUIRE_MENTION=true`, the bot responds in groups only when:
+- The message @mentions the bot by username
+- The message is a reply to one of the bot's own messages
+- The message matches a configured regex pattern (see below)
+- The message is a slash command (`/...`)
+- The chat ID is in `TELEGRAM_FREE_RESPONSE_CHATS`
+
+When `TELEGRAM_REQUIRE_MENTION=false` (default), the bot responds to all messages in groups (subject to `TELEGRAM_ALLOWED_USERS`).
+
+### `TELEGRAM_MENTION_PATTERNS`
+
+Define one or more regex patterns that trigger the bot in groups without an @mention. Useful for wake-word style activation.
+
+```bash
+# Single pattern
+TELEGRAM_MENTION_PATTERNS='["hey hermes", "hermes,"]'
+
+# JSON array of patterns (case-insensitive)
+TELEGRAM_MENTION_PATTERNS='["^hermes[,:]", "\\bhey bot\\b"]'
+```
+
+Patterns are matched case-insensitively against the message text and caption.
+
+### `TELEGRAM_FREE_RESPONSE_CHATS`
+
+Comma-separated list of chat IDs where the bot responds to all messages regardless of `TELEGRAM_REQUIRE_MENTION`:
+
+```bash
+TELEGRAM_FREE_RESPONSE_CHATS=-1001234567890,-1009876543210
+```
+
+### config.yaml equivalent
+
+```yaml
+gateway:
+  platforms:
+    telegram:
+      extra:
+        require_mention: true
+        mention_patterns:
+          - "^hermes[,:]"
+          - "\\bhey bot\\b"
+        free_response_chats:
+          - "-1001234567890"
+```
+
+PR [#3870](https://github.com/NousResearch/hermes-agent/pull/3870)

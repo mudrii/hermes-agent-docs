@@ -2,7 +2,7 @@
 
 Hermes connects to WhatsApp through a built-in bridge based on **Baileys**. This works by emulating a WhatsApp Web session — not through the official WhatsApp Business API. No Meta developer account or Business verification is required.
 
-This document covers v0.2.0 through v0.5.0 (v2026.3.28).
+This document covers v0.2.0 through v0.6.0 (v2026.3.30).
 
 ---
 
@@ -194,7 +194,28 @@ Always set `WHATSAPP_ALLOWED_USERS` with phone numbers (country code included, w
 
 ---
 
+## v0.6.0 Changes
+
+### Persistent aiohttp session ([PR #3818](https://github.com/NousResearch/hermes-agent/pull/3818))
+
+The adapter now reuses a single persistent `aiohttp` HTTP session across all requests to the WhatsApp bridge API, rather than creating a new session for each message. This reduces connection overhead and improves throughput for high-volume deployments.
+
+### LID phone alias resolution fix ([PR #3830](https://github.com/NousResearch/hermes-agent/pull/3830))
+
+WhatsApp uses two identifier formats for users: standard phone numbers (e.g., `15551234567`) and Linked IDs (LIDs, an internal identifier format introduced with multi-device support). The adapter now correctly resolves both formats when checking `WHATSAPP_ALLOWED_USERS`, fixing allowlist matching failures that occurred when a sender was identified by their LID rather than their phone number.
+
+If you previously had users who could not interact with the bot despite being in `WHATSAPP_ALLOWED_USERS`, this fix may resolve the issue without any configuration change.
+
+### Reply prefix skip in bot mode ([PR #3931](https://github.com/NousResearch/hermes-agent/pull/3931))
+
+When running as a WhatsApp bot (`WHATSAPP_MODE=bot`), the adapter no longer prepends the reply prefix (e.g., `⚕ **Hermes Agent**\n──────\n`) to quoted replies. This avoids duplicating the header in threaded conversation flows where the reply context already identifies the sender.
+
+---
+
 ## Changelog
 
+- **v0.6.0:** Persistent aiohttp session for reduced connection overhead ([PR #3818](https://github.com/NousResearch/hermes-agent/pull/3818)).
+- **v0.6.0:** LID↔phone alias resolution fix for allowlist matching ([PR #3830](https://github.com/NousResearch/hermes-agent/pull/3830)).
+- **v0.6.0:** Reply prefix skipped in bot mode for quoted replies ([PR #3931](https://github.com/NousResearch/hermes-agent/pull/3931)).
 - **v0.4.0:** Outbound `send_message` routing ([PR #1769](https://github.com/NousResearch/hermes-agent/pull/1769)). LID format self-chat support ([PR #1667](https://github.com/NousResearch/hermes-agent/pull/1667)). Restart on bridge child exit ([PR #2334](https://github.com/NousResearch/hermes-agent/pull/2334)).
 - **v0.5.0:** Download of documents, audio, and video media from messages ([PR #2978](https://github.com/NousResearch/hermes-agent/pull/2978)).

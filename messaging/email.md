@@ -4,7 +4,7 @@ Hermes can receive and reply to emails using standard IMAP and SMTP protocols. S
 
 The Email adapter uses Python's built-in `imaplib`, `smtplib`, and `email` modules. No additional Python packages are required.
 
-This document covers v0.2.0 through v0.5.0 (v2026.3.28).
+This document covers v0.2.0 through v0.6.0 (v2026.3.30).
 
 ---
 
@@ -195,7 +195,18 @@ Use a dedicated email account. Do not use your personal email — the agent stor
 
 ---
 
+## v0.6.0 Changes
+
+### Close SMTP/IMAP connections on failure ([PR #3804](https://github.com/NousResearch/hermes-agent/pull/3804))
+
+The adapter now explicitly closes SMTP and IMAP connections when an error occurs during a send or receive operation. Previously, failed connections could remain open indefinitely, leaking socket file descriptors. Over time, especially on long-running gateway instances, this could exhaust the connection pool and prevent new emails from being processed.
+
+No configuration change is required — the fix is applied automatically.
+
+---
+
 ## Changelog
 
+- **v0.6.0:** SMTP/IMAP connections closed on error to prevent resource leaks ([PR #3804](https://github.com/NousResearch/hermes-agent/pull/3804)).
 - **v0.5.0:** Unbounded growth of the `_seen_uids` set (which tracks processed messages) is now capped, preventing memory growth on high-volume inboxes ([PR #3490](https://github.com/NousResearch/hermes-agent/pull/3490)).
 - **v0.5.0:** Request timeouts added ([PR #3258](https://github.com/NousResearch/hermes-agent/pull/3258)).

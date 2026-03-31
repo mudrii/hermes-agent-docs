@@ -2,7 +2,7 @@
 
 Hermes integrates with Discord as a bot using the `discord.py` library. The bot receives messages, processes them through the full Hermes Agent pipeline (tool use, memory, reasoning), and responds in real time. It supports text, voice messages, file attachments, images, video, and voice channels.
 
-This document covers v0.2.0 through v0.5.0 (v2026.3.28).
+This document covers v0.2.0 through v0.6.0 (v2026.3.30).
 
 ---
 
@@ -283,7 +283,34 @@ Always set `DISCORD_ALLOWED_USERS`. Without it, the gateway denies all users by 
 
 ---
 
+## v0.6.0 Changes
+
+### Processing reactions ([PR #3871](https://github.com/NousResearch/hermes-agent/pull/3871))
+
+The bot now adds an emoji reaction to your message while it is processing, and removes it once the response is sent. This gives immediate visual feedback in busy channels — you can see at a glance which messages are being worked on and which are complete.
+
+The "Add Reactions" permission must be enabled on the bot's role for this to work (see the recommended permissions in Step 5).
+
+### DISCORD_IGNORE_NO_MENTION ([PR #3640](https://github.com/NousResearch/hermes-agent/pull/3640))
+
+By default, if your message @mentions another user or bot but not Hermes, Hermes still checks whether it should respond (based on `require_mention` and channel rules). Set `DISCORD_IGNORE_NO_MENTION=true` to skip these messages entirely:
+
+```bash
+DISCORD_IGNORE_NO_MENTION=true
+```
+
+This is useful in active servers where many messages contain @mentions directed at other bots.
+
+### Deferred "thinking..." cleanup fix ([PR #3674](https://github.com/NousResearch/hermes-agent/pull/3674))
+
+Slash command responses that trigger a deferred "thinking..." indicator now properly clean up the indicator after the agent turn completes. Previously, the "thinking..." message could persist in the channel after Hermes had already sent its reply. This is a follow-up to the phantom typing indicator fix from v0.5.0.
+
+---
+
 ## Changelog
 
+- **v0.6.0:** Processing reactions on inbound messages ([PR #3871](https://github.com/NousResearch/hermes-agent/pull/3871)).
+- **v0.6.0:** `DISCORD_IGNORE_NO_MENTION` env var to skip messages mentioning other users ([PR #3640](https://github.com/NousResearch/hermes-agent/pull/3640)).
+- **v0.6.0:** Deferred "thinking..." indicator cleanup fix ([PR #3674](https://github.com/NousResearch/hermes-agent/pull/3674)).
 - **v0.4.0:** Document caching and text-file injection ([PR #2503](https://github.com/NousResearch/hermes-agent/pull/2503)). Persistent typing indicator for DMs ([PR #2468](https://github.com/NousResearch/hermes-agent/pull/2468)). DM vision support for inline images and attachments ([PR #2186](https://github.com/NousResearch/hermes-agent/pull/2186)).
 - **v0.5.0:** Phantom typing indicator after agent turn completes is now stopped correctly ([PR #3003](https://github.com/NousResearch/hermes-agent/pull/3003)).
