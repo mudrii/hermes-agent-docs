@@ -88,11 +88,11 @@ Full uv2nix build, NixOS module with persistent container mode, auto-generated c
 
 ### Profiles — Multi-Instance Hermes (v0.6.0)
 
-Run multiple isolated Hermes instances from the same installation. Each profile gets its own config, memory, sessions, skills, and gateway service. Create with `hermes profile create`, switch with `hermes -p <name>`. Token locks prevent credential collisions between profiles. See [configuration.md](configuration.md) for details.
+Run multiple isolated Hermes instances from the same installation. Each profile gets its own config, memory, sessions, skills, and gateway service. Create with `hermes profile create`, target a single command with `hermes -p <name> ...`, or set the sticky default with `hermes profile use <name>`. Token locks prevent credential collisions between profiles. See [configuration.md](configuration.md) for details.
 
 ### MCP Server Mode (v0.6.0)
 
-Expose Hermes sessions to MCP-compatible clients (Claude Desktop, Cursor, VS Code, etc.) via `hermes mcp serve`. Supports both stdio and Streamable HTTP transports. Complements the existing MCP client support.
+Expose Hermes sessions to MCP-compatible clients (Claude Desktop, Cursor, VS Code, etc.) via `hermes mcp serve`. In the released v0.6.0 surface, Hermes serves MCP over stdio; Streamable HTTP is part of Hermes' MCP client support, not the `serve` command.
 
 ### Docker Container (v0.6.0)
 
@@ -108,7 +108,7 @@ Multiple independent tool calls run in parallel via `ThreadPoolExecutor` (max 8 
 
 ### Context Compression
 
-`ContextCompressor` monitors token usage and compresses context when approaching the model's context limit (default threshold: 50% of the context window). The algorithm protects the first `protect_first_n` turns (default: 3) and the last `protect_last_n` turns (default: 4), summarizes the middle section via an auxiliary model call (`call_llm(task="compression")`), and sanitizes orphaned tool-call/result pairs. Session lineage is preserved via `parent_session_id` chains in the SQLite state store.
+`ContextCompressor` monitors token usage and compresses context when approaching the model's context limit (default threshold: 50% of the context window). The algorithm protects the first `protect_first_n` turns (default: 3) and at least the last `protect_last_n` messages (default: 20), summarizes the middle section via an auxiliary model call (`call_llm(task="compression")`), and sanitizes orphaned tool-call/result pairs. Session lineage is preserved via `parent_session_id` chains in the SQLite state store.
 
 ### Six Terminal Backends
 
@@ -124,7 +124,7 @@ Codex-inspired approval system that learns which commands are safe and remembers
 
 ### Voice Mode (v0.3.0)
 
-Push-to-talk in the CLI, voice notes in Telegram and Discord, Discord voice channel support, and local Whisper transcription via faster-whisper. Configurable STT backends with a `stt.enabled` config flag.
+Push-to-talk in the CLI, voice notes in Telegram and Discord, Discord voice channel support, and local Whisper transcription via `faster-whisper` when the `voice` extra is installed. Configurable STT backends use the `stt.enabled` config flag.
 
 ### MCP Integration
 
@@ -168,7 +168,6 @@ Key Python dependencies (from `pyproject.toml`):
 | `rich` | Terminal output formatting |
 | `pyyaml` | Configuration file parsing |
 | `pydantic>=2.12.5` | Data validation |
-| `faster-whisper>=1.0.0` | Local voice transcription |
 | `firecrawl-py>=4.16.0` | Web content extraction |
 | `edge-tts>=7.2.7` | Free text-to-speech (no API key needed) |
 
@@ -176,7 +175,7 @@ Optional extras (install with `pip install "hermes-agent[extra]"`):
 
 | Extra | Contents |
 |-------|---------|
-| `messaging` | Telegram, Discord, Slack, WhatsApp gateway |
+| `messaging` | Core gateway dependencies for Telegram, Discord, Slack, and shared `aiohttp`-based adapters |
 | `voice` | Push-to-talk CLI and voice note transcription |
 | `mcp` | Model Context Protocol client |
 | `honcho` | Honcho AI user modeling |

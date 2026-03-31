@@ -129,8 +129,8 @@ The `FEISHU_GROUP_POLICY` environment variable controls how the bot responds in 
 
 | Value | Behavior |
 |-------|----------|
-| `allowlist` (default) | Only responds to users listed in `FEISHU_ALLOWED_USERS` |
-| `open` | Responds to all @mentions in any group |
+| `allowlist` (default) | Only accepts messages from allowlisted users, and still requires the bot to be explicitly mentioned in the group message |
+| `open` | Accepts any user in the group, but still requires an explicit bot mention or `@_all` |
 | `disabled` | Does not respond in group chats |
 
 In direct messages, `FEISHU_GROUP_POLICY` does not apply — the standard `FEISHU_ALLOWED_USERS` allowlist controls access.

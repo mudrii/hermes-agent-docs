@@ -2,7 +2,7 @@
 
 The Hermes gateway is the long-running background process that connects Hermes Agent to external messaging platforms. It manages incoming messages, session state, platform authentication, cron scheduling, and outbound delivery — all through a single unified pipeline.
 
-This document covers v0.2.0 through v0.5.0 (v2026.3.28).
+This document covers the released gateway surface through v0.6.0 (v2026.3.30).
 
 ---
 
@@ -39,6 +39,8 @@ flowchart TB
             mm[Mattermost]
             mx[Matrix]
             dt[DingTalk]
+            fs[Feishu/Lark]
+            wc[WeCom]
             api["API Server (OpenAI-compatible)"]
             wh[Webhook]
         end
@@ -59,6 +61,8 @@ flowchart TB
     mm --> store
     mx --> store
     dt --> store
+    fs --> store
+    wc --> store
     api --> store
     wh --> store
     store --> agent
@@ -781,7 +785,7 @@ When a message is delivered to a platform via `send_message` or cron delivery, t
 
 - **Cron delivery labels** (PR #3860) — `hermes cron list` now shows human-friendly labels for delivery targets instead of raw channel IDs. Labels are resolved via the channel directory (`~/.hermes/channel_directory.json`). Previously, cron jobs showed opaque numeric IDs that required cross-referencing to identify.
 
-- **BOOT.md hook** (PR #3733) — The gateway now runs `~/.hermes/BOOT.md` as a skill on startup if the file exists. This provides a reliable hook for initialization tasks (e.g., sending a startup notification, checking system state) without requiring a custom hook script. The file follows standard SKILL.md format.
+- **BOOT.md hook** (PR #3733) — The gateway now checks for `~/.hermes/BOOT.md` on startup and, if present, wraps its contents into a startup prompt that runs in the background. This is a built-in startup instruction file, not a SKILL.md-formatted skill package.
 
 - **TTY guard** (PR #3933) — Interactive CLI commands that require a terminal (e.g., `hermes gateway` in foreground mode) now detect when launched without a TTY and exit cleanly with an informative error. Previously, launching without a terminal would cause a CPU spin or hang indefinitely.
 
@@ -790,6 +794,12 @@ When a message is delivered to a platform via `send_message` or cron delivery, t
 - **Tool token context display** (PR #3805) — The `hermes tools` checklist UI now shows the estimated token cost for each toolset alongside its name. This helps users make informed decisions about which toolsets to enable based on their context window budget.
 
 - **Configurable tool preview length** (PR #3841) — Tool invocation previews in the CLI and gateway now show full file paths by default. Previously, paths were truncated at 40 characters, making it difficult to distinguish similar files in deep directory trees. The truncation length is now configurable and defaults to no truncation.
+
+- **Feishu/Lark and WeCom adapters** (PRs #3799, #3817, #3847) — The gateway now includes first-class adapters for Feishu/Lark and WeCom alongside the earlier messaging platforms.
+
+- **Telegram webhook mode** (PR #3880) — Telegram can now run as an inbound webhook server instead of polling, which is better suited to reverse-proxy deployments.
+
+- **Slack multi-workspace support** (PR #3903) — one gateway can now load bot tokens for multiple Slack workspaces, resolving the correct workspace client per inbound event.
 
 ### v0.5.0 (v2026.3.28)
 

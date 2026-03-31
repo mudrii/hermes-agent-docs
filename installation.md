@@ -31,7 +31,7 @@ The one-line and `setup-hermes.sh` installers detect what is missing and install
 | Linux (any distro) | Fully supported (apt, dnf, pacman auto-detected) |
 | macOS (Intel and Apple Silicon) | Fully supported |
 | WSL2 | Fully supported |
-| Windows (native PowerShell) | Supported via `install.ps1` (installs to `%LOCALAPPDATA%\hermes`) |
+| Windows (native PowerShell) | Repository installer exists, but the released README still treats native Windows as unsupported; prefer WSL2 for release-aligned operation |
 
 ---
 
@@ -45,6 +45,8 @@ curl -fsSL https://raw.githubusercontent.com/NousResearch/hermes-agent/main/scri
 
 ### Windows (PowerShell)
 
+The repository ships a PowerShell installer, but the released v0.6.0 README still says native Windows is not supported and recommends WSL2. Treat the PowerShell path as a best-effort repo-local installer rather than the primary supported release path.
+
 ```powershell
 irm https://raw.githubusercontent.com/NousResearch/hermes-agent/main/scripts/install.ps1 | iex
 ```
@@ -55,7 +57,7 @@ Or download and run with options:
 .\install.ps1 -NoVenv -SkipSetup
 ```
 
-The Windows installer installs to `%LOCALAPPDATA%\hermes\hermes-agent` by default and sets the `HERMES_HOME` user environment variable. It uses winget, chocolatey, or scoop to install optional dependencies (ripgrep, ffmpeg).
+If you do use the PowerShell installer, it installs to `%LOCALAPPDATA%\hermes\hermes-agent` by default and sets the `HERMES_HOME` user environment variable. It uses winget, chocolatey, or scoop to install optional dependencies (ripgrep, ffmpeg).
 
 ### What the installer does
 

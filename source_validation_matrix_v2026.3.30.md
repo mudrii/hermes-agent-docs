@@ -1,0 +1,17 @@
+# Source Validation Matrix: Hermes Agent v0.6.0 (v2026.3.30)
+
+This matrix ties the main documentation claims updated in this pass to released source evidence and online validation URLs.
+
+| Claim | Local source evidence | Online validation | Docs touched |
+|------|------------------------|-------------------|-------------|
+| `v2026.3.30` is the released stable tag for v0.6.0 | `RELEASE_v0.6.0.md`, git tag `v2026.3.30` | `https://github.com/NousResearch/hermes-agent/releases/tag/v2026.3.30` | `release_evaluation_v2026.3.30.md`, `README.md`, `changelog.md` |
+| Sticky default profile command is `hermes profile use <name>`; `-p` is per-command targeting | `hermes_cli/main.py` released tag command registration; `profiles.md` | GitHub release body for `v2026.3.30` mentions switching with `-p` in highlights, which required reconciliation against the tag | `README.md`, `changelog.md`, `profiles.md` |
+| `hermes mcp serve` is a stdio MCP server in the released surface | `mcp_serve.py` usage text; `hermes_cli/main.py` `serve` parser exposes only `--verbose` | `https://github.com/NousResearch/hermes-agent/releases/tag/v2026.3.30` (release wording over-claims transport and was treated as secondary to code) | `README.md`, `changelog.md`, `mcp.md`, `documentation_integrity_findings_v2026.3.30.md` |
+| Approval timeout config key is `approvals.timeout` | `tools/approval.py`; `hermes_cli/config.py` defaults | Public configuration page shows `approvals.timeout`; release metadata confirms the feature shipped in v0.6.0 | `security.md`, `changelog.md`, `configuration.md` |
+| Gateway approvals use `/approve` and `/deny` in messaging | `gateway/run.py` command handling in released tag | v0.4.0 release notes mention the change from bare text to explicit commands | `security.md`, `gateway.md` |
+| Compression defaults are threshold `0.50` and `protect_last_n = 20` in the released runtime | `run_agent.py`; `agent/context_compressor.py`; `hermes_cli/config.py` | Public configuration page currently shows `threshold: 0.50` and `protect_last_n: 20` | `README.md`, `architecture.md`, `configuration.md` |
+| Slack supports multi-workspace token loading in v0.6.0 | `gateway/platforms/slack.py` reads comma-separated bot tokens and `~/.hermes/slack_tokens.json` | `https://github.com/NousResearch/hermes-agent/releases/tag/v2026.3.30` | `messaging/slack.md`, `release_evaluation_v2026.3.30.md` |
+| Telegram webhook mode and mention gating shipped in v0.6.0 | `gateway/platforms/telegram.py` reads `TELEGRAM_WEBHOOK_URL`, `TELEGRAM_REQUIRE_MENTION`, and `TELEGRAM_MENTION_PATTERNS` | `https://github.com/NousResearch/hermes-agent/releases/tag/v2026.3.30` | `gateway.md`, `messaging/telegram.md`, `release_evaluation_v2026.3.30.md` |
+| WeCom credentials are `WECOM_BOT_ID` and `WECOM_SECRET` | `gateway/platforms/wecom.py` config loading | Release notes and local release file mention WeCom support; code was used for exact variable names | `messaging/wecom.md`, `release_evaluation_v2026.3.30.md` |
+| `BOOT.md` is a built-in startup instruction file, not a skill package | `gateway/builtin_hooks/boot_md.py` | `https://github.com/NousResearch/hermes-agent/releases/tag/v2026.3.30` | `gateway.md`, `hooks.md` |
+| Native Windows remains non-primary in release-facing guidance despite repo-local installer script | `README.md` says native Windows unsupported; `scripts/install.ps1` exists in tag | Public release README on GitHub | `installation.md`, `documentation_integrity_findings_v2026.3.30.md` |

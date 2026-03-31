@@ -128,6 +128,8 @@ SLACK_ALLOWED_USERS=U01ABC2DEF3      # Comma-separated Member IDs
 SLACK_HOME_CHANNEL=C01234567890
 ```
 
+For the released v0.6.0 multi-workspace flow, Hermes can also load additional workspace bot tokens from `~/.hermes/slack_tokens.json`. `SLACK_BOT_TOKEN` remains the primary token used to bootstrap Socket Mode; extra workspace tokens are appended from the OAuth token file when present.
+
 Or use interactive setup:
 
 ```bash

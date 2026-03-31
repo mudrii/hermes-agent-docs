@@ -12,8 +12,8 @@ All notable changes to Hermes Agent are documented here.
 
 ### Highlights
 
-- **Profiles** — Run multiple isolated Hermes instances with separate config, memory, sessions, and gateway service (`hermes profile create/list/switch/delete/export/import/rename`)
-- **MCP Server Mode** — Expose Hermes sessions to Claude Desktop, Cursor, VS Code via `hermes mcp serve` (stdio and Streamable HTTP transports)
+- **Profiles** — Run multiple isolated Hermes instances with separate config, memory, sessions, and gateway service (`hermes profile create/list/use/delete/export/import/rename`)
+- **MCP Server Mode** — Expose Hermes sessions to Claude Desktop, Cursor, VS Code via `hermes mcp serve` (released v0.6.0 server transport: stdio)
 - **Docker Container** — Official Dockerfile for CLI and gateway modes with volume-mounted config
 - **Fallback Provider Chain** — Automatic failover across multiple inference providers via `fallback_providers` in config.yaml
 - **Feishu/Lark Support** — Full gateway adapter: event subscriptions, message cards, group chat, attachments, interactive card callbacks
@@ -32,7 +32,7 @@ All notable changes to Hermes Agent are documented here.
 - Subagent status reporting: `completed` when summary exists instead of generic failure
 - Session log file updated during compression, preventing stale file references
 - Omit empty `tools` param (fixes strict provider compatibility)
-- Configurable approval timeouts (`security.approval_timeout_seconds` in config.yaml)
+- Configurable approval timeouts (`approvals.timeout` in config.yaml)
 
 ### Messaging Platforms
 
@@ -61,7 +61,7 @@ All notable changes to Hermes Agent are documented here.
 - MCP Server Mode: `hermes mcp serve` exposes sessions/search to MCP clients (#3795)
 - Exa search backend (#3648)
 - Mount skill directories and credential files into Modal/Docker containers (#3890, #3671)
-- Dynamic MCP tool discovery (responds to `notifications/tools/list_changed`) (#3812)
+- Dynamic MCP tool discovery for Hermes as an MCP client (responds to `notifications/tools/list_changed`) (#3812)
 - Terminal: preserve partial output on timeout (#3868)
 
 ### Skills & Plugins

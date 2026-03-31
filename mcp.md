@@ -445,7 +445,7 @@ hermes mcp test github
 
 ### hermes mcp serve
 
-Starts Hermes as an MCP server itself — exposes Hermes' messaging platform conversations as MCP tools so that MCP clients (Claude Code, Cursor, Codex) can read messages, send messages, and manage approvals across all connected gateway platforms.
+Starts Hermes as a stdio MCP server — exposes Hermes' messaging platform conversations as MCP tools so that MCP clients (Claude Code, Cursor, Codex) can read messages, send messages, and manage approvals across all connected gateway platforms.
 
 ```bash
 hermes mcp serve
@@ -470,10 +470,9 @@ MCP client config (e.g. `claude_desktop_config.json`):
 ### v0.4.0 (PR #2465)
 
 - `hermes mcp` subcommand group introduced
-- `add`, `remove`, `list`, `test`, `configure`, and `serve` subcommands
+- `add`, `remove`, `list`, `test`, and `configure` subcommands
 - OAuth 2.1 PKCE flow for HTTP MCP servers that require authentication
 - Interactive tool selection during `hermes mcp add`
-- `hermes mcp serve` exposes gateway conversations to MCP clients
 - Expose MCP servers as standalone named toolsets (`mcp-<name>`) (PR #1907)
 - Interactive MCP tool configuration in `hermes tools` (PR #1694)
 
@@ -486,8 +485,8 @@ MCP client config (e.g. `claude_desktop_config.json`):
 ### v0.6.0 (PR #3795, #3812, #3646)
 
 - **MCP Server Mode** (PR #3795) — `hermes mcp serve` now exposes the full 10-tool conversation bridge surface. See [MCP Server Mode (v0.6.0)](#mcp-server-mode-v060) below.
-- **Dynamic tool discovery** (PR #3812) — Hermes responds to `notifications/tools/list_changed` events, picking up new tools from MCP servers without reconnecting.
-- **Non-deprecated HTTP transport** (PR #3646) — switched from `sse_client` to `streamable_http_client`.
+- **Dynamic tool discovery** (PR #3812) — when Hermes is acting as an MCP client, it responds to `notifications/tools/list_changed` events and picks up new tools from connected servers without reconnecting.
+- **Non-deprecated HTTP transport** (PR #3646) — Hermes' MCP client switched from `sse_client` to `streamable_http_client` for HTTP connections to external MCP servers.
 
 ## Quickstart
 

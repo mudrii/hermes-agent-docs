@@ -235,8 +235,8 @@ The threshold is tuned to 50% in v0.3.0 for more proactive compression.
 | `model` | required | Model name for context length lookup |
 | `threshold_percent` | `0.50` | Fraction of context window that triggers compression |
 | `protect_first_n` | `3` | Number of head messages to preserve |
-| `protect_last_n` | `4` | Number of tail messages to preserve |
-| `summary_target_tokens` | `2500` | Target token count for the summary |
+| `protect_last_n` | `20` | Minimum number of recent tail messages to preserve |
+| `summary_target_ratio` | `0.20` | Fraction of the threshold budget preserved as the recent tail target |
 | `summary_model_override` | None | Force a specific model for summarization |
 
 ### Compression Algorithm
@@ -244,7 +244,7 @@ The threshold is tuned to 50% in v0.3.0 for more proactive compression.
 ```
 1. Check: does message count exceed protect_first_n + protect_last_n + 1?
 2. Set compress_start = protect_first_n (default: 3)
-3. Set compress_end = n_messages - protect_last_n (default: 4)
+3. Set compress_end = n_messages - protect_last_n (default: 20, with an additional tail-budget pass)
 4. Align compress_start forward past any orphan tool results
 5. Align compress_end backward to avoid splitting tool_call/result groups
 6. Extract turns_to_summarize = messages[compress_start:compress_end]

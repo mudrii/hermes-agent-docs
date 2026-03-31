@@ -91,10 +91,10 @@ When tirith security warnings are present alongside a dangerous command pattern,
 
 ### Approval Flow: Gateway / Messaging
 
-On messaging platforms, the agent sends the dangerous command details to the chat and waits for a reply:
+On messaging platforms, the agent sends the dangerous command details to the chat and waits for an explicit slash-command response:
 
-- Reply `yes`, `y`, `approve`, `ok`, or `go` to approve
-- Reply `no`, `n`, `deny`, or `cancel` to deny
+- Reply with `/approve` to approve the pending command
+- Reply with `/deny` to reject it
 
 The `HERMES_EXEC_ASK=1` environment variable is automatically set when running the gateway.
 
@@ -695,11 +695,11 @@ The skills system now blocks `../` sequences in category names. A crafted skill 
 
 ### Configurable Approval Timeouts (PR #3886)
 
-The dangerous command approval prompt now has a configurable timeout. Previously the CLI prompt always timed out after 60 seconds and auto-denied. The timeout is now configurable via `security.approval_timeout_seconds` in config.yaml:
+The dangerous command approval prompt now has a configurable timeout. Previously the CLI prompt always timed out after 60 seconds and auto-denied. The timeout is now configurable via `approvals.timeout` in config.yaml:
 
 ```yaml
-security:
-  approval_timeout_seconds: 60    # Default: 60 seconds
+approvals:
+  timeout: 60    # Default: 60 seconds
 ```
 
 See [configuration.md](configuration.md) for the full config.yaml reference.

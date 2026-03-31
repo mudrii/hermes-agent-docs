@@ -21,6 +21,10 @@ GitHub API validation confirmed:
 
 Compare URL used in changelog.md — `https://github.com/NousResearch/hermes-agent/compare/v2026.3.28...v2026.3.30` — matches the "Full Changelog" link at the bottom of the GitHub release page exactly.
 
+Online docs-site spot checks were also used as a secondary validation layer:
+- Public configuration docs currently show `compression.threshold: 0.50` and `protect_last_n: 20`, matching released code
+- Public docs do not override released-tag source truth when a conflict exists; the local release tag remains authoritative
+
 ## 3) Diff scope and complexity
 
 `v2026.3.28..v2026.3.30` touched **230 files** with **27,081 insertions** and **1,310 deletions** (confirmed via `git diff --stat v2026.3.28 v2026.3.30` in ~/src/claw/hermes-agent).
@@ -86,7 +90,7 @@ The following corrections were found and applied during execution (vs. the initi
 
 ## 6) Outstanding gaps / open questions
 
-The following v0.6.0 features from the release are not explicitly documented in this doc update (all are minor or internal):
+The following v0.6.0 features from the release remain only partially documented after this pass (all are minor or internal):
 
 - Discord enhancements (#3871, #3640, #3674) — messaging/discord.md was updated for general adapter pattern but no dedicated Discord-specific section for these fixes
 - WhatsApp reliability fixes (#3818, #3830, #3931) — documented at the adapter level in messaging but no explicit callout of LID↔phone alias behavior
@@ -94,7 +98,17 @@ The following v0.6.0 features from the release are not explicitly documented in 
 - Mattermost configurable mention behavior (#3664) — not covered in this pass
 - ACP editor integration session management (#3675) — out of scope for this doc update; covered by separate acp.md history
 - MCP dynamic tool discovery / `notifications/tools/list_changed` (#3812) — covered at the feature level in mcp.md but the notification mechanism is not described in detail
-- Configurable approval timeouts (#3886) — correction of config key is noted above; the feature itself is documented in security.md
 - Audio .aac format and retry logic (#3865, #3401), vision file rejection (#3845) — tool-level bug fixes; not individually called out in tools.md
 - OpenClaw migration guide (#3864, #3900) — out of scope for hermes-agent-docs; separate migration doc in upstream repo
 - All testing and CI fixes (#3848, #3721, #3936) — not user-facing; no documentation required
+
+## 7) Corrections applied in this run
+
+The following user-facing documentation drifts were corrected directly in `hermes-agent-docs` during this audit:
+
+- `README.md` — clarified profile targeting vs sticky default, corrected MCP server transport wording, corrected compression defaults, and removed `faster-whisper` from the base dependency table
+- `changelog.md` — replaced `profile switch` with `profile use`, corrected the approval-timeout config key, and scoped MCP transport claims to the released stdio server
+- `security.md` — corrected gateway approval commands to `/approve` and `/deny`; corrected `approvals.timeout`
+- `architecture.md` — corrected `protect_last_n` and ratio-based compression parameters
+- `mcp.md` — removed `serve` from the v0.4.0 subcommand list and clarified that Streamable HTTP applies to Hermes as an MCP client, not the released `serve` command
+- `gateway.md`, `hooks.md`, `messaging/slack.md`, `messaging/feishu.md`, `installation.md` — reconciled BOOT.md behavior, Slack multi-workspace token loading, Feishu group mention semantics, and Windows support wording

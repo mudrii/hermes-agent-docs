@@ -13,6 +13,16 @@ This document covers both.
 
 Gateway hooks only fire when the gateway is running. The CLI does not currently load gateway hooks.
 
+### Built-in startup hook: `BOOT.md` (v0.6.0)
+
+In addition to user-defined hooks under `~/.hermes/hooks/`, the gateway has a built-in startup hook that checks for `~/.hermes/BOOT.md`.
+
+- If `BOOT.md` exists, Hermes reads it as plain startup instructions.
+- The contents are wrapped into a startup prompt and executed in a background thread after the gateway comes up.
+- This is not a `HOOK.yaml` directory and not a `SKILL.md` package; it is a fixed built-in startup instruction file.
+
+Use it for gateway boot tasks such as posting a startup status message, checking system health, or reminding Hermes about persistent operational context.
+
 ### Directory Structure
 
 ```text
