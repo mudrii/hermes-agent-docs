@@ -2,7 +2,102 @@
 
 All notable changes to Hermes Agent are documented here.
 
-**Current stable release: v0.5.0** (v2026.3.28, March 28, 2026)
+**Current stable release: v0.6.0** (v2026.3.30, March 30, 2026)
+
+---
+
+## v0.6.0 -- March 30, 2026
+
+> The multi-instance release — Profiles for running isolated agent instances, MCP server mode, Docker container, fallback provider chains, two new messaging platforms (Feishu/Lark and WeCom), Telegram webhook mode, Slack multi-workspace OAuth, 95 PRs and 16 resolved issues in 2 days.
+
+### Highlights
+
+- **Profiles** — Run multiple isolated Hermes instances with separate config, memory, sessions, and gateway service (`hermes profile create/list/switch/delete/export/import/rename`)
+- **MCP Server Mode** — Expose Hermes sessions to Claude Desktop, Cursor, VS Code via `hermes mcp serve` (stdio and Streamable HTTP transports)
+- **Docker Container** — Official Dockerfile for CLI and gateway modes with volume-mounted config
+- **Fallback Provider Chain** — Automatic failover across multiple inference providers via `fallback_providers` in config.yaml
+- **Feishu/Lark Support** — Full gateway adapter: event subscriptions, message cards, group chat, attachments, interactive card callbacks
+- **WeCom Support** — Enterprise WeChat adapter: text/image/voice messages, group chats, callback verification
+- **Slack Multi-Workspace OAuth** — Connect one gateway to multiple Slack workspaces via OAuth token file
+- **Telegram Webhook Mode** — Production-grade webhook alternative to polling, plus group mention gating (always / mention-only / regex)
+- **Exa Search Backend** — Alternative to Firecrawl/DuckDuckGo with semantic search (`EXA_API_KEY`)
+- **Skills & Credentials on Remote Backends** — Mount skill dirs and credential files into Modal/Docker containers
+- **Plugin enable/disable** — `hermes plugins enable/disable <name>` without deleting files
+- **Plugin inject_message** — Plugins can inject messages into the conversation stream via `ctx.inject_message()`
+
+### Core Agent & Architecture
+
+- Ordered fallback provider chain (`fallback_providers` in config.yaml) with automatic failover on 5xx/429/network errors
+- Stop silent OpenRouter fallback — clear error when no provider is configured
+- Subagent status reporting: `completed` when summary exists instead of generic failure
+- Session log file updated during compression, preventing stale file references
+- Omit empty `tools` param (fixes strict provider compatibility)
+- Configurable approval timeouts (`security.approval_timeout_seconds` in config.yaml)
+
+### Messaging Platforms
+
+**New:** Feishu/Lark (#3799, #3817), WeCom/Enterprise WeChat (#3847)
+
+**Telegram:** Webhook mode (#3880), group mention gating (#3870), deleted reply target graceful handling (#3858)
+
+**Discord:** Processing reactions (#3871), DISCORD_IGNORE_NO_MENTION (#3640), deferred "thinking..." cleanup (#3674)
+
+**Slack:** Multi-workspace OAuth token file (#3903)
+
+**WhatsApp:** Persistent aiohttp session (#3818), LID↔phone alias fix (#3830)
+
+**Matrix:** Native MSC3245 voice messages (#3877)
+
+**Mattermost:** Configurable mention behavior (#3664)
+
+**Signal:** URL-encoded phone numbers (#3670) — by @kshitijk4poor
+
+**Email:** Close SMTP/IMAP on error (#3804)
+
+**Gateway Core:** Atomic config.yaml writes (#3800), cron delivery labels (#3860), BOOT.md hook (#3733), TTY guard (#3933)
+
+### Tool System
+
+- MCP Server Mode: `hermes mcp serve` exposes sessions/search to MCP clients (#3795)
+- Exa search backend (#3648)
+- Mount skill directories and credential files into Modal/Docker containers (#3890, #3671)
+- Dynamic MCP tool discovery (responds to `notifications/tools/list_changed`) (#3812)
+- Terminal: preserve partial output on timeout (#3868)
+
+### Skills & Plugins
+
+- External skill directories via `skills.external_dirs` in config.yaml (#3678)
+- Plugin enable/disable: `hermes plugins enable/disable <name>` (#3747)
+- Plugin message injection: `ctx.inject_message()` — by @winglian (#3778)
+- New skills: memento-flashcards, songwriting-and-ai-music, SiYuan Note, Scrapling, one-three-one-rule
+
+### Security
+
+- Hardened dangerous command detection + file tool path guards for `/etc/`, `/boot/`, Docker socket (#3872)
+- Sensitive path write checks in file tools (#3859)
+- Expanded secret redaction: ElevenLabs, Tavily, Exa (#3920)
+- Vision file type enforcement (#3845)
+- Skill category path traversal blocking (#3844)
+
+### Notable Bug Fixes
+
+- OpenClaw migration: fix model config dict overwritten with string — by @0xbyt4 (#3924)
+- Telegram: gracefully handle replies to deleted messages (#3858)
+- Discord: properly clean up deferred "thinking..." indicator (#3674)
+- WhatsApp: LID↔phone alias resolution in allowlists (#3830)
+- Signal: URL-encode phone numbers for international formats (#3670)
+- Email: close SMTP/IMAP connections on error (#3804)
+- Tool schema: ensure `name` field always present, fixes `KeyError: 'name'` (#3811)
+- Provider switch: clear stale `api_mode` when switching via `hermes model` (#3857)
+- `_safe_print` ValueError: no more crashes on closed stdout (#3843)
+
+### Contributors
+
+**Core:** @teknium1 — 90 PRs
+
+**Community:** @kshitijk4poor (3 PRs: Signal #3670, parallel-cli #3673, status bar #3883), @winglian (1 PR: plugin inject_message #3778), @binhnt92 (1 PR: audio retry #3401), @0xbyt4 (1 PR: migration fix #3924)
+
+**Full Changelog:** [v2026.3.28...v2026.3.30](https://github.com/NousResearch/hermes-agent/compare/v2026.3.28...v2026.3.30)
 
 ---
 

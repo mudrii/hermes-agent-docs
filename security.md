@@ -659,6 +659,53 @@ This keeps the gateway's messaging connections separate from the agent's command
 
 ---
 
+## v0.6.0 Security Hardening
+
+The following security improvements shipped in v0.6.0 (v2026.3.30):
+
+### Hardened Dangerous Command Detection (PR #3872)
+
+The dangerous command detection patterns in `tools/approval.py` were expanded to cover additional risky shell command variants. File tool path guards were also added for sensitive filesystem locations: writes to `/etc/`, `/boot/`, and the Docker socket (`docker.sock`) via file tools now trigger the same approval flow that was previously applied only to terminal commands.
+
+Previously, path-based approval checks applied exclusively to `terminal_tool` invocations. With this change, `write_file`, `patch`, and other file tools check the destination path against the sensitive-path list before executing.
+
+### Sensitive Path Write Checks for File Tools (PR #3859)
+
+Separate from the dangerous command expansion above, the approval system was extended to catch writes to system config files through file tools. The `write_deny_list` path resolution (which uses `os.path.realpath()` to prevent symlink bypass) now applies to all file-writing tools, not just terminal commands. This closes a gap where an agent could write to `/etc/passwd` or similar protected paths via `write_file` without triggering approval.
+
+### Expanded Secret Redaction (PR #3920)
+
+The `agent/redact.py` secret redaction patterns were expanded to cover three new API key prefixes:
+
+| Pattern | Service |
+|---------|---------|
+| `elevenlabs_sk_*` | ElevenLabs API keys |
+| `tvly-*` | Tavily API keys |
+| `exa-*` | Exa API keys |
+
+These join the existing 20+ patterns in `redact_sensitive_text()`. The `RedactingFormatter` log handler applies these to all log output automatically.
+
+### Vision File Type Enforcement (PR #3845)
+
+The vision analysis tool now rejects non-image files passed to it. Previously, passing a PDF, text file, or binary to the vision tool would attempt analysis and potentially disclose file contents or metadata. Non-image MIME types now return an error before the file is sent to the model. This also enforces the existing website-only policy for vision analysis.
+
+### Skill Category Path Traversal Blocking (PR #3844)
+
+The skills system now blocks `../` sequences in category names. A crafted skill category name containing path traversal components could previously escape the skills directory. The fix normalizes and validates category names before constructing any filesystem paths, blocking directory traversal attempts.
+
+### Configurable Approval Timeouts (PR #3886)
+
+The dangerous command approval prompt now has a configurable timeout. Previously the CLI prompt always timed out after 60 seconds and auto-denied. The timeout is now configurable via `security.approval_timeout_seconds` in config.yaml:
+
+```yaml
+security:
+  approval_timeout_seconds: 60    # Default: 60 seconds
+```
+
+See [configuration.md](configuration.md) for the full config.yaml reference.
+
+---
+
 ## Contributing Security-Sensitive Code
 
 When writing code that touches security boundaries:

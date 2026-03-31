@@ -775,6 +775,22 @@ When a message is delivered to a platform via `send_message` or cron delivery, t
 - **`/cost` command** — shows live pricing and usage tracking in gateway mode ([PR #2180](https://github.com/NousResearch/hermes-agent/pull/2180)).
 - **6 new platform adapters** — Signal, DingTalk, SMS (Twilio), Mattermost, Matrix, and Webhook added ([PR #2206](https://github.com/NousResearch/hermes-agent/pull/2206), [#1685](https://github.com/NousResearch/hermes-agent/pull/1685), [#1688](https://github.com/NousResearch/hermes-agent/pull/1688), [#1683](https://github.com/NousResearch/hermes-agent/pull/1683), [#2166](https://github.com/NousResearch/hermes-agent/pull/2166)).
 
+### v0.6.0 (v2026.3.30)
+
+- **Atomic config.yaml writes** (PR #3800) — The gateway now writes config.yaml using a write-then-rename pattern. The file is written to a temporary path first, then atomically renamed into place. This prevents data loss if the process crashes or is killed mid-write, which previously could leave a partial or empty config.yaml.
+
+- **Cron delivery labels** (PR #3860) — `hermes cron list` now shows human-friendly labels for delivery targets instead of raw channel IDs. Labels are resolved via the channel directory (`~/.hermes/channel_directory.json`). Previously, cron jobs showed opaque numeric IDs that required cross-referencing to identify.
+
+- **BOOT.md hook** (PR #3733) — The gateway now runs `~/.hermes/BOOT.md` as a skill on startup if the file exists. This provides a reliable hook for initialization tasks (e.g., sending a startup notification, checking system state) without requiring a custom hook script. The file follows standard SKILL.md format.
+
+- **TTY guard** (PR #3933) — Interactive CLI commands that require a terminal (e.g., `hermes gateway` in foreground mode) now detect when launched without a TTY and exit cleanly with an informative error. Previously, launching without a terminal would cause a CPU spin or hang indefinitely.
+
+- **`HOME_CHANNEL_*` env var overrides** (PRs #3796, #3808) — Environment variable overrides for home channels (`TELEGRAM_HOME_CHANNEL`, `DISCORD_HOME_CHANNEL`, etc.) are now applied consistently across all gateway code paths. Previously, some code paths read the home channel from config before env overrides were applied, causing the env var to be silently ignored in certain scenarios.
+
+- **Tool token context display** (PR #3805) — The `hermes tools` checklist UI now shows the estimated token cost for each toolset alongside its name. This helps users make informed decisions about which toolsets to enable based on their context window budget.
+
+- **Configurable tool preview length** (PR #3841) — Tool invocation previews in the CLI and gateway now show full file paths by default. Previously, paths were truncated at 40 characters, making it difficult to distinguish similar files in deep directory trees. The truncation length is now configurable and defaults to no truncation.
+
 ### v0.5.0 (v2026.3.28)
 
 - **Telegram Private Chat Topics** — project-based conversations with per-topic skill binding in a single Telegram chat ([PR #3163](https://github.com/NousResearch/hermes-agent/pull/3163)). When a topic's `thread_id` is not found (deleted topic), the adapter falls back to sending without a thread instead of failing ([PR #3390](https://github.com/NousResearch/hermes-agent/pull/3390)).

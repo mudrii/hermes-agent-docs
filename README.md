@@ -4,7 +4,7 @@
 
 Hermes Agent is an autonomous AI agent with a built-in learning loop. It creates skills from experience, improves them during use, searches its own past conversations for context, and builds a deepening model of who you are across sessions. It runs on a $5 VPS, a GPU cluster, or serverless infrastructure -- not tied to your laptop.
 
-Current version: **v0.5.0 (v2026.3.28)** -- released March 28, 2026.
+Current version: **v0.6.0 (v2026.3.30)** -- released March 30, 2026.
 
 ---
 
@@ -16,7 +16,7 @@ Hermes Agent is not a coding copilot or a chatbot wrapper. It is a multi-platfor
 - Manages long-running conversations with context compression and session lineage
 - Persists memory, skills, and session history in SQLite across restarts
 - Streams responses token-by-token from the model to the user interface (v0.3.0)
-- Runs as a CLI, a messaging gateway (Telegram, Discord, Slack, WhatsApp, Signal, DingTalk, SMS, Mattermost, Matrix, Webhook, Email, Home Assistant), or an IDE integration (VS Code, Zed, JetBrains via ACP)
+- Runs as a CLI, a messaging gateway (Telegram, Discord, Slack, WhatsApp, Signal, DingTalk, SMS, Mattermost, Matrix, Webhook, Email, Home Assistant, Feishu/Lark, WeCom), or an IDE integration (VS Code, Zed, JetBrains via ACP)
 - Exposes an OpenAI-compatible `/v1/chat/completions` API server with REST cron job management (v0.4.0)
 - Delegates work to isolated subagents and spawns scheduled cron jobs
 - Exports training trajectories for SFT data generation and RL fine-tuning
@@ -85,6 +85,22 @@ Claude Code-style `@file` and `@url` context injection with tab completions in t
 ### Nix Flake (v0.5.0)
 
 Full uv2nix build, NixOS module with persistent container mode, auto-generated config keys from Python source, and suffix PATHs for agent-friendliness. See [installation.md](installation.md) for Nix installation details. Contributed by @alt-glitch.
+
+### Profiles — Multi-Instance Hermes (v0.6.0)
+
+Run multiple isolated Hermes instances from the same installation. Each profile gets its own config, memory, sessions, skills, and gateway service. Create with `hermes profile create`, switch with `hermes -p <name>`. Token locks prevent credential collisions between profiles. See [configuration.md](configuration.md) for details.
+
+### MCP Server Mode (v0.6.0)
+
+Expose Hermes sessions to MCP-compatible clients (Claude Desktop, Cursor, VS Code, etc.) via `hermes mcp serve`. Supports both stdio and Streamable HTTP transports. Complements the existing MCP client support.
+
+### Docker Container (v0.6.0)
+
+Official Dockerfile for running Hermes Agent in a container. Supports both CLI and gateway modes with volume-mounted config.
+
+### Fallback Provider Chain (v0.6.0)
+
+Configure multiple inference providers with automatic failover via `fallback_providers` in config.yaml. When the primary provider returns errors or is unreachable, Hermes automatically tries the next provider in the chain.
 
 ### Concurrent Tool Execution (v0.3.0)
 
@@ -239,7 +255,7 @@ Hermes has two entry points: start the terminal UI with `hermes`, or run the gat
 | Document | Contents |
 |----------|----------|
 | [architecture.md](architecture.md) | Component diagram, agent loop, context compression, session storage, internal design |
-| [changelog.md](changelog.md) | v0.5.0, v0.4.0, v0.3.0 and v0.2.0 release notes with full feature lists |
+| [changelog.md](changelog.md) | v0.6.0, v0.5.0, v0.4.0, v0.3.0 and v0.2.0 release notes with full feature lists |
 | [streaming.md](streaming.md) | Unified streaming infrastructure, token delivery, platform support (v0.3.0) |
 
 ### Setup & Configuration
