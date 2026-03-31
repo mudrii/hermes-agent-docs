@@ -753,6 +753,58 @@ Auxiliary tasks each have their own independent provider resolution chain. All t
 
 ---
 
+## Fallback Provider Chain (v0.6.0)
+
+Added in v0.6.0 (PR [#3813](https://github.com/NousResearch/hermes-agent/pull/3813), closes [#1734](https://github.com/NousResearch/hermes-agent/issues/1734)).
+
+The ordered fallback provider chain extends the legacy single-entry `fallback_model` to support any number of backup providers. When the primary provider fails, Hermes automatically advances through the chain in order until one succeeds or all are exhausted.
+
+**Configuration** — see [configuration.md](./configuration.md#fallback-provider-chain-v060) for the full YAML schema and options.
+
+```yaml
+fallback_providers:
+  - provider: openrouter
+    model: anthropic/claude-sonnet-4.6
+  - provider: anthropic
+    model: claude-sonnet-4-6
+  - provider: deepseek
+    model: deepseek-chat
+```
+
+### Trigger Conditions
+
+Fallback is attempted on any of these failures:
+
+| Condition | Example |
+|-----------|---------|
+| Rate limit | HTTP 429, "too many requests", quota exhausted |
+| Server error | HTTP 500, 503, 529 (Anthropic overload) |
+| Network failure | Connection reset, DNS failure, timeout |
+| Empty/malformed response | Blank streaming response (common rate-limit symptom) |
+| Max retries exhausted | Provider repeatedly returns non-fatal errors |
+
+**Fallback is not triggered on:**
+
+- **HTTP 401 / 403** — these are authentication or authorization failures. A credential problem is provider-specific and retrying against a different provider in the chain is still attempted (a different provider may accept different credentials), but these errors are treated as non-retryable client errors and trigger the fallback immediately rather than after retry backoff.
+- **HTTP 413** — payload too large. Context compression is attempted first.
+- **Context length errors** — the request needs to be shortened, not re-routed.
+
+### Logging
+
+Each time Hermes activates a fallback, it emits an INFO log entry:
+
+```
+INFO Fallback activated: <primary-model> → <fallback-model> (<fallback-provider>)
+```
+
+The status bar in the CLI also shows a brief notification. If all providers in the chain fail, the last error from the final provider is returned to the user.
+
+### Backward Compatibility
+
+The legacy `fallback_model` single-dict format continues to work and is automatically normalized to a one-element chain internally. When both `fallback_providers` (list) and `fallback_model` (dict) are present in `config.yaml`, `fallback_providers` takes precedence.
+
+---
+
 ## Adding a Custom Provider
 
 Key files to update:

@@ -179,6 +179,35 @@ The legacy `prerequisites.env_vars` field is supported as a backward-compatible 
 └── .bundled_manifest              # Tracks seeded bundled skills
 ```
 
+## External Skill Directories (v0.6.0)
+
+Added in v0.6.0 (PR [#3678](https://github.com/NousResearch/hermes-agent/pull/3678)).
+
+By default, Hermes only loads skills from `~/.hermes/skills/`. You can configure additional read-only skill directories via `skills.external_dirs` in `config.yaml`:
+
+```yaml
+skills:
+  external_dirs:
+    - "~/.agents/shared-skills"
+    - "/mnt/team-skills"
+```
+
+Each path is shell-expanded (`~`, `${VAR}`) and resolved at startup. External directories are scanned recursively for `SKILL.md` files alongside the local `~/.hermes/skills/` directory.
+
+**Behavior:**
+
+- External dirs are read-only — the agent can read skills from them but new skills are always created in `~/.hermes/skills/`.
+- When two skills share the same name, the local skill takes precedence over any external directory.
+- External skills appear in `skills_list()` and all slash commands exactly like local skills.
+
+**Use cases:**
+
+- Sharing a common skill library across multiple Hermes profiles or team members
+- Mounting skill directories into Docker or Modal containers without copying files
+- Keeping project-specific skills in a repo directory separate from personal skills
+
+---
+
 ## Bundled Skills Catalog
 
 Hermes ships with a large built-in skill library that is copied into `~/.hermes/skills/` on install. The repository organizes skills under `skills/` by category. The actual directory structure on disk is verified below.
@@ -432,6 +461,42 @@ Skills for red-teaming model robustness, jailbreaking, and safety bypass researc
 | `systematic-debugging` | 4-phase root cause investigation — no fixes without understanding the problem first. Use when encountering any bug or unexpected behavior. | `software-development/systematic-debugging` |
 | `test-driven-development` | Enforces RED-GREEN-REFACTOR cycle with test-first approach. Use before writing any implementation code. | `software-development/test-driven-development` |
 | `writing-plans` | Creates comprehensive implementation plans with bite-sized tasks, exact file paths, and complete code examples. | `software-development/writing-plans` |
+
+## New Skills in v0.6.0
+
+The following skills were added in v0.6.0 (v2026.3.30):
+
+### creative
+
+| Skill | Description | PR |
+|-------|-------------|-----|
+| `songwriting-and-ai-music` | Songwriting craft and AI music generation — chord progressions, lyric structure, song sections, and prompting for Suno and Udio. | [#3834](https://github.com/NousResearch/hermes-agent/pull/3834) |
+
+### communication
+
+| Skill | Description | PR |
+|-------|-------------|-----|
+| `one-three-one-rule` | Structured communication framework — one context statement, three supporting points, one ask. Keeps messages concise and actionable. | [#3797](https://github.com/NousResearch/hermes-agent/pull/3797) |
+
+### note-taking
+
+| Skill | Description | PR |
+|-------|-------------|-----|
+| `siyuan-note` | Integration with the SiYuan note-taking app — create, read, search, and manage notes and notebooks via the SiYuan API. | [#3742](https://github.com/NousResearch/hermes-agent/pull/3742) |
+
+### productivity
+
+| Skill | Description | PR |
+|-------|-------------|-----|
+| `memento-flashcards` | Spaced repetition flashcard system using the SM-2 algorithm. Create decks, review due cards, and track retention over time. | [#3827](https://github.com/NousResearch/hermes-agent/pull/3827) |
+
+### research
+
+| Skill | Description | PR |
+|-------|-------------|-----|
+| `scrapling` | Stealth web scraping using the Scrapling library — handles CAPTCHAs, JavaScript-heavy pages, and bot detection. | [#3742](https://github.com/NousResearch/hermes-agent/pull/3742) |
+
+---
 
 ## Optional Skills Catalog
 

@@ -212,6 +212,64 @@ Configured exclusively through `config.yaml` -- no environment variables. Activa
 
 ---
 
+### Fallback Provider Chain (v0.6.0)
+
+Added in v0.6.0 (PR [#3813](https://github.com/NousResearch/hermes-agent/pull/3813), closes [#1734](https://github.com/NousResearch/hermes-agent/issues/1734)).
+
+Configure an ordered list of backup providers that Hermes tries automatically when the primary provider fails. Unlike the legacy single-entry `fallback_model`, `fallback_providers` accepts any number of entries and advances through them in order.
+
+```yaml
+fallback_providers:
+  - provider: openrouter
+    model: anthropic/claude-sonnet-4.6
+  - provider: anthropic
+    model: claude-sonnet-4-6
+  - provider: deepseek
+    model: deepseek-chat
+```
+
+Each entry requires `provider` and `model`. Optional fields `base_url` and `api_key_env` are supported for custom endpoints (same as `fallback_model`).
+
+**Trigger conditions** — fallback is attempted on:
+
+- HTTP 429 (rate limit / quota exhausted)
+- HTTP 5xx server errors (500, 503, 529, etc.)
+- Network connection failures and timeouts
+- Empty or malformed responses (a common rate-limit symptom)
+
+**Fallback is not triggered on:**
+
+- HTTP 401 / 403 (authentication or authorization failures — these indicate a credential problem that a different provider would not fix differently)
+- HTTP 413 (payload too large — context compression is attempted instead)
+- Context length errors
+
+Each failed attempt is logged at INFO level:
+
+```
+INFO Fallback activated: claude-opus-4-6 → anthropic/claude-sonnet-4.6 (openrouter)
+```
+
+If all providers in the chain are exhausted, the last error is returned to the user.
+
+**Backward compatibility:** The legacy `fallback_model` single-dict format continues to work and is automatically normalized to a one-element chain. `fallback_providers` takes precedence when both are present.
+
+See [providers.md](./providers.md#fallback-provider-chain-v060) for full details.
+
+---
+
+### Skills
+
+```yaml
+skills:
+  external_dirs:
+    - "~/.agents/shared-skills"
+    - "/mnt/team-skills"
+```
+
+Configure additional read-only skill directories scanned alongside `~/.hermes/skills/`. Added in v0.6.0 (PR [#3678](https://github.com/NousResearch/hermes-agent/pull/3678)). See [skills.md](./skills.md#external-skill-directories-v060) for full details.
+
+---
+
 ### Smart Model Routing
 
 ```yaml
@@ -467,6 +525,7 @@ Automatic snapshots before destructive file ops. The agent takes a snapshot of t
 ```yaml
 approvals:
   mode: "manual"              # manual | smart | off
+  timeout: 60                 # seconds to wait for approval before auto-denying (v0.6.0)
 ```
 
 | Mode | Behavior |
@@ -474,6 +533,18 @@ approvals:
 | `manual` (default) | Prompt before executing any flagged command. Interactive dialog in CLI; pending approval queue in messaging. |
 | `smart` | Use an auxiliary LLM to assess danger. Low-risk commands auto-approved with session-level persistence. |
 | `off` | Skip all approval checks. Equivalent to `--yolo`. Use with caution. |
+
+**`approvals.timeout`** (v0.6.0 — PR [#3886](https://github.com/NousResearch/hermes-agent/pull/3886), closes [#3765](https://github.com/NousResearch/hermes-agent/issues/3765)): How long (in seconds) Hermes waits for the user to respond to a dangerous command approval prompt before automatically denying it. Default is `60` seconds.
+
+Set to `0` to require explicit approval with no timeout (the prompt waits indefinitely):
+
+```yaml
+approvals:
+  mode: "manual"
+  timeout: 0
+```
+
+This setting applies in CLI mode. In gateway mode (messaging platforms), approvals use the platform's message queue and the timeout is not enforced the same way.
 
 ### Command Allowlist
 

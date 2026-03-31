@@ -457,3 +457,60 @@ Inside a CLI session:
 ```
 
 No forking or source modification is required. The plugin system is designed so that all extensions are isolated — a broken plugin never crashes Hermes.
+
+## Enabling and Disabling Plugins (v0.6.0)
+
+Added in v0.6.0 (PR [#3747](https://github.com/NousResearch/hermes-agent/pull/3747)).
+
+You can disable a plugin without removing it from disk. Disabled plugins are skipped entirely at startup — their `register()` function is never called and none of their tools or hooks are loaded.
+
+```bash
+hermes plugins enable <plugin-name>
+hermes plugins disable <plugin-name>
+hermes plugins list                   # shows enabled/disabled status for each plugin
+```
+
+Disable state is persisted in config so it survives restarts. The plugin's directory is left intact, making it easy to re-enable later. This is useful for temporarily turning off a plugin that has a conflicting tool name or a missing dependency, without losing the plugin's configuration or bundled data.
+
+## Message Injection (v0.6.0)
+
+Added in v0.6.0 (PR [#3778](https://github.com/NousResearch/hermes-agent/pull/3778)) by @winglian.
+
+Plugins can inject messages into the active conversation on behalf of the user using `ctx.inject_message()`. This allows plugins to push external events — webhook payloads, timer alerts, background task completions — directly into the conversation stream without the user typing anything.
+
+**Signature:**
+
+```python
+ctx.inject_message(content: str, role: str = "user") -> bool
+```
+
+**How it works:**
+
+- If the agent is **idle** (waiting for user input), the message is queued as the next input and starts a new turn immediately.
+- If the agent is **mid-turn** (actively running tools), the message interrupts the current operation — the same effect as the user typing a new message and pressing Enter mid-turn.
+- Returns `True` if the message was queued successfully. Returns `False` if no CLI reference is available (inject_message is only available in CLI mode; it does not work in gateway mode).
+
+Injected messages appear in session transcripts exactly as if the user typed them.
+
+**Example — webhook receiver plugin:**
+
+```python
+import threading
+from http.server import HTTPServer, BaseHTTPRequestHandler
+
+def register(ctx):
+    def _start_server():
+        class Handler(BaseHTTPRequestHandler):
+            def do_POST(self):
+                length = int(self.headers.get("Content-Length", 0))
+                body = self.rfile.read(length).decode()
+                ctx.inject_message(f"Webhook received: {body}")
+                self.send_response(200)
+                self.end_headers()
+        HTTPServer(("", 9876), Handler).serve_forever()
+
+    t = threading.Thread(target=_start_server, daemon=True)
+    t.start()
+```
+
+**Use cases:** timer alerts, background job completions, webhook receivers, messaging bridge adapters, IoT sensor events.
