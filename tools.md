@@ -221,8 +221,35 @@ RL training tools for running reinforcement learning on Tinker-Atropos. Requires
 
 | Tool | Description | Requires |
 |------|-------------|---------|
-| `web_extract` | Extract content from web page URLs. Returns page content in markdown format. Also works with PDF URLs — pass the PDF link directly and it converts to markdown text. Pages under 5000 chars return full markdown; larger pages are LLM-summarized. | `PARALLEL_API_KEY` or `FIRECRAWL_API_KEY` or `TAVILY_API_KEY` (any one) |
-| `web_search` | Search the web for information on any topic. Returns up to 5 relevant results with titles, URLs, and descriptions. | `PARALLEL_API_KEY` or `FIRECRAWL_API_KEY` or `TAVILY_API_KEY` (any one) |
+| `web_extract` | Extract content from web page URLs. Returns page content in markdown format. Also works with PDF URLs — pass the PDF link directly and it converts to markdown text. Pages under 5000 chars return full markdown; larger pages are LLM-summarized. | `PARALLEL_API_KEY` or `FIRECRAWL_API_KEY` or `TAVILY_API_KEY` or `EXA_API_KEY` (any one) |
+| `web_search` | Search the web for information on any topic. Returns up to 5 relevant results with titles, URLs, and descriptions. | `PARALLEL_API_KEY` or `FIRECRAWL_API_KEY` or `TAVILY_API_KEY` or `EXA_API_KEY` (any one) |
+
+#### Exa Search Backend (v0.6.0)
+
+Exa is an alternative web search and content extraction backend alongside Firecrawl, Parallel, and DuckDuckGo. It uses a neural/semantic search model designed for LLM use cases, returning highlighted excerpts rather than raw snippets. (PR [#3648](https://github.com/NousResearch/hermes-agent/pull/3648))
+
+**Setup:**
+
+Set the `EXA_API_KEY` environment variable in `~/.hermes/.env`:
+
+```
+EXA_API_KEY=your_key_here
+```
+
+Get a key at [exa.ai](https://exa.ai).
+
+**Select Exa as the active backend** by setting `web.backend` in `~/.hermes/config.yaml`:
+
+```yaml
+web:
+  backend: exa
+```
+
+Alternatively, run `hermes tools` and select Exa from the web backend chooser.
+
+If `web.backend` is not set, Hermes falls back to whichever key is present in the environment (priority order: firecrawl > parallel > tavily > exa). Setting `web.backend: exa` explicitly always routes to Exa regardless of which other keys are present.
+
+**What makes Exa different:** Exa's index is built for machine consumers — queries use semantic embedding rather than keyword matching, and results include highlighted text excerpts that surface the most relevant passage in each page. This tends to produce higher-quality results for precise or conceptual queries compared to keyword-based engines.
 
 ## Terminal Backends
 
@@ -296,6 +323,39 @@ modal setup
 hermes config set terminal.backend modal
 ```
 
+### Skills and Credentials on Remote Backends (v0.6.0)
+
+By default, Modal and Docker containers start bare — they have no access to the skills or credential files that exist on your local machine. v0.6.0 adds automatic mounting so remote terminal sessions have the same skills and secrets as local execution.
+
+#### Mounting skill directories (PR [#3890](https://github.com/NousResearch/hermes-agent/pull/3890))
+
+Skills stored in `~/.hermes/skills/` are uploaded into remote containers automatically at sandbox creation time. No configuration is required — Hermes detects the skills directory and mounts each file individually (symlinks are filtered out for safety).
+
+On Docker and Singularity backends the skills directory is bind-mounted. On Modal and Daytona backends, individual files are uploaded via the SDK's file-upload API.
+
+If the skills directory contains symlinks, Hermes creates a sanitized copy in a temporary directory (regular files only) and mounts that instead, logging a warning for each skipped symlink.
+
+#### Mounting credential files (PR [#3671](https://github.com/NousResearch/hermes-agent/pull/3671))
+
+Credential files (OAuth tokens, service account JSON files, etc.) are mounted as read-only copies so sandboxed code can authenticate with external services without being able to modify the host credentials.
+
+Two sources feed the credential mount registry:
+
+1. **Skill declarations** — when a skill is loaded via `skill_view`, any `required_credential_files` entries declared in its frontmatter are auto-registered if the file exists under `HERMES_HOME`.
+
+2. **User config** — list additional files explicitly in `~/.hermes/config.yaml` under `terminal.credential_files`:
+
+```yaml
+terminal:
+  credential_files:
+    - google_token.json
+    - gcloud_service_account.json
+```
+
+Each path is relative to `HERMES_HOME` (i.e. `~/.hermes/`). Files are mounted at the same relative path inside the container under `/root/.hermes/`. For example, `google_token.json` on the host becomes `/root/.hermes/google_token.json` in the container.
+
+Existence is checked at mount time with mtime+size caching — files that have not changed since the last sandbox creation are skipped to avoid unnecessary re-uploads.
+
 ## Background Process Management
 
 Start background processes and manage them:
@@ -328,7 +388,7 @@ If a command needs sudo, you will be prompted for your password (cached for the 
 
 Each tool can define a `check_fn` that returns `True` or `False`. When `check_fn` returns `False`, the tool is silently excluded from the session's tool definitions. This is how tools gate on environment variables:
 - `image_generate` gates on `FAL_KEY`
-- `web_search` / `web_extract` gate on `PARALLEL_API_KEY` or `FIRECRAWL_API_KEY` or `TAVILY_API_KEY`
+- `web_search` / `web_extract` gate on `PARALLEL_API_KEY` or `FIRECRAWL_API_KEY` or `TAVILY_API_KEY` or `EXA_API_KEY`
 - `mixture_of_agents` gates on `OPENROUTER_API_KEY`
 - `ha_*` tools gate on `HASS_TOKEN`
 - `rl_*` tools gate on `TINKER_API_KEY` and `WANDB_API_KEY`

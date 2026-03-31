@@ -483,6 +483,12 @@ MCP client config (e.g. `claude_desktop_config.json`):
 - **MCP toolset resolution for runtime and config** (PR #3252) — MCP toolsets are now properly resolved in both live sessions and static config.
 - **MCP tool name collision protection** (PR #3077) — Duplicate tool names across MCP servers are now detected and handled gracefully.
 
+### v0.6.0 (PR #3795, #3812, #3646)
+
+- **MCP Server Mode** (PR #3795) — `hermes mcp serve` now exposes the full 10-tool conversation bridge surface. See [MCP Server Mode (v0.6.0)](#mcp-server-mode-v060) below.
+- **Dynamic tool discovery** (PR #3812) — Hermes responds to `notifications/tools/list_changed` events, picking up new tools from MCP servers without reconnecting.
+- **Non-deprecated HTTP transport** (PR #3646) — switched from `sse_client` to `streamable_http_client`.
+
 ## Quickstart
 
 1. Install MCP support (included in the standard install, but can be added separately):
@@ -677,3 +683,61 @@ Prompts:
 - Disable resource and prompt wrappers when you do not want the model browsing server-provided assets.
 - Use `enabled: false` to temporarily disable a server without losing the config.
 - Reload after config changes with `/reload-mcp` — do not restart Hermes for every small config update.
+
+## MCP Server Mode (v0.6.0)
+
+Hermes itself can act as an MCP server, exposing its messaging platform sessions as tools for any MCP-compatible client (Claude Desktop, Cursor, VS Code, Codex, and others). This lets external agents browse conversations, read message history, send messages, manage approval requests, and poll for live events across all platforms connected to the Hermes gateway. (PR [#3795](https://github.com/NousResearch/hermes-agent/pull/3795))
+
+### Starting the server — stdio transport
+
+Stdio is the standard transport for local MCP clients:
+
+```bash
+hermes mcp serve
+hermes mcp serve --verbose   # enable debug logging on stderr
+```
+
+### Exposed tools
+
+The server registers ten tools that match OpenClaw's channel bridge surface, plus one Hermes-specific extra:
+
+| Tool | Description |
+|------|-------------|
+| `conversations_list` | List active conversations across all connected platforms; filter by platform name or search text |
+| `conversation_get` | Get detailed info about one conversation by session key |
+| `messages_read` | Read recent messages from a conversation in chronological order |
+| `attachments_fetch` | List non-text attachments (images, media, file blocks) for a specific message |
+| `events_poll` | Poll for new events (message, approval_requested, approval_resolved) since a cursor position |
+| `events_wait` | Long-poll — block until the next matching event arrives or a timeout expires |
+| `messages_send` | Send a message to a platform target in `platform:chat_id` format |
+| `permissions_list_open` | List pending approval requests observed during this bridge session |
+| `permissions_respond` | Respond to a pending approval with `allow-once`, `allow-always`, or `deny` |
+| `channels_list` | List all available messaging channels and send targets (Hermes-specific) |
+
+### Claude Desktop config
+
+Add Hermes to `claude_desktop_config.json`:
+
+```json
+{
+  "mcpServers": {
+    "hermes": {
+      "command": "hermes",
+      "args": ["mcp", "serve"]
+    }
+  }
+}
+```
+
+### Dynamic tool discovery
+
+Hermes responds to `notifications/tools/list_changed` events from other MCP servers, picking up newly added tools without requiring a reconnect. (PR [#3812](https://github.com/NousResearch/hermes-agent/pull/3812))
+
+### Requirements
+
+The `mcp` Python package must be installed:
+
+```bash
+cd ~/.hermes/hermes-agent
+uv pip install -e ".[mcp]"
+```
