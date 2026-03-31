@@ -357,6 +357,55 @@ The Nix wrapper uses `--suffix PATH` (not `--prefix`) so that apt/uv/npm-install
 
 ---
 
+## Method 5: Docker Container (v0.6.0)
+
+Introduced in **v0.6.0 (v2026.3.30)**. ([#3668](https://github.com/NousResearch/hermes-agent/pull/3668))
+
+The official Dockerfile builds a self-contained image based on `debian:13.4`. It installs all Python and Node.js dependencies, Playwright Chromium, and the WhatsApp bridge. The entrypoint is `docker/entrypoint.sh`, which bootstraps the config directory and then passes all arguments to `hermes`.
+
+Data is stored inside the container at `/opt/data` (`HERMES_HOME=/opt/data`). Mount a local directory to this path to persist config, memory, sessions, and skills across container restarts.
+
+The Dockerfile does not declare a fixed `EXPOSE` port — the gateway port is runtime-configurable via `API_SERVER_PORT` (default: `8642`).
+
+### Build the image
+
+From the repository root:
+
+```bash
+docker build -t hermes-agent .
+```
+
+### CLI mode
+
+Run a one-off chat session with your local `~/.hermes` config mounted:
+
+```bash
+docker run -it --rm \
+  -v ~/.hermes:/opt/data \
+  hermes-agent hermes chat
+```
+
+### Gateway mode
+
+Run the gateway as a background service:
+
+```bash
+docker run -d --name hermes-gateway \
+  -v ~/.hermes:/opt/data \
+  -p 8642:8642 \
+  hermes-agent hermes gateway start
+```
+
+This mounts your existing `~/.hermes` directory so the container reads your `config.yaml`, `.env` (API keys and bot tokens), and skills. All data written by the gateway (sessions, logs, cron) persists in `~/.hermes` on the host.
+
+### Notes
+
+- **Data persistence** — all state is stored in the volume-mounted directory. Removing the container does not affect your config or history.
+- **Podman compatible** — substitute `podman` for `docker` in every command above. No other changes are required.
+- **First run** — if `~/.hermes` does not yet exist, the entrypoint creates the directory structure and copies config templates automatically.
+
+---
+
 ## Supply Chain Note (v0.5.0)
 
 v0.5.0 includes a comprehensive supply chain audit:
