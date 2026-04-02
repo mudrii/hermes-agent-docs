@@ -1,0 +1,152 @@
+# Agent Loop Internals
+
+The core orchestration engine is `AIAgent` in `run_agent.py`. It is the single class used by all entry points -- CLI, gateway, ACP, cron, and batch runner.
+
+## Core Responsibilities
+
+`AIAgent` is responsible for:
+
+- Assembling the effective prompt and tool schemas
+- Selecting the correct provider and API mode
+- Making interruptible model calls (streaming or non-streaming)
+- Executing tool calls (sequentially or concurrently)
+- Maintaining session history in memory and in the `SessionDB`
+- Handling compression, retries, and fallback models
+- Firing platform-specific callbacks during execution
+
+## AIAgent Constructor Parameters (Selected)
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `base_url` | str | `OPENROUTER_BASE_URL` | Base URL for the model API |
+| `api_key` | str | None | API key for authentication |
+| `provider` | str | `"openrouter"` | Provider identifier |
+| `api_mode` | str | auto-detected | `"chat_completions"`, `"codex_responses"`, or `"anthropic_messages"` |
+| `model` | str | `"anthropic/claude-opus-4.6"` | Model name (OpenRouter format) |
+| `max_iterations` | int | 90 | Maximum tool-calling iterations (shared with subagents via `IterationBudget`) |
+| `tool_delay` | float | 1.0 | Delay between tool calls in seconds |
+| `stream_delta_callback` | callable | None | Callback fired with each text token during streaming |
+| `tool_progress_callback` | callable | None | Callback when a tool starts or completes |
+| `thinking_callback` | callable | None | Callback when an extended thinking block is received |
+| `reasoning_callback` | callable | None | Callback when a reasoning step completes |
+| `clarify_callback` | callable | None | Callback when user clarification is requested |
+| `step_callback` | callable | None | Callback at iteration milestones |
+| `platform` | str | None | `"cli"`, `"telegram"`, `"discord"`, etc. |
+| `session_db` | SessionDB | None | SQLite session store |
+| `iteration_budget` | IterationBudget | None | Shared budget across parent + subagents |
+| `fallback_model` | dict | None | Fallback model configuration |
+| `checkpoints_enabled` | bool | False | Enable filesystem checkpoints |
+| `pass_session_id` | bool | False | Include session ID in system prompt |
+
+## Turn Lifecycle
+
+Each call to `run_conversation()` follows this path:
+
+```
+run_conversation(user_message, stream_callback=None, ...)
+  -> generate effective task_id
+  -> reset retry counters and iteration budget
+  -> store stream_callback as self._stream_callback
+  -> append current user message to conversation history
+  -> load or build cached system prompt (assembled once, reused across turns)
+  -> maybe preflight-compress (rough token estimate before API call)
+  -> build api_messages from conversation history
+  -> inject ephemeral prompt layers (not persisted to cached system prompt)
+  -> apply prompt caching markers if appropriate (Anthropic / Claude-via-OpenRouter)
+  -> make interruptible API call:
+       if _has_stream_consumers() -> _interruptible_streaming_api_call()
+       else -> _interruptible_api_call()
+  -> parse response:
+      if tool calls -> execute them (sequential or concurrent)
+                    -> append tool results to history
+                    -> loop back to API call
+      if final text -> persist to SessionDB
+                    -> maybe_auto_title() in background thread
+                    -> cleanup
+                    -> return response to caller
+```
+
+## API Modes
+
+Hermes supports three API execution modes:
+
+| Mode | Used For |
+|------|---------|
+| `chat_completions` | OpenAI-compatible chat endpoints, OpenRouter, most custom endpoints |
+| `codex_responses` | OpenAI Codex / Responses API path |
+| `anthropic_messages` | Native Anthropic Messages API |
+
+The mode is resolved from explicit arguments, provider selection, and base URL heuristics. Detection logic in `AIAgent.__init__`:
+
+- `api_mode="codex_responses"` when provider is `openai-codex` or base URL contains `chatgpt.com/backend-api/codex`
+- `api_mode="anthropic_messages"` when provider is `anthropic`, base URL contains `api.anthropic.com`, or base URL ends in `/anthropic`
+- `api_mode="chat_completions"` for everything else
+
+## Interruptible API Calls
+
+Hermes wraps API requests so they can be interrupted from the CLI or gateway. This handles:
+
+- Long LLM calls when the user sends a new message mid-flight
+- Gateway cancellation semantics when a session resets
+- Background system cancellation during shutdown
+
+## Tool Execution Modes
+
+Two strategies are used:
+
+- **Sequential execution** -- for single tool calls or interactive tools (e.g. `clarify`)
+- **Concurrent execution** -- for multiple non-interactive tools via `ThreadPoolExecutor` (max `_MAX_TOOL_WORKERS = 8` workers)
+
+Concurrent execution is decided by `_should_parallelize_tool_batch()`, which checks:
+
+- Batch has more than 1 tool call
+- No tool is in `_NEVER_PARALLEL_TOOLS` (currently: `{"clarify"}`)
+- Every tool is either in `_PARALLEL_SAFE_TOOLS` (read-only tools like `read_file`, `search_files`, `session_search`, `web_search`, etc.) or is a `_PATH_SCOPED_TOOLS` tool (`read_file`, `write_file`, `patch`) targeting non-overlapping paths
+- All tool call arguments parse as valid JSON dicts
+
+Message and result ordering is preserved when reinserting tool responses into conversation history.
+
+## Callback Surfaces
+
+`AIAgent` supports platform-specific callbacks:
+
+| Callback | Parameter | Purpose |
+|---------|-----------|---------|
+| `tool_progress_callback` | `__init__` | Fires when a tool starts or completes |
+| `thinking_callback` | `__init__` | Fires when an extended thinking block is received |
+| `reasoning_callback` | `__init__` | Fires when a reasoning step completes |
+| `clarify_callback` | `__init__` | Fires when user clarification is requested |
+| `step_callback` | `__init__` | Fires at iteration milestones |
+| `stream_delta_callback` | `__init__` | Fires with each text token during streaming (persistent) |
+| `stream_callback` | `run_conversation()` | Per-call stream callback (stored as `_stream_callback`; used for TTS) |
+
+Both `stream_delta_callback` and `_stream_callback` are fired by `_fire_stream_delta()` for each text token. Either or both can be set independently.
+
+## Budget and Fallback Behavior
+
+Hermes tracks a shared iteration budget across parent agents and all subagents it spawns via the `IterationBudget` class. The budget is thread-safe (`threading.Lock`), supports `consume()` (returns False when exhausted), and `refund()` (for `execute_code` turns that should not count).
+
+Budget pressure hints are injected into tool results at two thresholds:
+- **70% consumed** (`_budget_caution_threshold`) -- nudge to start wrapping up
+- **90% consumed** (`_budget_warning_threshold`) -- urgent, respond now
+
+Fallback model support allows the agent to switch providers or models when the primary route fails.
+
+## Compression and Persistence
+
+Before and during long runs, Hermes may:
+
+- Flush memory before context loss
+- Compress middle conversation turns via `ContextCompressor`
+- Split the session lineage into a new session ID after compression
+- Preserve recent context and structural tool-call/result consistency
+
+## Source Files
+
+| File | Description |
+|------|-------------|
+| `run_agent.py` | `AIAgent` -- core orchestration loop |
+| `agent/prompt_builder.py` | System prompt assembly |
+| `agent/context_compressor.py` | Runtime context compression |
+| `agent/prompt_caching.py` | Anthropic cache_control markers |
+| `model_tools.py` | Tool discovery, schema building, and dispatch |

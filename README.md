@@ -41,7 +41,7 @@ Real-time token-by-token delivery in the CLI and all gateway platforms. Response
 
 ### Multi-Platform Messaging Gateway
 
-Telegram, Discord, Slack, WhatsApp, Signal, DingTalk, SMS (Twilio), Mattermost, Matrix, Webhook, Email (IMAP/SMTP), and Home Assistant -- all from a single gateway process. Six new adapters were added in v0.4.0. Unified session management, media attachments, voice transcription, and per-platform tool configuration. The gateway auto-reconnects failed platforms with exponential backoff (v0.4.0).
+Telegram, Discord, Slack, WhatsApp, Signal, DingTalk, SMS (Twilio), Mattermost, Matrix, Webhook, Email (IMAP/SMTP), Home Assistant, Feishu/Lark, and WeCom -- all from a single gateway process. Six new adapters were added in v0.4.0; Feishu/Lark and WeCom were added in v0.6.0. Unified session management, media attachments, voice transcription, and per-platform tool configuration. The gateway auto-reconnects failed platforms with exponential backoff (v0.4.0).
 
 ### Plugin Architecture (v0.3.0)
 
@@ -61,6 +61,7 @@ Use any model without code changes. Supported providers:
 - **Kilo Code** (v0.4.0) -- direct API-key provider
 - **OpenCode Zen / OpenCode Go** (v0.4.0) -- provider backends
 - **Hugging Face** (v0.5.0) -- HF Inference API with curated agentic model picker and live `/models` probe
+- **DeepSeek** -- direct API-key provider (`https://api.deepseek.com/v1`)
 - **z.ai/GLM**, **Kimi/Moonshot**, **MiniMax** -- direct API-key providers
 - **Custom endpoints** -- any OpenAI-compatible API
 
@@ -148,7 +149,7 @@ Batch trajectory generation, trajectory compression for training datasets (`traj
 
 ### Skills Ecosystem
 
-70+ bundled and optional skills across 15+ categories. Compatible with the [agentskills.io](https://agentskills.io) open standard. Skills support per-platform enable/disable, conditional activation based on tool availability, and prerequisite validation. The Skills Hub integrates with both ClawHub and skills.sh (v0.3.0).
+117 skills (74 bundled + 43 optional) across 26+ categories. Compatible with the [agentskills.io](https://agentskills.io) open standard. Skills support per-platform enable/disable, conditional activation based on tool availability, and prerequisite validation. The Skills Hub integrates with both ClawHub and skills.sh (v0.3.0).
 
 ---
 
@@ -176,7 +177,7 @@ Optional extras (install with `pip install "hermes-agent[extra]"`):
 | Extra | Contents |
 |-------|---------|
 | `messaging` | Core gateway dependencies for Telegram, Discord, Slack, and shared `aiohttp`-based adapters |
-| `voice` | Push-to-talk CLI and voice note transcription |
+| `voice` | Push-to-talk CLI and voice note transcription (faster-whisper, sounddevice) |
 | `mcp` | Model Context Protocol client |
 | `honcho` | Honcho AI user modeling |
 | `modal` / `daytona` | Serverless sandbox backends |
@@ -184,6 +185,14 @@ Optional extras (install with `pip install "hermes-agent[extra]"`):
 | `acp` | ACP IDE integration server |
 | `cron` | Cron job scheduler |
 | `tts-premium` | ElevenLabs premium TTS |
+| `slack` | Slack Bolt + SDK (standalone, without full `messaging`) |
+| `matrix` | Matrix with E2E encryption (matrix-nio) |
+| `pty` | PTY terminal backend (ptyprocess / pywinpty) |
+| `homeassistant` | Home Assistant integration (aiohttp) |
+| `sms` | SMS via Twilio (aiohttp) |
+| `dingtalk` | DingTalk enterprise messaging (dingtalk-stream) |
+| `feishu` | Feishu/Lark enterprise messaging (lark-oapi) |
+| `yc-bench` | YC-Bench evaluation harness (Python 3.12+) |
 | `all` | All of the above |
 
 ---
@@ -265,6 +274,7 @@ Hermes has two entry points: start the terminal UI with `hermes`, or run the gat
 | [configuration.md](configuration.md) | Complete config.yaml reference, env vars, precedence rules |
 | [cli-reference.md](cli-reference.md) | All CLI commands, slash commands, flags, environment variables |
 | [providers.md](providers.md) | All 17 LLM providers, credential resolution, routing, OAuth flows |
+| [profiles.md](profiles.md) | Multi-instance profiles, creation, switching, gateway per-profile (v0.6.0) |
 
 ### Features
 
@@ -285,8 +295,8 @@ Hermes has two entry points: start the terminal UI with `hermes`, or run the gat
 
 | Document | Contents |
 |----------|----------|
-| [skills.md](skills.md) | Skills system, SKILL.md format, 94 bundled + 12 optional skills catalog |
-| [tools.md](tools.md) | All 40+ built-in tools reference with parameters and toolsets |
+| [skills.md](skills.md) | Skills system, SKILL.md format, 74 bundled + 43 optional skills catalog |
+| [tools.md](tools.md) | All 49 built-in tools reference with parameters and toolsets |
 | [toolsets.md](toolsets.md) | Toolset definitions, compositions, per-platform configuration |
 | [mcp.md](mcp.md) | MCP client integration, stdio/HTTP transports, sampling, tool filtering |
 
@@ -303,7 +313,7 @@ Hermes has two entry points: start the terminal UI with `hermes`, or run the gat
 | Document | Contents |
 |----------|----------|
 | [gateway.md](gateway.md) | Gateway architecture, session management, authorization, streaming |
-| [messaging/](messaging/) | Per-platform setup guides for all 12 messaging platforms |
+| [messaging/](messaging/) | Per-platform setup guides for all 16 messaging platforms |
 | [messaging/telegram.md](messaging/telegram.md) | Telegram Bot API setup, forum topics, voice notes |
 | [messaging/discord.md](messaging/discord.md) | Discord bot setup, voice channels, threads |
 | [messaging/slack.md](messaging/slack.md) | Slack Bolt + Socket Mode setup |
@@ -314,8 +324,70 @@ Hermes has two entry points: start the terminal UI with `hermes`, or run the gat
 | [messaging/mattermost.md](messaging/mattermost.md) | Mattermost team chat |
 | [messaging/dingtalk.md](messaging/dingtalk.md) | DingTalk enterprise messaging |
 | [messaging/homeassistant.md](messaging/homeassistant.md) | Home Assistant smart home |
+| [messaging/feishu.md](messaging/feishu.md) | Feishu/Lark enterprise messaging (v0.6.0) |
+| [messaging/wecom.md](messaging/wecom.md) | WeCom enterprise messaging (v0.6.0) |
+| [messaging/webhook.md](messaging/webhook.md) | Webhook adapter |
 | [messaging/open-webui.md](messaging/open-webui.md) | Open WebUI / API server frontend |
 | [messaging/sms.md](messaging/sms.md) | SMS via Twilio |
+
+### Feature Deep Dives
+
+| Document | Contents |
+|----------|----------|
+| [features/code-execution.md](features/code-execution.md) | Sandboxed code execution, Docker/Modal/Daytona backends |
+| [features/context-references.md](features/context-references.md) | @file and @url context injection, tab completion |
+| [features/credential-pools.md](features/credential-pools.md) | Multi-key credential pooling, rotation, exhaustion tracking |
+| [features/fallback-providers.md](features/fallback-providers.md) | Provider failover chains, retry logic, health checks |
+| [features/honcho.md](features/honcho.md) | Honcho dialectic user modeling, session mapping, identity |
+| [features/image-generation.md](features/image-generation.md) | Image generation via fal.ai, DALL-E, provider routing |
+| [features/vision.md](features/vision.md) | Vision analysis, multi-modal input, image attachments |
+| [features/tts.md](features/tts.md) | Text-to-speech: Edge TTS, ElevenLabs, NeuTTS |
+| [features/personality.md](features/personality.md) | Personality system, SOUL.md, per-profile personas |
+| [features/provider-routing.md](features/provider-routing.md) | Smart model routing, prefix matching, provider detection |
+| [features/rl-training.md](features/rl-training.md) | Atropos RL integration, environments, trajectory export |
+| [features/environments.md](features/environments.md) | RL environments: WebResearchEnv, YC-Bench, OPD |
+
+### Getting Started
+
+| Document | Contents |
+|----------|----------|
+| [getting-started/quickstart.md](getting-started/quickstart.md) | First conversation in 5 minutes |
+| [getting-started/first-config.md](getting-started/first-config.md) | Initial provider and model setup |
+| [getting-started/gateway-setup.md](getting-started/gateway-setup.md) | Setting up the messaging gateway |
+
+### Developer Guide
+
+| Document | Contents |
+|----------|----------|
+| [developer-guide/architecture-deep-dive.md](developer-guide/architecture-deep-dive.md) | Detailed agent internals, call flow, state machine |
+| [developer-guide/adding-a-tool.md](developer-guide/adding-a-tool.md) | How to create a new built-in tool |
+| [developer-guide/adding-a-platform.md](developer-guide/adding-a-platform.md) | How to create a new gateway platform adapter |
+| [developer-guide/adding-a-provider.md](developer-guide/adding-a-provider.md) | How to add a new inference provider |
+| [developer-guide/adding-a-skill.md](developer-guide/adding-a-skill.md) | SKILL.md authoring guide, categories, activation |
+| [developer-guide/testing.md](developer-guide/testing.md) | Test suite, pytest markers, integration tests |
+| [developer-guide/plugin-development.md](developer-guide/plugin-development.md) | Plugin API, hooks, custom commands |
+| [developer-guide/mcp-server-development.md](developer-guide/mcp-server-development.md) | Building MCP servers for Hermes |
+| [developer-guide/acp-protocol.md](developer-guide/acp-protocol.md) | ACP wire protocol, message types, IDE integration |
+| [developer-guide/context-compression.md](developer-guide/context-compression.md) | Compression algorithm, session lineage, tuning |
+| [developer-guide/session-storage.md](developer-guide/session-storage.md) | SQLite schema, FTS5 search, session lifecycle |
+| [developer-guide/security-model.md](developer-guide/security-model.md) | Approval tiers, PII redaction, secret scanning |
+| [developer-guide/batch-trajectories.md](developer-guide/batch-trajectories.md) | Trajectory format, SFT data generation |
+| [developer-guide/nix-packaging.md](developer-guide/nix-packaging.md) | Nix flake, NixOS module, uv2nix build |
+
+### Reference
+
+| Document | Contents |
+|----------|----------|
+| [reference/config-keys.md](reference/config-keys.md) | Complete config.yaml key reference |
+| [reference/env-vars.md](reference/env-vars.md) | All environment variables |
+| [reference/slash-commands.md](reference/slash-commands.md) | Complete slash command reference |
+| [reference/tool-schemas.md](reference/tool-schemas.md) | JSON schemas for all 49 tools |
+| [reference/skill-categories.md](reference/skill-categories.md) | All skill categories and their skills |
+| [reference/gateway-events.md](reference/gateway-events.md) | Gateway event types and hook payloads |
+| [reference/sqlite-schema.md](reference/sqlite-schema.md) | Session store SQLite schema reference |
+| [reference/api-endpoints.md](reference/api-endpoints.md) | API server endpoint reference |
+| [reference/mcp-tools.md](reference/mcp-tools.md) | MCP tool naming and filtering reference |
+| [reference/provider-aliases.md](reference/provider-aliases.md) | Provider ID aliases and routing |
 
 ### Contributing
 

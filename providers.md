@@ -19,14 +19,14 @@ All providers are registered in `PROVIDER_REGISTRY` in `hermes_cli/auth.py`. The
 | `ai-gateway` | Vercel AI Gateway | API key | `https://ai-gateway.vercel.sh/v1` |
 | `zai` | Z.AI / ZhipuAI GLM | API key | `https://api.z.ai/api/paas/v4` |
 | `kimi-coding` | Kimi / Moonshot AI | API key | `https://api.moonshot.ai/v1` (or `https://api.kimi.com/coding/v1` for `sk-kimi-` keys) |
-| `minimax` | MiniMax (global) | API key | `https://api.minimax.io/v1` |
-| `minimax-cn` | MiniMax (China) | API key | `https://api.minimaxi.com/v1` |
-| `alibaba` | Alibaba Cloud (DashScope) | API key | `https://dashscope-intl.aliyuncs.com/apps/anthropic` |
+| `minimax` | MiniMax (global) | API key | `https://api.minimax.io/anthropic` |
+| `minimax-cn` | MiniMax (China) | API key | `https://api.minimaxi.com/anthropic` |
+| `alibaba` | Alibaba Cloud (DashScope) | API key | `https://dashscope-intl.aliyuncs.com/compatible-mode/v1` |
 | `deepseek` | DeepSeek | API key | `https://api.deepseek.com/v1` |
 | `kilocode` | Kilo Code | API key | `https://api.kilo.ai/api/gateway` |
 | `opencode-zen` | OpenCode Zen | API key | `https://opencode.ai/zen/v1` |
 | `opencode-go` | OpenCode Go | API key | `https://opencode.ai/zen/go/v1` |
-| `huggingface` | Hugging Face Inference API | API key | `https://api-inference.huggingface.co/v1` |
+| `huggingface` | Hugging Face Inference API | API key | `https://router.huggingface.co/v1` |
 | custom | Any OpenAI-compatible endpoint | API key | User-configured |
 
 ### Provider Aliases
@@ -427,7 +427,7 @@ hermes chat --provider minimax --model MiniMax-M2.7
 | Variable | Description |
 |----------|-------------|
 | `MINIMAX_API_KEY` | MiniMax API key -- global endpoint |
-| `MINIMAX_BASE_URL` | Override. Default: `https://api.minimax.io/v1`. |
+| `MINIMAX_BASE_URL` | Override. Default: `https://api.minimax.io/anthropic`. |
 
 **China endpoint:**
 
@@ -438,7 +438,7 @@ hermes chat --provider minimax-cn --model MiniMax-M2.7
 | Variable | Description |
 |----------|-------------|
 | `MINIMAX_CN_API_KEY` | MiniMax API key -- China endpoint |
-| `MINIMAX_CN_BASE_URL` | Override. Default: `https://api.minimaxi.com/v1`. |
+| `MINIMAX_CN_BASE_URL` | Override. Default: `https://api.minimaxi.com/anthropic`. |
 
 **Static model catalog:** `MiniMax-M2.7`, `MiniMax-M2.7-highspeed`, `MiniMax-M2.5`, `MiniMax-M2.5-highspeed`, `MiniMax-M2.1`
 
@@ -557,7 +557,7 @@ export HUGGING_FACE_HUB_TOKEN=hf_...
 |----------|-------------|
 | `HF_TOKEN` | HuggingFace API token (primary) |
 | `HUGGING_FACE_HUB_TOKEN` | Standard HF Hub token (fallback) |
-| `HF_BASE_URL` | Override Inference API base URL. Default: `https://api-inference.huggingface.co/v1`. |
+| `HF_BASE_URL` | Override Inference API base URL. Default: `https://router.huggingface.co/v1`. |
 
 **Permanent config:**
 

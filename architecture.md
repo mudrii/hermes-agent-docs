@@ -72,8 +72,8 @@ This page is the authoritative map of Hermes Agent internals, updated through v0
 +--- Optional Subsystems -----------------------------------------------+
 |  honcho_integration/ -> cross-session user modeling                   |
 |  environments/       -> RL benchmark framework                        |
-|  tools/              -> 40+ tool implementations                      |
-|  skills/             -> 70+ bundled skill documents                   |
+|  tools/              -> 49 tool implementations                       |
+|  skills/             -> 74 bundled + 43 optional skill documents      |
 +----------------------------------------------------------------------+
 ```
 
