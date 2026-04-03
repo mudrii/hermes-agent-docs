@@ -111,11 +111,15 @@ Four tools are intercepted before registry dispatch because they need agent-leve
 
 ### Async Bridging
 
-When a tool handler is async, `_run_async()` bridges it to the sync dispatch path:
+When a tool handler is async, `_run_async()` bridges it to the sync dispatch path. The bridging strategy varies depending on the calling context:
 
-- **CLI path (no running loop)** -- uses a persistent event loop to keep cached async clients alive
-- **Gateway path (running loop)** -- spins up a disposable thread with `asyncio.run()`
-- **Worker threads (parallel tools)** -- uses per-thread persistent loops stored in thread-local storage
+- **Main thread (CLI)**: uses a process-global persistent event loop. This loop is created once and reused, keeping cached async clients (e.g. aiohttp sessions, async database connections) alive across tool calls
+- **Inside a running event loop (gateway)**: cannot call `asyncio.run()` from within an existing loop. Instead, spawns a disposable thread that runs `asyncio.run()` with the coroutine. The thread is joined synchronously, so the result is returned to the caller as if it were a sync call
+- **Worker threads (parallel tools)**: each worker thread in the `ThreadPoolExecutor` gets its own persistent event loop stored in thread-local storage. This avoids contention between parallel async tool calls while still allowing client reuse within the same thread
+
+### Legacy Toolset Name Mapping
+
+The `_LEGACY_TOOLSET_MAP` dict in `model_tools.py` maps old toolset names to their current equivalents (e.g. `"code_execution"` -> `"terminal"`, `"file_tools"` -> `"files"`). This mapping is applied during toolset resolution so that older `config.yaml` files and plugin configurations continue to work. The legacy names are deprecated and may be removed in a future release -- new configurations should use the current toolset names.
 
 ## Dangerous Command Approval
 

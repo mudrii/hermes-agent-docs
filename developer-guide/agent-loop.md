@@ -132,6 +132,39 @@ Budget pressure hints are injected into tool results at two thresholds:
 
 Fallback model support allows the agent to switch providers or models when the primary route fails.
 
+## System Prompt Caching Strategy
+
+The system prompt is built once on the first `run_conversation()` call and reused for all subsequent turns in the session. This is critical for Anthropic prefix cache hits -- a stable system prompt prefix means the provider can serve cached tokens instead of reprocessing.
+
+Key behaviors:
+
+- **First turn**: `_build_system_prompt()` assembles all 10 layers (identity through platform hints) and stores the result in `self._cached_system_prompt`
+- **Subsequent turns**: the cached prompt is reused without reassembly
+- **After context compression**: the cache is invalidated and the prompt is rebuilt, because compression may alter the system message (e.g. appending the compaction note)
+- **Continuing gateway sessions**: when a gateway session is resumed, the stored system prompt is loaded from `SessionDB` (via the `system_prompt` column) rather than rebuilt from scratch. This preserves the exact prompt prefix that Anthropic has already cached, avoiding cache misses from non-deterministic elements like timestamps or changed context files
+
+## Honcho Prefetch Mechanics
+
+When Honcho integration is active, context is injected at two different points depending on the turn:
+
+- **First turn**: Honcho context is baked into the cached system prompt as a static block (layer 3). This content remains stable for the entire session, preserving cache effectiveness
+- **Later turns**: turn-specific context from Honcho is attached at API call time only via `_inject_honcho_turn_context()`. This content is injected into the current-turn user message and is NOT persisted into the cached system prompt
+
+This split ensures that turn N can consume the Honcho prefetch results from turn N-1 without destabilizing the cached system prompt prefix. The static block captures the user's cross-session profile, while the per-turn injection captures recall results specific to the current conversation flow.
+
+## Iteration Budget Semantics
+
+The default `max_iterations` is 90. The `IterationBudget` class manages how many tool-calling iterations the agent can perform.
+
+Key semantics:
+
+- **Independent subagent budgets**: subagents spawned via `delegate_task` receive their own independent `IterationBudget`. They do NOT count against the parent agent's remaining budget
+- **Thread safety**: `IterationBudget` uses a `threading.Lock` internally. `consume()` returns `False` when the budget is exhausted. `refund()` gives back iterations (used for `execute_code` turns that should not count)
+- **Budget pressure warnings**: hints are injected into tool results at two thresholds:
+  - **70% consumed** (`_budget_caution_threshold`): "You have used most of your iteration budget. Start wrapping up."
+  - **90% consumed** (`_budget_warning_threshold`): "You are almost out of iterations. Respond to the user now."
+- **Budget exhaustion**: when `consume()` returns `False`, the agent loop stops making tool calls and returns whatever response it has
+
 ## Compression and Persistence
 
 Before and during long runs, Hermes may:

@@ -73,7 +73,7 @@ This page is the authoritative map of Hermes Agent internals, updated through v0
 |  honcho_integration/ -> cross-session user modeling                   |
 |  environments/       -> RL benchmark framework                        |
 |  tools/              -> 49 tool implementations                       |
-|  skills/             -> 74 bundled + 43 optional skill documents      |
+|  skills/             -> 96 bundled + 22 optional skill documents      |
 +----------------------------------------------------------------------+
 ```
 
@@ -234,7 +234,7 @@ The threshold is tuned to 50% in v0.3.0 for more proactive compression.
 |-----------|---------|-------------|
 | `model` | required | Model name for context length lookup |
 | `threshold_percent` | `0.50` | Fraction of context window that triggers compression |
-| `protect_first_n` | `3` | Number of head messages to preserve |
+| `protect_first_n` | `10` | Number of head messages to preserve |
 | `protect_last_n` | `20` | Minimum number of recent tail messages to preserve |
 | `summary_target_ratio` | `0.20` | Fraction of the threshold budget preserved as the recent tail target |
 | `summary_model_override` | None | Force a specific model for summarization |
@@ -243,7 +243,7 @@ The threshold is tuned to 50% in v0.3.0 for more proactive compression.
 
 ```
 1. Check: does message count exceed protect_first_n + protect_last_n + 1?
-2. Set compress_start = protect_first_n (default: 3)
+2. Set compress_start = protect_first_n (default: 10)
 3. Set compress_end = n_messages - protect_last_n (default: 20, with an additional tail-budget pass)
 4. Align compress_start forward past any orphan tool results
 5. Align compress_end backward to avoid splitting tool_call/result groups
@@ -302,7 +302,7 @@ Compression can split the session into a new `session_id` while preserving ances
 | Default model | Configured auxiliary model | `google/gemini-3-flash-preview` via OpenRouter |
 | Target tokens | Context limit threshold | `target_max_tokens` (default: 15,250) |
 | Summary target | 2,500 tokens | 750 tokens |
-| Protected turns | First 3 + last 4 | First system/human/gpt/tool + last 4 |
+| Protected turns | First 10 + last 20 | First system/human/gpt/tool + last 4 |
 
 `TrajectoryCompressor` emits rich metrics (`TrajectoryMetrics`) including compression ratios and token savings.
 

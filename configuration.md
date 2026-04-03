@@ -403,9 +403,35 @@ display:
   streaming: false            # Stream tokens to terminal as they arrive
   show_cost: false            # Show $ cost in the status bar (off by default)
   skin: default               # Built-in or custom CLI skin
+  tool_progress: "new"        # Tool progress display level (see table below)
+  background_process_notifications: "all"  # Background task notification level (see table below)
+  tool_preview_length: 120    # Max characters shown in tool argument previews. Default: 120.
 ```
 
-**Tool progress** is configured via the `/verbose` slash command (cycles: off -> new -> all -> verbose).
+**`display.tool_progress`** controls how much detail is shown for tool calls. Also toggled at runtime via the `/verbose` slash command.
+
+| Value | Behavior |
+|-------|----------|
+| `"off"` | No tool progress output |
+| `"new"` (default) | Show tool name when a new tool call starts |
+| `"all"` | Show tool name and arguments for every call |
+| `"verbose"` | Show full tool call details including results |
+
+**`display.background_process_notifications`** controls notifications from `/background` tasks in the gateway.
+
+| Value | Behavior |
+|-------|----------|
+| `"all"` (default) | Notify on task start, result, and error |
+| `"result"` | Notify only on successful completion |
+| `"error"` | Notify only on errors |
+| `"off"` | Suppress all background task notifications |
+
+**`display.resume_display`** controls what is shown when resuming a session.
+
+| Value | Behavior |
+|-------|----------|
+| `"full"` (default) | Replay previous messages on resume |
+| `"minimal"` | Show a one-liner summary only |
 
 ---
 
@@ -552,6 +578,15 @@ This setting applies in CLI mode. In gateway mode (messaging platforms), approva
 command_allowlist: []         # Permanently allowed dangerous command patterns (added via "always" approval)
 ```
 
+Patterns are glob-style strings matched against the full command text. When a user selects "always allow" at an approval prompt, the matching pattern is appended to this list automatically. You can also add patterns manually:
+
+```yaml
+command_allowlist:
+  - "git push *"
+  - "docker build *"
+  - "npm publish"
+```
+
 ---
 
 ### Privacy
@@ -630,16 +665,6 @@ Activated via `/personality <name>`.
 
 ---
 
-### Prefill Messages
-
-```yaml
-prefill_messages_file: ""       # Path to JSON file of ephemeral prefill messages for few-shot priming
-```
-
-Injected at the start of every API call. Never saved to sessions, logs, or trajectories.
-
----
-
 ### Discord-Specific Config Keys
 
 ```yaml
@@ -676,8 +701,13 @@ session_reset:
 ### Group Session Isolation
 
 ```yaml
+# Root-level shorthand:
 group_sessions_per_user: true   # true = per-user isolation in groups/channels (default)
                                  # false = one shared session per chat
+
+# Or nested under session_reset:
+session_reset:
+  group_sessions_per_user: true
 ```
 
 Direct messages are unaffected. With `true`, each participant also gets their own session inside threads.
@@ -720,19 +750,127 @@ Available in CLI and all messaging platforms.
 
 ---
 
-## MCP Section
+### Prefill Messages
+
+```yaml
+prefill_messages_file: ""       # Path to JSON file of ephemeral prefill messages for few-shot priming
+```
+
+The JSON file contains an array of `{"role": "...", "content": "..."}` message objects. These are injected at the start of every API call as few-shot examples or behavioral priming. They are never saved to sessions, logs, or trajectories -- purely ephemeral.
+
+```json
+[
+  {"role": "user", "content": "What is 2+2?"},
+  {"role": "assistant", "content": "4"}
+]
+```
+
+Also settable via `HERMES_PREFILL_MESSAGES_FILE` environment variable.
+
+---
+
+### Memory Nudge and Flush
+
+```yaml
+nudge_interval: 15              # Turns between memory-save nudges. Default: 15.
+flush_min_turns: 5              # Minimum turns before automatic memory flush on compression. Default: 5.
+```
+
+**`nudge_interval`** controls how often the agent is nudged (via a system-level hint) to save important information to persistent memory. Every N turns, a reminder is injected encouraging the agent to call `memory_manage` if it has learned something worth persisting.
+
+**`flush_min_turns`** sets the minimum number of conversation turns that must have elapsed before an automatic memory flush is triggered during context compression. This prevents flushing on very short conversations where there is little worth persisting.
+
+---
+
+### Cron Wrap Response
+
+```yaml
+cron:
+  wrap_response: true             # Add header/footer wrapping to cron job output. Default: true.
+```
+
+When `true`, cron job responses delivered to messaging platforms are wrapped with a header (showing the job name and schedule) and a footer (showing execution time and next run). Set to `false` for clean, unwrapped output.
+
+---
+
+### Auxiliary Task Timeouts
+
+Individual timeout overrides per auxiliary task, in seconds. These are set inside each auxiliary task block:
+
+```yaml
+auxiliary:
+  vision:
+    timeout: 60                   # Timeout for vision tasks (default: 60)
+  web_extract:
+    timeout: 90                   # Timeout for web extraction (default: 90)
+  compression:
+    timeout: 120                  # Timeout for context compression (default: 120)
+  session_search:
+    timeout: 30                   # Timeout for session search (default: 30)
+  mcp:
+    timeout: 30                   # Timeout for MCP helper calls (default: 30)
+  flush_memories:
+    timeout: 60                   # Timeout for memory flush (default: 60)
+```
+
+Each timeout controls how long Hermes waits for the auxiliary model to respond for that specific task before giving up. These are independent of `HERMES_API_TIMEOUT`, which controls the primary LLM timeout.
+
+---
+
+### Code Execution
+
+```yaml
+execute_code:
+  timeout: 30                     # Max seconds for code execution tool. Default: 30.
+  max_tool_calls: 5               # Max sequential code executions per turn. Default: 5.
+```
+
+Controls the `execute_code` tool used for running inline code snippets. `timeout` caps individual execution time. `max_tool_calls` limits how many code blocks the agent can execute in a single conversation turn to prevent runaway loops.
+
+---
+
+## MCP Servers
 
 ```yaml
 mcp_servers:
+  # Stdio transport — launch a subprocess
   filesystem:
     command: "npx"
     args: ["-y", "@modelcontextprotocol/server-filesystem", "/home/user/docs"]
-  my-server:
+    env:                            # Extra env vars passed to the subprocess
+      MY_SERVER_VAR: "value"
+    timeout: 30                     # Per-request timeout in seconds (default: 30)
+
+  # HTTP/SSE transport — connect to a remote server
+  remote-server:
+    url: "https://mcp.example.com/sse"
+    headers:                        # Auth headers sent with every request
+      Authorization: "Bearer sk-..."
+      X-Custom-Header: "value"
+    timeout: 60
+
+  # Sampling config — let the MCP server call back to the LLM
+  sampler:
     command: "python"
     args: ["-m", "my_mcp_server"]
-    env:
-      MY_SERVER_VAR: "value"
+    sampling:
+      enabled: true                 # Allow server-initiated LLM sampling (default: false)
+      max_tokens: 4096              # Cap tokens per sampling request
+      model: ""                     # Override model for sampling (empty = inherit main model)
 ```
+
+Each server entry supports:
+
+| Key | Transport | Description |
+|-----|-----------|-------------|
+| `command` + `args` | stdio | Binary and arguments to spawn |
+| `url` | HTTP/SSE | Remote MCP endpoint URL |
+| `env` | stdio | Extra environment variables for the subprocess |
+| `headers` | HTTP/SSE | HTTP headers (typically auth tokens) |
+| `timeout` | both | Per-request timeout in seconds (default: 30) |
+| `sampling.enabled` | both | Allow the MCP server to request LLM completions (default: false) |
+| `sampling.max_tokens` | both | Cap on tokens per sampling request |
+| `sampling.model` | both | Model override for sampling calls |
 
 Use `/reload-mcp` inside a session to reload MCP servers without restarting.
 

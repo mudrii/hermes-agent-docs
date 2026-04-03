@@ -21,14 +21,14 @@ terminal:
   timeout: 180
 ```
 
-| Backend | Description | Use Case |
-|---------|-------------|----------|
-| `local` | Run on your machine (default) | Development, trusted tasks |
-| `docker` | Isolated containers | Security, reproducibility |
-| `ssh` | Remote server | Sandboxing, keep agent away from its own code |
-| `singularity` | HPC containers (Apptainer) | Cluster computing, rootless environments |
-| `modal` | Cloud execution | Serverless, scale |
-| `daytona` | Cloud sandbox workspace | Persistent remote dev environments |
+| Backend | Description | Use Case | Isolation |
+|---------|-------------|----------|-----------|
+| `local` | Run on your machine (default) | Development, trusted tasks | None |
+| `ssh` | Remote server | Sandboxing, keep agent away from its own code | Remote host |
+| `docker` | Isolated containers | Security, reproducibility | Container (namespaces, cgroups) |
+| `singularity` | HPC containers (Apptainer) | Cluster computing, rootless environments | Container (rootless) |
+| `modal` | Cloud execution | Serverless, scale | Cloud sandbox |
+| `daytona` | Cloud sandbox workspace | Persistent remote dev environments | Persistent cloud workspace |
 
 ### Docker Backend
 
@@ -42,7 +42,22 @@ terminal:
   container_persistent: true
 ```
 
-Docker containers run with security hardening: read-only root filesystem, all Linux capabilities dropped, no privilege escalation, 256-process PID limit, and full namespace isolation. Persistent workspace is provided via volumes.
+Docker containers run with security hardening by default. The following security arguments are applied:
+
+```
+--cap-drop ALL
+--security-opt no-new-privileges
+--pids-limit 256
+--read-only
+--tmpfs /tmp:rw,noexec,nosuid,size=512m
+--tmpfs /var/tmp:rw,noexec,nosuid,size=256m
+```
+
+This drops all Linux capabilities, prevents privilege escalation, limits the container to 256 processes, makes the root filesystem read-only, and provides writable tmpfs mounts for temporary files. Persistent workspace is provided via volumes.
+
+#### Docker Environment Variable Filtering
+
+By default, no host environment variables are passed into Docker containers. The container environment starts empty for security. Only variables explicitly listed in the terminal config's `env_passthrough` list or in a skill's `required_environment_variables` are injected. This prevents accidental leakage of API keys, tokens, and credentials into the sandbox.
 
 ### SSH Backend
 
@@ -80,6 +95,14 @@ hermes config set terminal.backend modal
 ### Daytona
 
 Cloud sandbox workspace with persistent remote dev environments.
+
+### Skills Directory Mounting (v0.6.0)
+
+The `~/.hermes/skills/` directory is automatically mounted (live-synced) to all remote terminal backends: Docker, Modal, SSH, Singularity, and Daytona. This ensures the agent has access to the same skills regardless of which backend is executing commands. The sync uses mtime+size caching to avoid redundant transfers -- only changed files are pushed to the remote environment.
+
+### Credential File Mounting
+
+Credential files (`~/.hermes/.env` and skill-declared environment variables) are automatically passed to Docker and Modal containers. The runtime reads the `.env` file and injects the relevant variables into the container environment so that tool calls inside the sandbox can authenticate with external services.
 
 ## Architecture
 

@@ -193,7 +193,13 @@ This became the enforced default in v0.3.0 (previously it could fall back to sha
 
 ### PII Redaction in System Prompts
 
-When `redact_pii` is enabled, the dynamic system prompt that the agent receives has user IDs and chat IDs replaced with deterministic hashes. This prevents the LLM from seeing raw phone numbers or numeric IDs. Redaction is applied only on platforms where the LLM does not need raw IDs for mentions: WhatsApp, Signal, and Telegram. Discord is excluded because its mention syntax (`<@user_id>`) requires the real user ID.
+When `redact_pii` is enabled, the dynamic system prompt that the agent receives has user IDs and chat IDs replaced with deterministic hashes. This prevents the LLM from seeing raw phone numbers or numeric IDs.
+
+Redaction uses **deterministic SHA-256 hashing** — the same raw ID always maps to the same hash, so the agent can still distinguish between users without seeing the underlying identifier. The hash is truncated to 12 hex characters for readability in prompts.
+
+**Redacted platforms:** Telegram, WhatsApp, Signal. On these platforms the LLM does not need raw IDs to compose responses.
+
+**Not redacted:** Discord and Slack. Discord's mention syntax (`<@user_id>`) requires the real user ID for the agent to @mention users. Slack uses a similar `<@MEMBER_ID>` syntax, so raw IDs are preserved there as well.
 
 ---
 
@@ -208,6 +214,21 @@ hermes gateway setup
 ```
 
 This shows which platforms are already configured, prompts for credentials, and offers to start or restart the gateway when done.
+
+### Gateway Startup Flow
+
+When `hermes gateway` starts, the runner executes the following sequence:
+
+1. **SSL certificate detection** — checks for custom TLS certificates in `{HERMES_HOME}/certs/` and configures the global SSL context if found
+2. **Environment loading** — reads `~/.hermes/.env` and merges with process environment; env vars override all config file values
+3. **Platform initialization** — iterates over all known platform adapters, checks which have valid credentials, and instantiates enabled adapters
+4. **Scoped lock acquisition** — for each platform, acquires a machine-local lock file at `{XDG_STATE_HOME}/hermes/gateway-locks/` to prevent duplicate bot token usage (see Scoped Locks below)
+5. **Session and agent setup** — loads the session index from `~/.hermes/sessions/sessions.json`, initializes `SessionDB`, and creates the `AIAgent` cache
+6. **Cron scheduler start** — starts the cron ticker (60-second interval)
+7. **Platform connect** — calls `connect()` on each enabled adapter concurrently; records per-platform state in `gateway_state.json`
+8. **Main loop** — enters the asyncio event loop, dispatching incoming events to `handle_message()` and ticking cron
+
+If any platform fails to connect, it is marked as `fatal` in `gateway_state.json` and the remaining platforms continue running.
 
 ### Running the Gateway
 

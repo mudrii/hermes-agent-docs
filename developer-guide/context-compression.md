@@ -54,7 +54,7 @@ compression:
 |-----------|---------|-------------|
 | `model` | required | Model name for context length lookup |
 | `threshold_percent` | `0.50` | Fraction of context window that triggers compression |
-| `protect_first_n` | `3` | Number of head messages to preserve (hardcoded) |
+| `protect_first_n` | `10` | Number of head messages to preserve |
 | `protect_last_n` | `20` | Minimum number of recent tail messages to preserve |
 | `summary_target_ratio` | `0.20` | Fraction of the threshold budget preserved as the recent tail target |
 | `summary_model_override` | None | Force a specific model for summarization |
@@ -88,7 +88,7 @@ This is a cheap pre-pass that saves significant tokens from verbose tool outputs
 +-------------------------------------------------------------+
 |  Message list                                               |
 |                                                             |
-|  [0..2]  <- protect_first_n (system + first exchange)       |
+|  [0..9]  <- protect_first_n (system + first exchanges)      |
 |  [3..N]  <- middle turns -> SUMMARIZED                      |
 |  [N..end] <- tail (by token budget OR protect_last_n)       |
 +-------------------------------------------------------------+
@@ -151,6 +151,14 @@ Orphaned tool_call/tool_result pairs are cleaned up by `_sanitize_tool_pairs()`:
 On subsequent compressions, the previous summary is passed to the LLM with instructions to update it rather than summarize from scratch. This preserves information across multiple compactions -- items move from "In Progress" to "Done", new progress is added, and obsolete information is removed.
 
 The `_previous_summary` field on the compressor instance stores the last summary text for this purpose.
+
+### Multi-Pass Compression
+
+For very large sessions, a single compression pass may not reduce the context enough. The compressor may iterate multiple times: after the first compression, if the resulting message list still exceeds the threshold, `compress()` is called again. Each pass summarizes the new middle region (which now includes the previous summary message) and produces a smaller message list. This continues until the context fits within the threshold or no further compression is possible (i.e., the message count is at or below `protect_first_n + protect_last_n + 1`).
+
+## Compression Activation Condition
+
+Compression activates when `len(messages) > protect_first_n + protect_last_n + 1`. With current defaults (`protect_first_n = 10`, `protect_last_n = 20`), this means compression only fires when there are more than 31 messages. Below that threshold, there is no middle region to summarize.
 
 ## Summary Generation
 
@@ -238,4 +246,4 @@ Default cache TTL is `"5m"` (5 minutes, 1.25x write cost). A `"1h"` TTL option i
 | Default model | Configured auxiliary model | `google/gemini-3-flash-preview` via OpenRouter |
 | Target tokens | Context limit threshold | `target_max_tokens` (default: 15,250) |
 | Summary target | 2,500 tokens | 750 tokens |
-| Protected turns | First 3 + last 4 | First system/human/gpt/tool + last 4 |
+| Protected turns | First 10 + last 20 | First system/human/gpt/tool + last 4 |

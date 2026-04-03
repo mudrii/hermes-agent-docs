@@ -19,7 +19,7 @@ The one-line and `setup-hermes.sh` installers detect what is missing and install
 | Dependency | Version | Purpose |
 |------------|---------|---------|
 | **uv** | latest | Fast Python package manager |
-| **Python** | 3.11 | Runtime (installed via uv, no sudo needed) |
+| **Python** | 3.11+ | Runtime (installed via uv, no sudo needed) |
 | **Node.js** | v22 LTS | Browser automation and WhatsApp bridge |
 | **ripgrep** | latest | Fast file search (falls back to grep if missing) |
 | **ffmpeg** | latest | Audio format conversion for TTS voice messages |

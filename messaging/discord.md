@@ -261,6 +261,10 @@ Use `/voice tts` to have the bot send spoken audio responses alongside text repl
 
 Hermes supports joining Discord voice channels, listening to users speaking, and responding in the channel. This requires the full voice mode setup. See the Voice Mode documentation for details.
 
+**VoiceReceiver:** The adapter includes a `VoiceReceiver` class that captures audio from voice channel participants. It decodes incoming Opus audio frames in real time, buffers them per speaker, and dispatches completed utterances to the STT pipeline for transcription. The VoiceReceiver handles speaker tracking, silence detection, and jitter buffering internally.
+
+**DAVE E2EE:** Discord's end-to-end encrypted voice protocol (DAVE) is supported. When a voice channel has E2EE enabled, the adapter negotiates the encryption handshake and decrypts incoming audio frames transparently. No additional configuration is required — E2EE support is detected and activated automatically when the voice channel uses it.
+
 ---
 
 ## Troubleshooting

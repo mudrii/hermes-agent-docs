@@ -514,3 +514,7 @@ def register(ctx):
 ```
 
 **Use cases:** timer alerts, background job completions, webhook receivers, messaging bridge adapters, IoT sensor events.
+
+## Memory Provider Plugins (Planned)
+
+Memory provider plugins are planned for a future release. The current v0.6.0 uses dual-layer memory: built-in (`MEMORY.md`/`USER.md`) and optional Honcho integration. A plugin interface for third-party memory backends (byterover, holographic, honcho-plugin, mem0, openviking, retaindb) exists on the development branch but is not yet released. See [developer-guide/memory-provider-plugin.md](developer-guide/memory-provider-plugin.md) for details.

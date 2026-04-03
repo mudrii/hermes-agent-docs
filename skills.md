@@ -1,6 +1,6 @@
 # Skills
 
-Skills are on-demand knowledge documents the agent can load when needed. They follow a **progressive disclosure** pattern to minimize token usage and are compatible with the [agentskills.io](https://agentskills.io/specification) open standard.
+Skills are on-demand knowledge documents the agent can load when needed. Hermes ships with **118 skills** (96 built-in + 22 optional) across 22 categories. They follow a **progressive disclosure** pattern to minimize token usage and are compatible with the [agentskills.io](https://agentskills.io/specification) open standard.
 
 All skills live in **`~/.hermes/skills/`** — a single directory that serves as the source of truth. On fresh install, bundled skills are copied from the repository. Hub-installed and agent-created skills also live here. The agent can modify or delete any skill.
 
@@ -24,15 +24,16 @@ Make it a **Tool** when it requires end-to-end integration with API keys, auth f
 
 Skills are discovered at startup by scanning `~/.hermes/skills/` recursively for all `SKILL.md` files. The scan excludes `.git`, `.github`, and `.hub` directories.
 
-Skills are never loaded into context automatically in bulk. Instead, the agent uses three tools in a progressive disclosure pattern:
+Skills are never loaded into context automatically in bulk. Instead, the agent uses a four-tier progressive disclosure pattern:
 
-```
-Level 0: skills_list()            -> [{name, description, category}, ...]   (~3k tokens)
-Level 1: skill_view(name)         -> Full SKILL.md content + metadata        (varies)
-Level 2: skill_view(name, path)   -> Specific reference/template/script file (varies)
-```
+| Tier | Call | Returns | Token Budget |
+|------|------|---------|-------------|
+| Tier 0 | System prompt injection | Skill names + one-line descriptions for all visible skills | ~500 tokens |
+| Tier 1 | `skills_list()` | `[{name, description, category}, ...]` for all visible skills | ~3k tokens |
+| Tier 2 | `skill_view(name)` | Full SKILL.md content + metadata | varies per skill |
+| Tier 3 | `skill_view(name, path)` | Specific reference/template/script file within the skill directory | varies per file |
 
-At level 0, the agent receives only name and description — enough to decide whether a skill is relevant. Full content is loaded only on demand at level 1. Linked files (references, templates, scripts) are loaded individually at level 2. This keeps token usage low for sessions that do not need most skills.
+At Tier 0, the system prompt includes a compact index so the agent knows which skills exist. At Tier 1, the agent gets richer descriptions and categories. Full content is loaded only on demand at Tier 2. Linked files (references, templates, scripts) are loaded individually at Tier 3. This keeps token usage low for sessions that do not need most skills.
 
 A skill is filtered out and never shown to the agent if:
 - Its `platforms` field excludes the current OS
@@ -205,6 +206,20 @@ Each path is shell-expanded (`~`, `${VAR}`) and resolved at startup. External di
 - Sharing a common skill library across multiple Hermes profiles or team members
 - Mounting skill directories into Docker or Modal containers without copying files
 - Keeping project-specific skills in a repo directory separate from personal skills
+
+## Skills Directory Mounting to Remote Backends (v0.6.0)
+
+The `~/.hermes/skills/` directory is automatically mounted and live-synced to all remote terminal backends (Docker, Modal, SSH, Singularity, Daytona). The sync uses mtime+size caching to avoid redundant transfers. This means skills that reference local helper scripts or templates work identically on remote backends -- the files are available inside the sandbox.
+
+## Preload Mode
+
+You can preload a skill into the session at startup using the `--skill` flag:
+
+```bash
+hermes -c "fine-tune Llama 3 on my dataset" --skill axolotl
+```
+
+This loads the skill content into the session prompt before the task runs, so the agent does not need to discover and load the skill itself. Multiple `--skill` flags can be combined. This is useful for one-shot commands where you already know which skill is needed.
 
 ---
 

@@ -518,7 +518,7 @@ Browse, manage, and export conversation sessions.
 | Subcommand | Description |
 |------------|-------------|
 | `list` | List recent sessions. |
-| `browse` | Interactive session picker with search and resume (curses-based). |
+| `browse` | Curses-based interactive session picker with search, filtering, and resume (v0.6.0). Navigate with arrow keys, type to search, Enter to resume. |
 | `export <output> [--session-id ID]` | Export sessions to JSONL. |
 | `delete <session-id>` | Delete one session. |
 | `prune` | Delete old sessions. |
@@ -539,6 +539,102 @@ Show token usage, cost, and activity analytics.
 |--------|-------------|
 | `--days <n>` | Analyze the last `n` days (default: 30). |
 | `--source <platform>` | Filter by source: `cli`, `telegram`, `discord`, etc. |
+
+---
+
+## `hermes auth`
+
+```bash
+hermes auth <subcommand>
+```
+
+Manage authentication credentials for providers.
+
+### Subcommands
+
+| Subcommand | Description |
+|------------|-------------|
+| `add <provider>` | Add or replace credentials for a provider. Prompts for API key or starts an OAuth flow. |
+| `list` | List all configured providers and their auth status (authenticated, expired, missing). |
+| `remove <provider>` | Remove stored credentials for a provider. |
+| `reset` | Clear all stored auth credentials and start fresh. Prompts for confirmation. |
+
+### Examples
+
+```bash
+hermes auth list                   # show all provider auth status
+hermes auth add openrouter         # add OpenRouter API key
+hermes auth add nous               # start Nous Portal OAuth flow
+hermes auth remove anthropic       # remove Anthropic credentials
+hermes auth reset                  # clear all auth (with confirmation)
+```
+
+---
+
+## `hermes plugins`
+
+```bash
+hermes plugins <subcommand>
+```
+
+Manage CLI plugins that extend Hermes with custom commands, hooks, agents, and skills.
+
+### Subcommands
+
+| Subcommand | Description |
+|------------|-------------|
+| `install <source>` | Install a plugin from a git URL, local path, or registry name. Accepts `--force` to overwrite existing. |
+| `update [name]` | Update one or all installed plugins to their latest version. |
+| `remove <name>` | Uninstall a plugin and remove its files. |
+| `list` | List all installed plugins, their status (enabled/disabled), and loaded components (commands, hooks, agents, skills). |
+| `enable <name>` | Enable a disabled plugin. |
+| `disable <name>` | Disable a plugin without removing it. |
+
+### Examples
+
+```bash
+hermes plugins list                                     # show installed plugins
+hermes plugins install https://github.com/user/my-plugin.git  # install from git
+hermes plugins install ./my-local-plugin                 # install from local path
+hermes plugins update                                    # update all plugins
+hermes plugins update my-plugin                          # update one plugin
+hermes plugins disable my-plugin                         # disable without removing
+hermes plugins enable my-plugin                          # re-enable
+hermes plugins remove my-plugin                          # uninstall
+```
+
+Plugins are stored in `~/.hermes/plugins/`. Project-local plugins in `./.hermes/plugins/` are auto-discovered when `HERMES_ENABLE_PROJECT_PLUGINS=true`.
+
+---
+
+## `hermes webhook`
+
+```bash
+hermes webhook <subcommand>
+```
+
+Manage inbound webhook subscriptions for the webhook platform adapter.
+
+### Subcommands
+
+| Subcommand | Description |
+|------------|-------------|
+| `subscribe <name> --url <callback>` | Register a new webhook route. Accepts `--secret` for per-route HMAC validation and `--events` to filter event types. |
+| `list` | List all registered webhook routes and their status. |
+| `remove <name>` | Remove a webhook subscription. |
+| `test <name>` | Send a test payload to a registered webhook route and display the response. |
+
+### Examples
+
+```bash
+hermes webhook list
+hermes webhook subscribe deploy --url https://example.com/deploy --secret s3cret
+hermes webhook subscribe alerts --url https://example.com/alerts --events error,warning
+hermes webhook test deploy
+hermes webhook remove deploy
+```
+
+Requires `WEBHOOK_ENABLED=true` and the webhook adapter running in the gateway. The listener runs on `WEBHOOK_PORT` (default: 8644).
 
 ---
 

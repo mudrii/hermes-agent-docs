@@ -97,6 +97,7 @@ The adapter polls the IMAP inbox for UNSEEN messages at a configurable interval 
   - Images (JPEG, PNG, GIF, WebP) are available to the vision tool
   - Documents (PDF, ZIP, etc.) are available for file access
 - **HTML-only emails** have tags stripped for plain text extraction
+- **Automated sender filtering** — emails from addresses matching common no-reply patterns (`noreply@`, `no-reply@`, `do-not-reply@`, `mailer-daemon@`, `postmaster@`) are automatically skipped to prevent the agent from responding to automated notifications, newsletters, and bounce messages
 - **Self-messages** are filtered out to prevent reply loops
 
 ### Sending Replies

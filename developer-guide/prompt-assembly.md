@@ -100,18 +100,57 @@ This separation keeps the stable prefix stable for caching.
 
 Local memory and user profile data are injected as frozen snapshots at session start. Mid-session writes update disk state but do not mutate the already-built system prompt until a new session or forced rebuild occurs.
 
-## Tool-Use Enforcement
+## System Prompt Layer Order
 
-GPT-family models have a tendency to describe intended actions without making tool calls. The `TOOL_USE_ENFORCEMENT_GUIDANCE` system prompt block is injected for models whose name contains `"gpt"` or `"codex"` (matched against `TOOL_USE_ENFORCEMENT_MODELS`). It instructs the model to call tools immediately rather than promising future action.
+The cached system prompt is composed of exactly 10 layers, assembled in this order:
 
-The injection behavior is controlled by `agent.tool_use_enforcement` in `config.yaml` (default: `"auto"`):
+| Layer | Source | Content |
+|-------|--------|---------|
+| 1 | `load_soul_md()` / `DEFAULT_AGENT_IDENTITY` | Agent identity |
+| 2 | `MEMORY_GUIDANCE`, `SESSION_SEARCH_GUIDANCE`, `SKILLS_GUIDANCE` | Tool-aware behavior guidance |
+| 3 | Honcho integration | Static cross-session user modeling block |
+| 4 | User-provided override | Optional system message |
+| 5 | `memory_tool.py` | Frozen MEMORY snapshot at session start |
+| 6 | User profile store | Frozen USER profile snapshot at session start |
+| 7 | `build_skills_system_prompt()` | Skills index (filtered by platform, conditions) |
+| 8 | `build_context_files_prompt()` | Context files (AGENTS.md, .cursorrules, .hermes.md, etc.) |
+| 9 | `hermes_time.now()` | Timestamp and optional session ID |
+| 10 | `PLATFORM_HINTS` dict | Platform-specific guidance |
+
+## What Is NOT in the Cached Prompt
+
+The following are intentionally excluded from the cached system prompt and injected only at API call time:
+
+- **`ephemeral_system_prompt`** -- per-call injection, not persisted
+- **Prefill messages** -- added after the message list is built
+- **Honcho turn-context** -- injected into the current-turn user message via `_inject_honcho_turn_context()`, kept out of the cached prefix to preserve cache stability
+- **Plugin turn context** -- plugin hooks that add per-turn context
+- **Gateway-derived session context overlays** -- session metadata injected by platform adapters
+
+This separation is the reason prompt caching works: the stable prefix stays identical across turns, and only the ephemeral tail changes.
+
+## Skill Conditions Evaluation
+
+Skills are filtered through multiple condition gates before inclusion in the skills index:
+
+- **Platform gates**: `skill_matches_platform()` checks whether the skill's `platforms` frontmatter list includes the current platform (e.g. a skill marked `platforms: [cli]` is excluded from Telegram sessions)
+- **Tool dependencies**: `requires_tools` in frontmatter lists tool names that must be available; `requires_toolsets` lists toolset names. The skill is excluded if any dependency is missing
+- **Fallback activation**: `fallback_for_tools` and `fallback_for_toolsets` mark a skill as a fallback -- it is only included when the specified tools/toolsets are NOT available (e.g. a "manual file editing" skill that activates only when `terminal` is disabled)
+- **Deprecated marking**: skills with `deprecated: true` in frontmatter are excluded from the index
+- **Disabled list**: skills listed in the user's `disabled_skills` config are excluded
+
+## Tool-Use Enforcement Details
+
+The `agent.tool_use_enforcement` config controls injection of `TOOL_USE_ENFORCEMENT_GUIDANCE` into the system prompt:
 
 | Value | Behavior |
 |-------|----------|
-| `"auto"` (default) | Inject for models matching `TOOL_USE_ENFORCEMENT_MODELS` |
+| `"auto"` (default) | Inject for models matching `TOOL_USE_ENFORCEMENT_MODELS` (names containing `"gpt"` or `"codex"`) |
 | `true` / `"always"` | Always inject, regardless of model |
 | `false` / `"never"` | Never inject |
 | list of strings | Inject when the model name contains any listed substring |
+
+This is enabled by default for GPT and Codex models because they have a tendency to describe intended tool use in prose rather than actually emitting tool calls.
 
 ## Why Prompt Assembly Is Split This Way
 

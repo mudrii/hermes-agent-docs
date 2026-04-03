@@ -92,6 +92,8 @@ The `browser` toolset also includes `web_search` so the agent can find URLs befo
 |------|-------------|
 | `execute_code` | Run a Python script that can call Hermes tools programmatically. Use when you need 3+ tool calls with processing logic between them, need to filter/reduce large tool outputs before they enter context, or need conditional branching. The sandbox lists which tools are available to the script. |
 
+The Python sandbox provides a restricted execution environment. Available tools inside the sandbox include `terminal()`, `read_file()`, `write_file()`, `patch()`, `search_files()`, `web_search()`, `web_extract()`, and `vision_analyze()`. API keys are stripped from the child process environment -- code running in the sandbox cannot read host API keys even if it inspects `os.environ`.
+
 ### `cronjob` toolset
 
 | Tool | Description |
@@ -102,7 +104,9 @@ The `browser` toolset also includes `web_search` so the agent can find URLs befo
 
 | Tool | Description |
 |------|-------------|
-| `delegate_task` | Spawn one or more subagents to work on tasks in isolated contexts. Each subagent gets its own conversation, terminal session, and toolset. Only the final summary is returned — intermediate tool results never enter your context window. |
+| `delegate_task` | Spawn one or more subagents to work on tasks in isolated contexts. Each subagent gets its own conversation, terminal session, and toolset. Only the final summary is returned -- intermediate tool results never enter your context window. |
+
+Delegation limits: maximum 3 concurrent subagents, maximum nesting depth of 2 (a subagent can delegate once more, but its child cannot), and each subagent is capped at 50 iterations before it must return a summary.
 
 ### `file` toolset
 
@@ -130,16 +134,36 @@ Honcho AI-native memory for persistent cross-session user modeling. Gated via ch
 
 | Tool | Description |
 |------|-------------|
-| `honcho_conclude` | Write a conclusion about the user back to Honcho's memory. Conclusions are persistent facts that build the user's profile — preferences, corrections, clarifications, project context. |
+| `honcho_conclude` | Write a conclusion about the user back to Honcho's memory. Conclusions are persistent facts that build the user's profile -- preferences, corrections, clarifications, project context. |
 | `honcho_context` | Ask Honcho a natural language question and get a synthesized answer using Honcho's LLM (dialectic reasoning). Higher cost than `honcho_profile` or `honcho_search`. Can query about any peer: the user (default), the AI assistant, or any named person. |
-| `honcho_profile` | Retrieve the user's peer card from Honcho — a curated list of key facts about them (name, role, preferences, communication style, patterns). Fast, no LLM reasoning, minimal cost. |
-| `honcho_search` | Semantic search over Honcho's stored context about the user. Returns raw excerpts ranked by relevance — no LLM synthesis. Cheaper and faster than `honcho_context`. |
+| `honcho_profile` | Retrieve the user's peer card from Honcho -- a curated list of key facts about them (name, role, preferences, communication style, patterns). Fast, no LLM reasoning, minimal cost. |
+| `honcho_search` | Semantic search over Honcho's stored context about the user. Returns raw excerpts ranked by relevance -- no LLM synthesis. Cheaper and faster than `honcho_context`. |
+
+**Activating Honcho:** To enable the four Honcho tools (`honcho_context`, `honcho_profile`, `honcho_search`, `honcho_conclude`), configure a Honcho instance in `~/.hermes/config.yaml`:
+
+```yaml
+honcho:
+  enabled: true
+  base_url: "https://api.honcho.dev"   # or self-hosted URL
+  app_name: "hermes"
+```
+
+Set `HONCHO_API_KEY` in `~/.hermes/.env`. Once configured, the Honcho check function activates and the four tools appear in the session's tool definitions. The tools are available in all platform toolsets (CLI, Telegram, Discord, etc.) as part of `_HERMES_CORE_TOOLS`.
 
 ### `image_gen` toolset
 
 | Tool | Description | Requires |
 |------|-------------|---------|
 | `image_generate` | Generate high-quality images from text prompts using FLUX 2 Pro model with automatic 2x upscaling. Returns a single upscaled image URL. | `FAL_KEY` |
+
+Supported parameters:
+
+| Parameter | Options |
+|-----------|---------|
+| **Size** | `256x256`, `512x512`, `768x768`, `1024x1024`, `1024x1792`, `1792x1024` |
+| **Format** | `png`, `webp` |
+| **Acceleration** | 3 modes (quality, balanced, speed) |
+| **Guidance scale** | Default `4.5` |
 
 ### `memory` toolset
 
@@ -160,6 +184,8 @@ Gated via check function when gateway is running.
 | Tool | Description | Requires |
 |------|-------------|---------|
 | `mixture_of_agents` | Route a hard problem through multiple frontier LLMs collaboratively. Makes 5 API calls (4 reference models + 1 aggregator) with maximum reasoning effort. Use sparingly for genuinely difficult problems: complex math, advanced algorithms, multi-step reasoning. | `OPENROUTER_API_KEY` |
+
+The four reference models are `claude-opus-4.6`, `gemini-3-pro-preview`, `gpt-5.4-pro`, and `deepseek-v3.2`. Each reference model produces an independent response, then the aggregator synthesizes them into a single answer.
 
 ### `rl` toolset
 
@@ -247,7 +273,7 @@ web:
 
 Alternatively, run `hermes tools` and select Exa from the web backend chooser.
 
-If `web.backend` is not set, Hermes falls back to whichever key is present in the environment (priority order: firecrawl > parallel > tavily > exa). Setting `web.backend: exa` explicitly always routes to Exa regardless of which other keys are present.
+If `web.backend` is not set, Hermes falls back to whichever key is present in the environment (priority order: exa > tavily > parallel > firecrawl). Setting `web.backend: exa` explicitly always routes to Exa regardless of which other keys are present.
 
 **What makes Exa different:** Exa's index is built for machine consumers — queries use semantic embedding rather than keyword matching, and results include highlighted text excerpts that surface the most relevant passage in each page. This tends to produce higher-quality results for precise or conceptual queries compared to keyword-based engines.
 

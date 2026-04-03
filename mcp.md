@@ -687,9 +687,9 @@ Prompts:
 
 Hermes itself can act as an MCP server, exposing its messaging platform sessions as tools for any MCP-compatible client (Claude Desktop, Cursor, VS Code, Codex, and others). This lets external agents browse conversations, read message history, send messages, manage approval requests, and poll for live events across all platforms connected to the Hermes gateway. (PR [#3795](https://github.com/NousResearch/hermes-agent/pull/3795))
 
-### Starting the server — stdio transport
+### Starting the server — stdio transport only
 
-Stdio is the standard transport for local MCP clients:
+MCP server mode uses **stdio transport only** (not HTTP). The server communicates over stdin/stdout, which is the standard transport for local MCP clients. Despite the HTTP transport being available for Hermes as an MCP *client*, the server mode does not expose an HTTP endpoint.
 
 ```bash
 hermes mcp serve
@@ -713,9 +713,37 @@ The server registers ten tools that match OpenClaw's channel bridge surface, plu
 | `permissions_respond` | Respond to a pending approval with `allow-once`, `allow-always`, or `deny` |
 | `channels_list` | List all available messaging channels and send targets (Hermes-specific) |
 
-### Claude Desktop config
+### MCP Client Configuration
 
-Add Hermes to `claude_desktop_config.json`:
+Add Hermes as an MCP server in any MCP-compatible client. The config format is the same across clients.
+
+**Claude Desktop** (`claude_desktop_config.json`):
+
+```json
+{
+  "mcpServers": {
+    "hermes": {
+      "command": "hermes",
+      "args": ["mcp", "serve"]
+    }
+  }
+}
+```
+
+**Cursor** (`.cursor/mcp.json` in your project or `~/.cursor/mcp.json` globally):
+
+```json
+{
+  "mcpServers": {
+    "hermes": {
+      "command": "hermes",
+      "args": ["mcp", "serve"]
+    }
+  }
+}
+```
+
+**VS Code / Continue** (`.vscode/mcp.json`):
 
 ```json
 {

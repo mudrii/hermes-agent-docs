@@ -53,7 +53,7 @@ The complete list of patterns from `tools/approval.py`:
 | `find ... -exec rm` | find -exec rm |
 | `find ... -delete` | find -delete |
 
-Container bypass: when running in `docker`, `singularity`, `modal`, or `daytona` backends, dangerous command checks are skipped because the container itself is the security boundary. Destructive commands inside a container cannot harm the host.
+Container bypass: when running in `docker`, `singularity`, `modal`, or `daytona` backends, dangerous command checks are skipped because the container itself is the security boundary. Destructive commands inside a container cannot harm the host. This assumes the container is correctly configured -- if `container_cpu`, `container_memory`, or `container_disk` limits are set too high or if `docker_forward_env` passes sensitive host credentials into the container, the isolation guarantee weakens. An agent inside a misconfigured container could exhaust host resources (if limits are not enforced by the runtime) or exfiltrate forwarded credentials. Always verify that resource limits are enforced by your container runtime and keep `docker_forward_env` empty unless specific variables are required.
 
 ### Approval Modes
 
@@ -65,7 +65,7 @@ The approval system supports three modes, configured via `approvals.mode` in `co
 | `smart` | Ask an auxiliary LLM to assess risk first; auto-approve low-risk commands, escalate to user for genuinely dangerous ones |
 | `off` | Skip all approval prompts (equivalent to `HERMES_YOLO_MODE=1`) |
 
-Smart approval uses the auxiliary LLM client to classify commands as APPROVE, DENY, or ESCALATE. Only ESCALATE falls through to the manual prompt.
+Smart approval uses the auxiliary LLM client to classify commands as APPROVE, DENY, or ESCALATE. Only ESCALATE falls through to the manual prompt. When smart mode auto-approves a command, it also grants session-level approval for subsequent identical commands -- the same pattern will not be re-evaluated by the LLM for the remainder of the session.
 
 ### Approval Flow: CLI
 
@@ -194,7 +194,7 @@ Environment variable overrides: `TIRITH_ENABLED`, `TIRITH_BIN`, `TIRITH_TIMEOUT`
 
 ### Combined Guard
 
-The `check_all_command_guards()` function in `tools/approval.py` runs both tirith and dangerous-command detection, then presents all findings as a single combined approval request. This prevents a gateway `force=True` replay from bypassing one check when only the other was shown to the user.
+The `check_all_command_guards()` function in `tools/approval.py` runs both tirith scanning and dangerous-command regex detection simultaneously. Both checks execute in parallel, and their findings are merged into a single combined approval request. If tirith flags a homograph URL and the regex matcher flags a pipe-to-shell pattern in the same command, both findings appear together in one prompt. This prevents a gateway `force=True` replay from bypassing one check when only the other was shown to the user. The combined approach also means a command cannot slip through by satisfying one guard while failing the other -- both must pass for automatic approval.
 
 ---
 
@@ -332,6 +332,8 @@ Credential search order:
   4. gh auth token  (GitHub CLI fallback, checks multiple paths including /opt/homebrew/bin/gh)
 ```
 
+**Token ambiguity note:** `GH_TOKEN` and `GITHUB_TOKEN` are commonly set for GitHub repository access (e.g., by CI systems or the `gh` CLI) rather than for Copilot/model access. If multiple GitHub-related tokens are present in the environment, the Copilot auth module may pick a repo-scoped token that lacks Copilot permissions, resulting in authentication failures. Use `COPILOT_GITHUB_TOKEN` explicitly to avoid ambiguity when other GitHub tokens are also set.
+
 Supported token types:
 
 | Token prefix | Type | Supported |
@@ -396,6 +398,9 @@ Hermes applies regex-based secret redaction across logs, tool output, and verbos
 | `pypi-*` | PyPI API tokens |
 | `dop_v1_*` / `doo_v1_*` | DigitalOcean tokens |
 | `am_*` | AgentMail API keys |
+| `elevenlabs_sk_*` | ElevenLabs API keys |
+| `tvly-*` | Tavily API keys |
+| `exa-*` | Exa API keys |
 
 **Additional redaction patterns:**
 
@@ -487,6 +492,12 @@ The following security fixes shipped across v0.4.0 and v0.5.0:
 |--------|-----|---------|
 | SSRF protection added to `browser_navigate` | [#3058](https://github.com/NousResearch/hermes-agent/pull/3058) | v0.5.0 |
 | SSRF protection added to `vision_tools` and `web_tools` | [#2679](https://github.com/NousResearch/hermes-agent/pull/2679) | v0.4.0 |
+
+### SSRF Protection
+
+The SSRF checks in `browser_navigate`, `vision_tools`, and `web_tools` resolve the target hostname and reject requests to private/internal IP ranges (RFC 1918, link-local, loopback) before the HTTP connection is made.
+
+**Known limitation -- DNS rebinding:** The SSRF pre-flight check is vulnerable to a TOCTOU (time-of-check-time-of-use) race via DNS rebinding. An attacker-controlled DNS server can return a public IP during the pre-flight resolution (passing the check), then return a private/internal IP for the actual connection by setting TTL=0 on the DNS record. This causes the subsequent HTTP request to hit an internal host despite the pre-flight passing. Mitigation: run the agent behind a DNS resolver that enforces minimum TTL (e.g., dnsmasq with `--min-cache-ttl=300`) or use container isolation so internal network access from the container is restricted at the network level.
 | Restrict subagent toolsets to parent's enabled set | [#3269](https://github.com/NousResearch/hermes-agent/pull/3269) | v0.5.0 |
 | Prevent zip-slip path traversal in self-update | [#3250](https://github.com/NousResearch/hermes-agent/pull/3250) | v0.5.0 |
 | Prevent shell injection in `_expand_path` via `~user` path suffix | [#2685](https://github.com/NousResearch/hermes-agent/pull/2685) | v0.4.0 |

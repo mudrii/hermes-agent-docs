@@ -2,6 +2,8 @@
 
 Toolsets are named bundles of tools that you can enable with `hermes chat --toolsets ...`, configure per platform, or resolve inside the agent runtime.
 
+**Toolset count:** 40 static toolsets defined in `toolsets.py` (21 core, 2 composite, 17 platform). Additional dynamic toolsets (`mcp-<server>`, plugin-provided) are generated at runtime and vary per installation.
+
 | Toolset | Kind | Resolves to |
 |---------|------|-------------|
 | `browser` | core | `browser_back`, `browser_click`, `browser_close`, `browser_console`, `browser_get_images`, `browser_navigate`, `browser_press`, `browser_scroll`, `browser_snapshot`, `browser_type`, `browser_vision`, `web_search` |

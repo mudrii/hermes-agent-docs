@@ -208,7 +208,7 @@ Dialectic queries scale reasoning effort with message complexity:
 
 The gateway creates short-lived `AIAgent` instances per request. Honcho managers are owned at the gateway session layer (`_honcho_managers` dict) so they persist across requests within the same session and flush at real session boundaries (reset, resume, expiry, server stop).
 
-Each gateway session (e.g., a Telegram chat, a Discord channel) gets its own Honcho session context. The session key -- derived from the platform and chat ID -- is threaded through the entire tool dispatch chain so that Honcho tool calls always execute against the correct session, even when multiple users are messaging concurrently.
+Each gateway session (e.g., a Telegram chat, a Discord channel) gets its own Honcho session context. The session key -- derived from the platform and chat ID -- is threaded through the entire tool dispatch chain via `set_session_context()` so that Honcho tool calls always execute against the correct session, even when multiple users are messaging concurrently. Each tool call resolves its session at invocation time via `_resolve_session_context()`, not at startup.
 
 | Event | What happens to Honcho |
 |-------|------------------------|

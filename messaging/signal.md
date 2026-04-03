@@ -179,9 +179,17 @@ Attachment size limit: 100 MB.
 
 Signal messages are limited to 8,000 characters. Longer responses are split at natural boundaries.
 
+### UUID-Based User Identification
+
+Signal assigns each account a stable UUID in addition to the phone number. The adapter prefers the UUID (`user_id_alt` in `MessageEvent`) over the phone number for session keying when available. This means sessions survive phone number changes — if a user ports their number, their conversation history follows the UUID. The `SIGNAL_ALLOWED_USERS` allowlist accepts both phone numbers (E.164 format) and UUIDs.
+
 ### Typing Indicators
 
 The bot sends typing indicators while processing messages, refreshing every 8 seconds.
+
+### Health Check Mechanism
+
+The adapter monitors the SSE connection health using a dual approach: it tracks the timestamp of the last received event, and if no activity is detected for 120 seconds, it sends a **ping request** to the signal-cli HTTP API (`/api/v1/check`) to verify the daemon is still alive. If the ping fails, the adapter tears down the SSE connection and reconnects with exponential backoff (2 seconds to 60 seconds). SSE keepalive comment lines (empty frames) are treated as valid activity to prevent false reconnects.
 
 ### Phone Number Redaction
 

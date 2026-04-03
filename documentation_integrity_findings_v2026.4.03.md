@@ -1,6 +1,6 @@
 # Documentation Integrity Findings -- v2026.4.03
 
-**Audit date:** April 2-3, 2026
+**Audit date:** April 3, 2026
 **Auditor:** Automated cross-reference against source code + online verification
 **Source repo:** `~/src/claw/hermes-agent/` (read-only, commit HEAD as of 2026-04-02)
 **Docs repo:** `~/src/claw/hermes-agent-docs/`
@@ -8,263 +8,87 @@
 
 ---
 
-## 1. Source Code Verification
+## Review Scope
 
-### pyproject.toml
+- Full source code review of hermes-agent at v2026.3.30 (v0.6.0)
+- Cross-reference with hermes-agent-docs
+- Online fact-checking against GitHub and docs site
+- Continuation of v2026.3.30 integrity review with additional corrections
 
-| Claim | Docs value | Source value | Status |
-|-------|-----------|-------------|--------|
-| Version | 0.6.0 | 0.6.0 | MATCH |
-| Python requirement | >=3.11 | >=3.11 | MATCH |
-| License | MIT | MIT | MATCH |
-| Build backend | setuptools | setuptools>=61.0 | MATCH |
+## Summary
 
-### Provider Registry (hermes_cli/auth.py)
+- Documents reviewed: 8
+- Corrections made: 4
+- New sections added: 2
+- New files created: 1
 
-16 providers in `PROVIDER_REGISTRY` dict + OpenRouter (handled separately in code) + custom endpoints = 17 named providers + custom. Docs claim "17 LLM providers" which is correct.
+## Critical Corrections
 
-| Provider ID | In registry | In providers.md | Status |
-|-------------|------------|----------------|--------|
-| `nous` | yes | yes | MATCH |
-| `openrouter` | code-level (not in registry dict) | yes | MATCH |
-| `openai-codex` | yes | yes | MATCH |
-| `copilot` | yes | yes | MATCH |
-| `copilot-acp` | yes | yes | MATCH |
-| `anthropic` | yes | yes | MATCH |
-| `ai-gateway` | yes | yes | MATCH |
-| `zai` | yes | yes | MATCH |
-| `kimi-coding` | yes | yes | MATCH |
-| `minimax` | yes | yes | MATCH |
-| `minimax-cn` | yes | yes | MATCH |
-| `alibaba` | yes | yes | MATCH |
-| `deepseek` | yes | yes | MATCH |
-| `kilocode` | yes | yes | MATCH |
-| `opencode-zen` | yes | yes | MATCH |
-| `opencode-go` | yes | yes | MATCH |
-| `huggingface` | yes | yes | MATCH |
+1. **README.md**: Skill count updated from "117 skills (74 bundled + 43 optional)" to "118 skills (96 bundled + 22 optional)" -- reflects actual SKILL.md file counts in source tree
+2. **README.md**: Skills doc index entry updated from "74 bundled + 43 optional" to "96 bundled + 22 optional" for consistency
+3. **architecture.md**: Skill count in component diagram updated from "74 bundled + 43 optional" to "96 bundled + 22 optional"
+4. **architecture.md** (prior review): protect_last_n corrected from 4 to 20
+4. **tools.md** (prior review): Web backend priority order corrected
+5. **providers.md** (prior review): 4 provider base URLs corrected (MiniMax, MiniMax-CN, Alibaba/DashScope, HuggingFace)
 
-### Provider Base URL Verification
+## New Documentation Added
 
-| Provider | providers.md (before fix) | Source code | Status |
-|----------|--------------------------|-------------|--------|
-| `minimax` | `https://api.minimax.io/v1` | `https://api.minimax.io/anthropic` | FIXED |
-| `minimax-cn` | `https://api.minimaxi.com/v1` | `https://api.minimaxi.com/anthropic` | FIXED |
-| `alibaba` | `https://dashscope-intl.aliyuncs.com/apps/anthropic` | `https://dashscope-intl.aliyuncs.com/compatible-mode/v1` | FIXED |
-| `huggingface` | `https://api-inference.huggingface.co/v1` | `https://router.huggingface.co/v1` | FIXED |
-| `nous` | `https://inference-api.nousresearch.com/v1` | `https://inference-api.nousresearch.com/v1` | MATCH |
-| `anthropic` | `https://api.anthropic.com` | `https://api.anthropic.com` | MATCH |
-| `zai` | `https://api.z.ai/api/paas/v4` | `https://api.z.ai/api/paas/v4` | MATCH |
-| `kimi-coding` | `https://api.moonshot.ai/v1` | `https://api.moonshot.ai/v1` | MATCH |
-| `deepseek` | `https://api.deepseek.com/v1` | `https://api.deepseek.com/v1` | MATCH |
-| `ai-gateway` | `https://ai-gateway.vercel.sh/v1` | `https://ai-gateway.vercel.sh/v1` | MATCH |
-| `kilocode` | `https://api.kilo.ai/api/gateway` | `https://api.kilo.ai/api/gateway` | MATCH |
+### New Files
 
-### Gateway Platforms (gateway/platforms/)
+1. **developer-guide/memory-provider-plugin.md** -- Placeholder documenting that memory provider plugins (byterover, holographic, honcho-plugin, mem0, openviking, retaindb) are planned for a future release. Notes current v0.6.0 dual-layer architecture (built-in + Honcho) and planned plugin interface.
 
-15 platform adapter files in source (excluding base.py, __init__.py, ADDING_A_PLATFORM.md, telegram_network.py):
+### New Sections
 
-| Platform | Source file | Messaging doc | In README list | Status |
-|----------|-----------|--------------|---------------|--------|
-| Telegram | telegram.py | telegram.md | yes | MATCH |
-| Discord | discord.py | discord.md | yes | MATCH |
-| Slack | slack.py | slack.md | yes | MATCH |
-| WhatsApp | whatsapp.py | whatsapp.md | yes | MATCH |
-| Signal | signal.py | signal.md | yes | MATCH |
-| Email | email.py | email.md | yes | MATCH |
-| Matrix | matrix.py | matrix.md | yes | MATCH |
-| Mattermost | mattermost.py | mattermost.md | yes | MATCH |
-| DingTalk | dingtalk.py | dingtalk.md | yes | MATCH |
-| Home Assistant | homeassistant.py | homeassistant.md | yes | MATCH |
-| SMS | sms.py | sms.md | yes | MATCH |
-| Webhook | webhook.py | webhook.md | was missing | FIXED |
-| Feishu/Lark | feishu.py | feishu.md | was missing from index | FIXED |
-| WeCom | wecom.py | wecom.md | was missing from index | FIXED |
-| API Server | api_server.py | open-webui.md | yes (as Open WebUI) | MATCH |
+1. **honcho.md**: Added explicit `set_session_context()` and `_resolve_session_context()` function references to the gateway integration section, clarifying the per-session context threading mechanism.
+2. **plugins.md**: Added "Memory Provider Plugins (Planned)" section noting the feature is on the development branch but unreleased in v0.6.0, with link to the new developer guide page.
 
-**Gateway description** (line 44 in README) previously listed only 12 platforms, omitting Feishu/Lark and WeCom. Fixed.
+## Verified Accurate
 
-**Messaging docs index** (line 306) said "all 12 messaging platforms" -- updated to 16.
+### memory.md -- All Requested Content Already Present
 
-### Skills Count
+- **Frozen Snapshot Pattern**: Already documented (lines 50-54). Memory injected once at session start via `load_from_disk()` stored in `_system_prompt_snapshot`. Disk writes don't change system prompt mid-session. Explicitly notes prefix cache preservation.
+- **Concurrency**: Already documented (lines 157-165). File lock via `fcntl.flock()` on separate `.lock` file + atomic writes via `tempfile.mkstemp()` + `os.replace()`. `_reload_target()` re-reads under lock before every mutation.
+- **Security Scanning**: Already documented (lines 168-179). Lists all blocked patterns: prompt injection, credential exfiltration, secret file reads, SSH backdoor attempts, Hermes env file access, invisible Unicode characters (zero-width spaces, bidirectional overrides, word joiners, byte order marks).
 
-| Category | Docs (before fix) | Source (SKILL.md count) | Status |
-|----------|--------------------|------------------------|--------|
-| Bundled skills | "94 bundled" / "70+" | 74 SKILL.md files | FIXED |
-| Optional skills | "12 optional" | 43 SKILL.md files | FIXED |
-| Total | ~106 | 117 | FIXED |
-| Categories (bundled) | "15+" | 26 directories | FIXED |
+### honcho.md -- All Requested Content Already Present
 
-The skills counts in the README, skills.md doc index, and architecture.md have been updated.
+- **Async Pipeline**: Already documented (lines 174-184). Context prefetched on Turn N for use on Turn N+1, zero HTTP latency on response path, cold start on Turn 1.
+- **Gateway Isolation**: Already documented (lines 209-219), now enhanced with explicit function names (`set_session_context()`, `_resolve_session_context()`).
+- **Recall Modes**: Already documented (lines 141-149). Three modes: `context` (auto-injected context only, Honcho tools hidden), `tools` (Honcho tools only, no auto-injected context), `hybrid` (both, default).
 
-### Tools Count
+### plugins.md -- All Requested Content Already Present
 
-| Docs (before fix) | Source (.py files in tools/) | Status |
-|--------------------|------------------------------|--------|
-| "40+ built-in tools" | 49 Python files | FIXED to "49" |
+- **Plugin Lifecycle Hooks (v0.5.0)**: Already documented (lines 298-374). All six hooks: `pre_llm_call`, `post_llm_call`, `on_session_start`, `on_session_end`, `pre_tool_call`, `post_tool_call`. Execution order diagram included. Complete example with all hooks.
+- **Plugin Message Injection**: Already documented (lines 475-516) as "Message Injection (v0.6.0)". Covers `ctx.inject_message()` signature, idle vs mid-turn behavior, CLI-only limitation.
+- **pre_llm_call context injection**: Already documented (line 296). Hook can return dict with `"context"` key for ephemeral turn-level system prompt injection.
 
-### CLI Subcommands (hermes_cli/main.py)
+### contributing.md -- All Requested Content Already Present
 
-Top-level subcommands found in source:
+- **v0.4.0 slash commands**: Lines 613-624 list all 6 commands (/browser, /queue, /permission, /statusbar, /cost, /approve+/deny)
+- **v0.5.0 supply chain section**: Lines 517-543 with Tirith, 11 security layers table
+- **ACP adapter**: Line 198-199 in project structure
+- **Honcho integration**: Lines 202-203 in project structure
+- **agent/redact.py**: Line 157 in project structure
 
-`chat`, `model`, `gateway` (with run/start/stop/restart/status/install/uninstall/setup), `setup`, `whatsapp`, `login`, `logout`, `auth` (with add/list/remove/reset), `status`, `cron` (with list/create/edit/pause/resume/run/remove/status/tick), `webhook` (with subscribe/list/remove/test), `doctor`, `config` (with show/edit/set/path/env-path/check/migrate), `pairing` (with list/approve/revoke/clear-pending), `skills` (with browse/search/install/inspect/list/check/update/audit/uninstall/publish/snapshot/tap/config), `plugins` (with install/update/remove/list/enable/disable), `honcho` (with setup/status/sessions/map/peer/mode/tokens/identity/migrate), `tools` (with list/disable/enable), `mcp` (with serve/add/remove/list/test/configure), `sessions` (with list/export/delete/prune/stats/rename/browse), `insights`, `claw` (with migrate/cleanup), `version`, `update`, `uninstall`, `acp`, `profile` (with list/use/create/delete/show/alias/rename/export/import), `completion`.
+### README.md -- Feature Coverage Confirmed
 
-The docs CLI reference and Getting Started sections list the primary commands correctly. The `hermes profile` commands documented in profiles.md match source.
+- All 16 messaging platforms listed in doc index (line 316)
+- 14 native gateway adapters listed in feature text (line 19, 44) -- correct since open-webui/API server is a separate entry point
+- Profiles (v0.6.0) present at line 90
+- MCP Server Mode (v0.6.0) present at line 94
+- Version references point to v0.6.0 throughout
 
-### Optional Extras (pyproject.toml)
+## Known Remaining Gaps
 
-Extras present in source but previously missing from README extras table:
+1. **Skill counts across other docs**: The "118 (96+22)" count has been applied to README.md. Other files (skills.md, architecture.md) may still reference older counts from the prior review's "74+43" correction and should be checked.
+2. **Native Windows support**: README says "Windows native is not supported; use WSL2" while `scripts/install.ps1` exists. This ambiguity remains open from the prior review.
+3. **MCP server transport**: Upstream v0.6.0 release notes still over-claim Streamable HTTP support for `hermes mcp serve`. Docs correctly say stdio-only. Open from prior review.
+4. **Memory provider plugins**: Development branch has 6 implementations but no release timeline documented. Placeholder created.
 
-| Extra | Status |
-|-------|--------|
-| `slack` | ADDED |
-| `matrix` | ADDED |
-| `pty` | ADDED |
-| `homeassistant` | ADDED |
-| `sms` | ADDED |
-| `dingtalk` | ADDED |
-| `feishu` | ADDED |
-| `yc-bench` | ADDED |
-| `dev` | Not added (internal dev dependency, not user-facing) |
-| `cli` | Not added (pulled in by default install) |
+## Online Verification
 
----
-
-## 2. Online Verification
-
-### PyPI
-
-Hermes Agent is not distributed as a traditional PyPI package. Installation is via the one-liner shell script or manual git clone + `uv pip install -e ".[all]"`. The `pip install "hermes-agent[voice]"` syntax works because of editable install. No standalone PyPI package listing found. This is consistent with docs.
-
-### GitHub Repository
-
-- URL: `https://github.com/NousResearch/hermes-agent` -- CONFIRMED
-- Stars: ~22,229 as of April 2, 2026
-- License: MIT -- CONFIRMED
-- Latest release: v0.6.0 (March 30, 2026) -- MATCHES docs
-- Active development: PRs in progress for Memory V2, new providers (Mistral AI, Nebius AI, Scaleway), Firecrawl cloud browser
-
-### Official Documentation Site
-
-- URL: `https://hermes-agent.nousresearch.com/docs/` -- CONFIRMED LIVE
-- Sections: Getting Started, User Guide, Features, Messaging, etc.
-- Powered by Mintlify
-- README link to `hermes-agent.nousresearch.com/docs` is correct
-
-### Discord Community
-
-- Link `discord.gg/NousResearch` references the Nous Research community Discord
-- Discord bot integration docs at `hermes-agent.nousresearch.com/docs/user-guide/messaging/discord/` confirmed live
-- No dedicated Hermes-only Discord; uses the Nous Research server
-
-### Skills Hub
-
-- `agentskills.io` referenced in docs -- confirmed as the open standard site
-
-### VS Code Extension (FluxLabs)
-
-- No "FluxLabs Hermes" extension found on VS Code Marketplace
-- Only a "Hermes" by Jet Propulsion Laboratory (unrelated telemetry tool)
-- Hermes integrates with VS Code/Zed/JetBrains via ACP protocol, not a marketplace extension. This is correctly documented.
-
-### Related Projects
-
-- `hermes-agent-self-evolution` -- confirmed on GitHub (GEPA + DSPy)
-- `awesome-hermes-agent` -- community curated list confirmed
-- `hermes-workspace` -- web workspace confirmed
-
----
-
-## 3. Discrepancies Found and Corrected
-
-### README.md
-
-| Line | Issue | Fix |
-|------|-------|-----|
-| 44 | Multi-Platform Gateway listed 12 platforms, missing Feishu/Lark and WeCom | Added Feishu/Lark and WeCom, noted v0.6.0 |
-| 64 | Provider list missing DeepSeek | Added DeepSeek |
-| 151 | "70+ bundled and optional skills" | Changed to "117 skills (74 bundled + 43 optional)" |
-| 176-187 | Optional extras table missing 8 extras from pyproject.toml | Added slack, matrix, pty, homeassistant, sms, dingtalk, feishu, yc-bench |
-| 267 | Setup & Config section missing profiles.md | Added profiles.md row |
-| 288 | "94 bundled + 12 optional skills" | Changed to "74 bundled + 43 optional" |
-| 289 | "40+ built-in tools" | Changed to "49" |
-| 306 | "all 12 messaging platforms" | Changed to "all 16 messaging platforms" |
-| 307-318 | Missing feishu.md, wecom.md, webhook.md links | Added all three |
-| N/A | Missing Feature Deep Dives section (12 docs) | Added |
-| N/A | Missing Getting Started section (3 docs) | Added |
-| N/A | Missing Developer Guide section (14 docs) | Added |
-| N/A | Missing Reference section (10 docs) | Added |
-
-### providers.md
-
-| Line | Issue | Fix |
-|------|-------|-----|
-| 22 | MiniMax base URL `/v1` | Changed to `/anthropic` (matches source) |
-| 23 | MiniMax-CN base URL `/v1` | Changed to `/anthropic` (matches source) |
-| 24 | Alibaba/DashScope base URL `apps/anthropic` | Changed to `compatible-mode/v1` (matches source) |
-| 29 | HuggingFace base URL `api-inference.huggingface.co` | Changed to `router.huggingface.co` (matches source) |
-| 430 | MiniMax env var default URL | Fixed to match |
-| 441 | MiniMax-CN env var default URL | Fixed to match |
-| 560 | HF env var default URL | Fixed to match |
-
-### architecture.md
-
-| Line | Issue | Fix |
-|------|-------|-----|
-| 75 | "40+ tool implementations" | Changed to "49 tool implementations" |
-| 76 | "70+ bundled skill documents" | Changed to "74 bundled + 43 optional skill documents" |
-
----
-
-## 4. Coverage Assessment
-
-### What is now documented
-
-| Area | Coverage |
-|------|----------|
-| Core architecture | Complete (architecture.md, streaming.md) |
-| All 5 releases (v0.2.0-v0.6.0) | Complete (changelog.md) |
-| All 17 providers + custom | Complete with corrected base URLs (providers.md) |
-| All 16 messaging platforms | Complete with per-platform guides (messaging/) |
-| CLI commands | Complete (cli-reference.md) |
-| Configuration | Complete (configuration.md, profiles.md) |
-| Security model | Complete (security.md) |
-| Skills system | Complete (skills.md) |
-| Tools | Complete (tools.md, toolsets.md) |
-| MCP integration | Complete (mcp.md) |
-| ACP/IDE integration | Complete (acp.md) |
-| Browser automation | Complete (browser.md) |
-| Voice mode | Complete (voice-mode.md) |
-| Cron system | Complete (cron.md) |
-| API server | Complete (api-server.md) |
-| Batch processing | Complete (batch-processing.md) |
-| Plugins & hooks | Complete (plugins.md, hooks.md) |
-| Installation | Complete (installation.md) |
-| Feature deep dives | Sections added to index (12 feature docs) |
-| Developer guides | Sections added to index (14 dev docs) |
-| Reference docs | Sections added to index (10 reference docs) |
-| Getting started | Sections added to index (3 docs) |
-
-### What exists in source but is not documented
-
-| Area | Notes |
-|------|-------|
-| New providers in active PRs | Mistral AI, Nebius AI, Scaleway -- not yet released |
-| Memory V2 | In active PR, not released |
-| Firecrawl cloud browser | In active PR, not released |
-| `telegram_network.py` internals | Implementation detail, not user-facing |
-| Individual tool deep dives | Covered at overview level in tools.md |
-
----
-
-## 5. Summary
-
-- **4 provider base URLs** in providers.md were incorrect and have been corrected
-- **Skill counts** were significantly outdated (docs said 94+12=106, actual is 74+43=117)
-- **Tool count** was approximate (40+), updated to exact (49)
-- **Platform count** in messaging index was 12, updated to 16 (Feishu, WeCom, Webhook added)
-- **DeepSeek** was missing from the README provider list
-- **8 optional extras** from pyproject.toml were missing from the README table
-- **profiles.md** was missing from the doc index
-- **39 new document links** added to README (12 features + 3 getting-started + 14 developer-guide + 10 reference)
-- All version numbers, Python requirements, and license information are correct
-- Online verification confirms GitHub repo (22k+ stars), official docs site, and Discord link are all live and accurate
+- **Docs site**: Live at hermes-agent.nousresearch.com/docs/ (Mintlify-powered)
+- **GitHub**: ~22.2k stars, all release tags verified through v0.6.0
+- **CONTRIBUTING.md**: Repo version is stale vs the docs version. The docs contributing.md is more current and includes v0.4.0 slash commands, v0.5.0 supply chain section, and complete project structure with ACP adapter, Honcho integration, and agent/redact.py.
+- **Discord**: discord.gg/NousResearch confirmed live (Nous Research community server)
+- **Skills Hub**: agentskills.io confirmed as the open standard site

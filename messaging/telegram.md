@@ -152,7 +152,7 @@ Telegram supergroups can have forum mode enabled, which creates named topics (th
 
 ### Private Chat Topics (v0.5.0)
 
-Private Chat Topics ([PR #3163](https://github.com/NousResearch/hermes-agent/pull/3163)) extend forum-style topics to any supergroup by mapping each topic to a distinct Hermes project. Each topic gets its own isolated session with its own conversation history — sending a message in topic A does not affect the session in topic B within the same group.
+Private Chat Topics ([PR #3163](https://github.com/NousResearch/hermes-agent/pull/3163)) extend forum-style topics to **any supergroup** — not just groups with Telegram's official forum mode enabled. Any supergroup with topics created (whether or not "Topics" is toggled on in group settings) can use this feature. Each topic is mapped to a distinct Hermes project with its own isolated session and conversation history — sending a message in topic A does not affect the session in topic B within the same group.
 
 **Per-topic skill binding:** You can bind a specific skill to a topic so the agent automatically loads a particular skill context when that topic is active. Configure this in `~/.hermes/gateway.json` or via `hermes gateway setup`:
 
@@ -172,6 +172,22 @@ Private Chat Topics ([PR #3163](https://github.com/NousResearch/hermes-agent/pul
 ```
 
 Keys are Telegram `thread_id` values (as strings); values are skill names.
+
+**DM Topics:** You can also enable topic-style session isolation in private (DM) chats by setting `dm_topics` in the platform extra config. When enabled, the adapter treats forwarded-topic replies in DMs as separate sessions, keyed by the topic thread ID:
+
+```json
+{
+  "platforms": {
+    "telegram": {
+      "extra": {
+        "dm_topics": true
+      }
+    }
+  }
+}
+```
+
+This is configured via `extra.dm_topics` in `gateway.json` or the equivalent `config.yaml` path.
 
 **Thread not found fallback:** If a reply targets a topic whose `thread_id` no longer exists (the topic was deleted), the adapter falls back to sending the message without a thread ID instead of raising an error ([PR #3390](https://github.com/NousResearch/hermes-agent/pull/3390)).
 

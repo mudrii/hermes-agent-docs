@@ -109,11 +109,13 @@ Select **Feishu** when prompted.
 
 ---
 
-## Connection Modes
+## Connection Modes (Dual Transport)
+
+The adapter supports two transport modes. You can switch between them without changing any other configuration.
 
 ### WebSocket (default)
 
-The adapter establishes a long-lived WebSocket connection to Feishu's servers. No public URL is required — suitable for development and private deployments.
+The adapter establishes a long-lived WebSocket connection to Feishu's servers. No public URL is required — suitable for development and private deployments. The connection auto-reconnects with exponential backoff on disconnection.
 
 ### Webhook
 
@@ -123,7 +125,7 @@ Configure the Webhook URL in the Feishu app settings to point to your public end
 
 ---
 
-## Group Mention Behavior
+## Group @mention Gating
 
 The `FEISHU_GROUP_POLICY` environment variable controls how the bot responds in group chats:
 
@@ -134,6 +136,32 @@ The `FEISHU_GROUP_POLICY` environment variable controls how the bot responds in 
 | `disabled` | Does not respond in group chats |
 
 In direct messages, `FEISHU_GROUP_POLICY` does not apply — the standard `FEISHU_ALLOWED_USERS` allowlist controls access.
+
+---
+
+## Interactive Cards
+
+When Hermes sends a message card with action buttons, button-click callbacks from Feishu are routed back to the adapter as **COMMAND events**. The button's `action_value` is extracted and dispatched to the agent as if the user had typed a slash command. This allows the agent to build multi-step interactive workflows using card buttons without any additional configuration.
+
+---
+
+## Reaction Events
+
+When a user adds an emoji reaction to a message in a Feishu chat, the adapter converts the reaction into a **synthetic text event** containing the emoji and the context of the reacted message. This lets the agent respond to reactions as if they were messages (e.g., a thumbs-up reaction could trigger a confirmation flow).
+
+Requires the `im.message.reaction.created_v1` event subscription (see Prerequisites).
+
+---
+
+## Per-Chat Serial Processing
+
+The adapter maintains an internal **queue per `chat_id`**. Messages arriving in the same chat are processed serially — the adapter waits for the current agent run to complete before dispatching the next message from that chat. Messages from different chats are processed concurrently. This prevents race conditions where two rapid messages in the same chat could trigger overlapping agent runs.
+
+---
+
+## Dedup State Persistence
+
+The adapter maintains a set of recently processed message IDs to prevent duplicate handling when Feishu retries delivery. This dedup state is **persisted to disk** at `{HERMES_HOME}/feishu_dedup.json` and reloaded on gateway restart, so messages that were already processed before a restart are not re-dispatched. Entries older than 24 hours are pruned automatically on each load.
 
 ---
 
@@ -157,7 +185,7 @@ The app must be registered on [open.larksuite.com](https://open.larksuite.com) r
 | `FEISHU_APP_ID or FEISHU_APP_SECRET not set` | Set both env vars or `app_id`/`app_secret` in config.yaml |
 | Bot not receiving group messages | Enable `im.message.group_at_msg` permission and republish the app |
 | Webhook events not arriving | Verify the callback URL is publicly reachable. Check `FEISHU_VERIFICATION_TOKEN` matches the value in the Feishu app settings. |
-| Messages deduplicated / dropped | The adapter tracks message IDs for 24 hours. Duplicate deliveries from Feishu are silently ignored. |
+| Messages deduplicated / dropped | The adapter tracks message IDs for 24 hours. Duplicate deliveries from Feishu are silently ignored. The dedup state is persisted to disk and survives gateway restarts. |
 
 ---
 

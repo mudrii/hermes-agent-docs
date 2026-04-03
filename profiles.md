@@ -204,6 +204,12 @@ User-modified skills are never overwritten.
 
 ---
 
+## Profile-aware display paths
+
+When a non-default profile is active, CLI output uses `display_hermes_home()` to show paths relative to the profile name rather than the raw filesystem path. For example, `~/.hermes/profiles/coder/config.yaml` is displayed as `[coder] config.yaml` in status output, error messages, and diagnostic commands like `hermes doctor`. This keeps output readable when working with multiple profiles.
+
+---
+
 ## How it works
 
 The profiles system intercepts `--profile`/`-p` from `sys.argv` before any module imports and sets `HERMES_HOME` to the profile's directory. Since all path resolution in the codebase goes through `get_hermes_home()`, every subsystem — config, sessions, memory, skills, state database, gateway PID, logs, cron — automatically scopes to the profile without any per-subsystem awareness.

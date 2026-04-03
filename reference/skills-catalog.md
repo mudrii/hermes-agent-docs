@@ -34,13 +34,14 @@ Skills for data science workflows -- interactive exploration, Jupyter notebooks,
 
 ## creative
 
-Creative content generation -- ASCII art, hand-drawn style diagrams, and visual design tools.
+Creative content generation -- ASCII art, hand-drawn style diagrams, visual design, and music tools.
 
 | Skill | Description | Path |
 |-------|-------------|------|
 | `ascii-art` | Generate ASCII art using pyfiglet (571 fonts), cowsay, boxes, toilet, image-to-ascii, remote APIs, and LLM fallback. No API keys required. | `creative/ascii-art` |
 | `ascii-video` | Production pipeline for ASCII art video -- any format. Converts video/audio/images/generative input into colored ASCII character video output (MP4, GIF, image sequence). | `creative/ascii-video` |
 | `excalidraw` | Create hand-drawn style diagrams using Excalidraw JSON format. Generate .excalidraw files for architecture diagrams, flowcharts, sequence diagrams, concept maps, and more. | `creative/excalidraw` |
+| `songwriting-and-ai-music` | Songwriting craft and AI music generation -- chord progressions, lyric structure, song sections, and prompting for Suno and Udio. | `creative/songwriting-and-ai-music` |
 
 ## devops
 

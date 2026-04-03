@@ -169,9 +169,49 @@ Store any HMAC secrets in `~/.hermes/.env` or directly in `config.yaml` with fil
 
 ## Dynamic Routes (Agent-Created Subscriptions)
 
-The agent can create webhook subscriptions at runtime by writing to `~/.hermes/webhook_subscriptions.json`. The adapter hot-reloads this file on each incoming request (mtime-gated, so it is cheap). Dynamic routes are merged with static routes; static routes take precedence over dynamic ones with the same name.
+The agent can create webhook subscriptions at runtime by writing to `~/.hermes/webhook_subscriptions.json`. The adapter **hot-reloads this file on each incoming request** (mtime-gated, so the filesystem stat is cheap and only a full reload happens when the file changes). Dynamic routes are merged with static routes; static routes take precedence over dynamic ones with the same name.
+
+The subscriptions file follows the same schema as static routes in `config.yaml`:
+
+```json
+{
+  "routes": {
+    "my-dynamic-route": {
+      "secret": "hmac-secret-here",
+      "events": ["push"],
+      "prompt": "New push event: {ref}",
+      "deliver": "telegram",
+      "deliver_extra": {
+        "chat_id": "-1001234567890"
+      }
+    }
+  }
+}
+```
 
 This is used internally by the `cronjob` tool when it creates webhook-triggered jobs. You do not normally need to edit this file directly.
+
+---
+
+## Rate Limiting
+
+Each route is independently rate-limited. The default is **30 requests per minute per route**, configurable via `rate_limit` at the global or per-route level. When the limit is exceeded, the adapter returns HTTP 429 with a `Retry-After` header. The rate limiter uses a sliding window algorithm so bursts within the window are permitted as long as the total does not exceed the limit.
+
+```yaml
+platforms:
+  webhook:
+    extra:
+      rate_limit: 60          # global default: 60 req/min per route
+      routes:
+        github-pr-review:
+          rate_limit: 10      # override: 10 req/min for this route
+```
+
+---
+
+## Idempotency Cache
+
+The adapter caches delivery IDs from inbound request headers (`X-GitHub-Delivery`, `X-GitLab-Event-UUID`, or `X-Request-ID`) for **1 hour**. If a webhook provider retries a delivery that was already processed, the adapter returns HTTP 200 immediately without re-running the agent. This prevents duplicate agent runs caused by transient network issues or webhook retry policies.
 
 ---
 

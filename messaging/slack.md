@@ -166,12 +166,14 @@ group_sessions_per_user: true
 unauthorized_dm_behavior: pair    # pair | ignore
 
 # Slack-specific settings (in gateway.json platforms.slack.extra or config.yaml)
-# slack:
-#   reply_broadcast: false   # Also post thread replies to the main channel
+slack:
+  reply_in_thread: true      # true (default) | false — thread replies vs flat messages
+  reply_broadcast: false     # Also post thread replies to the main channel
 ```
 
 - `group_sessions_per_user: true` controls whether multiple users in the same channel share a session or have isolated sessions
 - `reply_broadcast: false` (default) keeps replies only in the thread; set to `true` to also post the first chunk of a thread reply to the main channel (useful for visibility in busy channels)
+- `reply_in_thread: true` (default) replies in a thread attached to the user's message; set to `false` to post flat replies in the channel instead of threading
 
 ---
 
@@ -297,6 +299,14 @@ SLACK_APP_TOKEN=xapp-your-app-token
 ```
 
 Tokens from the file are merged with `SLACK_BOT_TOKEN`. Duplicate tokens are ignored automatically.
+
+### Scoped token locking
+
+Each bot token is protected by a machine-local lock file at `{XDG_STATE_HOME}/hermes/gateway-locks/` to prevent two gateway instances from using the same Slack token simultaneously. If a second gateway attempts to start with a token already locked, it logs an error and refuses to connect that workspace.
+
+### Team-aware client routing
+
+When multiple workspaces are connected, the adapter maintains a **team-to-client mapping**. Each inbound Socket Mode event includes a `team_id`; the adapter resolves the correct `WebClient` for that team before sending any API call. This ensures replies, file uploads, and reactions always target the correct workspace.
 
 PR [#3903](https://github.com/NousResearch/hermes-agent/pull/3903)
 

@@ -61,10 +61,11 @@ For native Anthropic auth, Hermes prefers Claude Code's own credential files whe
 | `HERMES_PORTAL_BASE_URL` | Override Nous Portal URL (for development/testing) |
 | `NOUS_INFERENCE_BASE_URL` | Override Nous inference API URL |
 | `HERMES_NOUS_MIN_KEY_TTL_SECONDS` | Min agent key TTL before re-mint (default: 1800 = 30min) |
-| `HERMES_NOUS_TIMEOUT_SECONDS` | HTTP timeout for Nous credential / token flows |
+| `HERMES_NOUS_TIMEOUT_SECONDS` | HTTP timeout for Nous credential / token flows (default: 15) |
 | `HERMES_DUMP_REQUESTS` | Dump API request payloads to log files (`true`/`false`) |
 | `HERMES_PREFILL_MESSAGES_FILE` | Path to a JSON file of ephemeral prefill messages injected at API-call time |
 | `HERMES_TIMEZONE` | IANA timezone override (for example `America/New_York`) |
+| `HERMES_OAUTH_TRACE` | Enable verbose OAuth tracing for debugging auth flows. Values: `1`/`true`/`yes`/`on`. |
 
 ## Tool APIs
 
@@ -240,6 +241,12 @@ For cloud sandbox backends, persistence is filesystem-oriented. `TERMINAL_LIFETI
 | `GATEWAY_ALLOWED_USERS` | Comma-separated user IDs allowed across all platforms |
 | `GATEWAY_ALLOW_ALL_USERS` | Allow all users without allowlists (`true`/`false`, default: `false`) |
 
+## Deployment and System
+
+| Variable | Description |
+|----------|-------------|
+| `HERMES_MANAGED` | Set to `true` when Hermes is managed declaratively (e.g. NixOS module). Disables self-update commands and skips file-level config migration prompts that would conflict with the declarative config. |
+
 ## Agent Behavior
 
 | Variable | Description |
@@ -250,11 +257,11 @@ For cloud sandbox backends, persistence is filesystem-oriented. `TERMINAL_LIFETI
 | `HERMES_HUMAN_DELAY_MODE` | Response pacing: `off`/`natural`/`custom` |
 | `HERMES_HUMAN_DELAY_MIN_MS` | Custom delay range minimum (ms) |
 | `HERMES_HUMAN_DELAY_MAX_MS` | Custom delay range maximum (ms) |
-| `HERMES_QUIET` | Suppress non-essential output (`true`/`false`) |
+| `HERMES_QUIET` | Suppress non-essential output (`true`/`false`). Hides the startup banner, tool progress, and other decorative CLI output. Useful for scripted/programmatic usage. |
 | `HERMES_API_TIMEOUT` | LLM API call timeout in seconds (default: `900`) |
 | `HERMES_EXEC_ASK` | Enable execution approval prompts in gateway mode (`true`/`false`) |
-| `HERMES_ENABLE_PROJECT_PLUGINS` | Enable auto-discovery of repo-local plugins from `./.hermes/plugins/` (`true`/`false`, default: `false`) |
-| `HERMES_BACKGROUND_NOTIFICATIONS` | Background process notification mode in gateway: `all` (default), `result`, `error`, `off` |
+| `HERMES_ENABLE_PROJECT_PLUGINS` | Enable auto-discovery of repo-local plugins from `./.hermes/plugins/` (`true`/`false`, default: `false`). When enabled, plugins found in the current working directory's `.hermes/plugins/` are loaded alongside global plugins. |
+| `HERMES_BACKGROUND_NOTIFICATIONS` | Background process notification mode in gateway: `all` (default), `result`, `error`, `off`. Controls notifications from `/background` tasks delivered to messaging platforms. |
 | `HERMES_EPHEMERAL_SYSTEM_PROMPT` | Ephemeral system prompt injected at API-call time (never persisted to sessions) |
 
 ## Session Settings

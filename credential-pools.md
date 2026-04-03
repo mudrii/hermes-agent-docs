@@ -124,6 +124,14 @@ The pool handles different errors differently:
 
 The `has_retried_429` flag resets on every successful API call, so a single transient 429 doesn't trigger rotation.
 
+### Cooldown Persistence
+
+Cooldown state (which keys are exhausted and when they recover) persists across process restarts. Pool state -- including cooldown timestamps, request counts, and exhaustion markers -- is stored in `~/.hermes/auth.json`. When Hermes starts, it loads this state and respects existing cooldowns. A key placed on a 24-hour billing cooldown will remain on cooldown even if you restart the agent.
+
+### Concurrent Pool Updates
+
+During fallback provider rotations, pool state updates are serialized via the threading lock. If one session triggers a 429 and rotates the pool while another session is mid-request with the same key, the second session will see the rotation on its next `select()` call. The pool does not preempt in-flight requests -- a rotation only affects the next key selection. This means two sessions may briefly use a key that has already been marked as rate-limited, but the second session will rotate on its own 429.
+
 ## Custom Endpoint Pools
 
 Custom OpenAI-compatible endpoints (Together.ai, RunPod, local servers) get their own pools, keyed by the endpoint name from `custom_providers` in config.yaml.

@@ -249,9 +249,11 @@ When E2EE is enabled, Hermes:
 - Decrypts incoming messages and encrypts outgoing messages automatically
 - Auto-joins encrypted rooms when invited
 
-If `matrix-nio[e2e]` is not installed or `libolm` is missing, the bot falls back to a plain (unencrypted) client automatically with a warning in the logs.
+**Store directory:** The encryption store is located at `~/.hermes/matrix/store/`. This directory contains the Olm/Megolm session keys, device keys, and room key backups. Back up this directory if you need to migrate the bot to another machine. Do not delete it — the bot loses its encryption keys and you will need to verify the device again in your Matrix client.
 
-Do not delete the `~/.hermes/matrix/store/` directory — the bot loses its encryption keys and you will need to verify the device again in your Matrix client.
+**Sync grace period:** On first startup with E2EE enabled, the adapter performs an **initial sync** that may take several seconds depending on the number of joined rooms. During this grace period, incoming messages are buffered and not processed until the sync completes and all room keys are loaded. This prevents "unable to decrypt" errors on messages that arrive before the key exchange finishes.
+
+If `matrix-nio[e2e]` is not installed or `libolm` is missing, the bot falls back to a plain (unencrypted) client automatically with a warning in the logs.
 
 ### Access-Token Hardening (v0.5.0)
 

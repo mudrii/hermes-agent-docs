@@ -111,6 +111,49 @@ hermes gateway install      # Install as a user service
 
 Per-group `allow_from` lists let you restrict which users can trigger the bot within specific groups, even when `group_policy` is `open`.
 
+### Per-Group User Restrictions
+
+Within the `groups` config block, each group can define its own `allow_from` list of user IDs. Only those users can trigger the bot in that specific group, regardless of the global `group_policy`:
+
+```yaml
+groups:
+  group_id_1:
+    allow_from:
+      - "user_id_1"
+      - "user_id_2"
+  group_id_2:
+    allow_from:
+      - "user_id_3"
+```
+
+---
+
+## AI Bot WebSocket Transport
+
+The adapter connects outbound to WeCom's AI Bot WebSocket gateway — no public URL, callback endpoint, or firewall rule is required. The connection is initiated by Hermes, so the bot works behind NAT, firewalls, and private networks without any tunnel or port forwarding.
+
+### Heartbeat
+
+The adapter sends a WebSocket **ping frame every 30 seconds** to keep the connection alive. If no pong is received within the timeout window, the connection is considered dead and the adapter reconnects with exponential backoff.
+
+---
+
+## Media Limits
+
+| Media type | Maximum size |
+|------------|-------------|
+| Images | 10 MB |
+| Video | 10 MB |
+| Voice | 2 MB |
+
+Files exceeding these limits are rejected by the WeCom API. The adapter checks file size before uploading and logs a warning if the limit is exceeded.
+
+---
+
+## Deduplication
+
+The adapter maintains an in-memory dedup cache to prevent processing the same message twice (WeCom may retry delivery on transient failures). The cache uses a **300-second (5-minute) window** with a maximum of **1,000 entries**. When the cache reaches capacity, the oldest entries are evicted. Message IDs that appear in the cache within the window are silently dropped.
+
 ---
 
 ## Troubleshooting

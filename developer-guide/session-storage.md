@@ -207,6 +207,38 @@ Results include a snippet (40 tokens, delimited by `>>>` and `<<<`), surrounding
 
 Sessions form chains via `parent_session_id`. This happens when context compression triggers a session split in the gateway.
 
+## Schema v6: Reasoning Persistence
+
+Schema v6 was introduced in v0.5.0 ([#2974](https://github.com/NousResearch/hermes-agent/pull/2974)) to persist reasoning data across gateway session turns.
+
+### New Columns
+
+| Column | Type | Purpose |
+|--------|------|---------|
+| `reasoning` | TEXT | Raw reasoning text extracted from `<think>` blocks or native reasoning fields |
+| `reasoning_details` | TEXT | JSON serialized structured reasoning detail objects (e.g. Anthropic's `thinking` content blocks) |
+| `codex_reasoning_items` | TEXT | JSON serialized Codex reasoning items for Responses API sessions |
+
+### Why These Columns Exist
+
+Providers that replay reasoning across turns (OpenRouter, OpenAI Responses API, Nous Portal) need the reasoning content to be available when the conversation is restored. Prior to v6, reasoning was only available during the current turn's streaming callbacks and was discarded before persistence. The gateway's session restore path now reads these columns back, allowing multi-turn sessions to retain and replay reasoning context across connection resets.
+
+### Write Contention Details
+
+Multiple hermes processes (gateway + CLI sessions + worktree agents) share one `state.db`. The `SessionDB` class handles write contention with:
+
+- **BEGIN IMMEDIATE** transactions to surface lock contention at transaction start rather than at commit time
+- **Application-level retry** with random jitter (20-150ms, up to 15 retries)
+- **Short SQLite timeout** (1 second) instead of the default 30s, so retries happen quickly
+- **PASSIVE WAL checkpoint** every 50 successful writes (`_CHECKPOINT_EVERY_N_WRITES = 50`), keeping the WAL file from growing unbounded
+
+```
+_WRITE_MAX_RETRIES = 15
+_WRITE_RETRY_MIN_S = 0.020   # 20ms
+_WRITE_RETRY_MAX_S = 0.150   # 150ms
+_CHECKPOINT_EVERY_N_WRITES = 50
+```
+
 ## Database Location
 
 Default path: `~/.hermes/state.db`

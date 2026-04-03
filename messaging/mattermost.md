@@ -189,6 +189,29 @@ The `MATTERMOST_REPLY_MODE` setting controls how Hermes posts responses:
 | `off` (default) | Hermes posts flat messages in the channel, like a normal user |
 | `thread` | Hermes replies in a thread under your original message. Keeps channels clean. |
 
+Set via environment variable or `config.yaml`:
+
+```bash
+MATTERMOST_REPLY_MODE=thread
+```
+
+```yaml
+mattermost:
+  reply_mode: thread    # thread | off
+```
+
+---
+
+## Deduplication Cache
+
+The adapter maintains an in-memory dedup cache of recently processed message IDs. If the Mattermost server delivers the same WebSocket event twice (which can happen during reconnection), the duplicate is silently dropped. The cache is bounded and entries are evicted after a configurable TTL.
+
+---
+
+## Reconnection Backoff
+
+When the WebSocket connection to the Mattermost server drops, the adapter reconnects automatically with **exponential backoff** starting at 2 seconds and capping at 60 seconds. Each consecutive failure doubles the delay. A successful reconnection resets the backoff timer. During reconnection, pending outbound messages are queued and delivered once the connection is re-established.
+
 ---
 
 ## Troubleshooting
