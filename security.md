@@ -17,6 +17,8 @@ The security model has six layers:
 
 Each layer is independent. Enabling container isolation does not disable the other layers unless explicitly configured (the approval check is skipped when running in a container because the container is itself the security boundary).
 
+Released v0.7.0 extends the existing layers with stronger secret-exfiltration checks in browser and tool surfaces, broader protected credential directories, and secret redaction for `execute_code` sandbox output.
+
 ---
 
 ## Dangerous Command Approval
@@ -294,6 +296,19 @@ Pairing data is stored in `~/.hermes/pairing/` with per-platform JSON files:
 - `{platform}-pending.json` -- pending pairing requests
 - `{platform}-approved.json` -- approved users
 - `_rate_limits.json` -- rate limit and lockout tracking
+
+---
+
+## Secret Exfiltration Hardening (v0.7.0)
+
+Released v0.7.0 adds several concrete protections on top of the existing redaction and approval model:
+
+- **Browser URL exfiltration blocking** -- browser navigation rejects URLs that embed apparent secrets or encoded secret material
+- **`execute_code` output redaction** -- sandbox output is scrubbed before it is surfaced back to the model
+- **Expanded protected directories** -- file/context guards now explicitly cover `.docker`, `.azure`, and `.config/gh` in addition to earlier sensitive locations
+- **Broader token patterns** -- GitHub OAuth-style tokens and related credential patterns are redacted more consistently
+
+These protections are additive. They do not replace approval prompts, tirith scanning, or container isolation.
 
 ---
 

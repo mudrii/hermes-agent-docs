@@ -2,7 +2,73 @@
 
 All notable changes to Hermes Agent are documented here.
 
-**Current stable release: v0.6.0** (v2026.3.30, March 30, 2026)
+**Current stable release: v0.7.0** (v2026.4.3, April 3, 2026)
+
+---
+
+## v0.7.0 -- April 3, 2026
+
+> The resilience release -- pluggable memory providers, same-provider credential pools, Camofox anti-detection browser support, inline diff previews, API session continuity, gateway hardening, and deep security fixes across 168 PRs and 46 resolved issues.
+
+### Highlights
+
+- **Pluggable memory providers** -- released `MemoryProvider` interface with a built-in provider plus one optional external provider, including Honcho parity and additional provider plugins
+- **Same-provider credential pools** -- rotate among multiple credentials for the same provider with `least_used` selection, 401 refresh-and-rotate behavior, and preserved pool state through fallback routing
+- **Camofox browser backend** -- local anti-detection browser mode via `CAMOFOX_URL`, with persistent sessions and VNC URL discovery
+- **Inline diff previews** -- file writes and patches now emit inline diffs in the activity feed
+- **API server session continuity** -- `/v1/chat/completions` now supports optional continuity via `X-Hermes-Session-Id`; `/v1/responses` persists chained responses in the shared SessionDB
+- **ACP client-provided MCP servers** -- editor integrations can pass their own MCP servers through ACP so Hermes exposes them as additional tools
+- **Gateway hardening** -- approval routing, stuck-session handling, webhook behavior, Discord approvals, and multi-platform reliability all improved
+- **Secret exfiltration blocking** -- browser URLs and tool outputs are scanned more aggressively, and additional credential directories are protected
+
+### Core Agent & Architecture
+
+- Released `MemoryProvider` ABC and `MemoryManager` orchestration for built-in memory plus one external provider
+- Honcho restored as the reference memory-provider plugin with profile-scoped host and peer resolution
+- Same-provider credential pools now support `least_used`, preserved pool state through smart routing, provider reset-window handling, and per-turn primary runtime restoration
+- New `developer` role guidance for GPT-5/Codex models
+- Improved Anthropic long-context 429 handling, provider recovery, and thinking-block preservation across tool turns
+- Context-exceeded errors now include clearer guidance, and compression death-spiral handling was hardened
+
+### Messaging Platforms
+
+**Gateway core:** `/approve` and `/deny` route correctly while an agent is blocked on approval; resumed agents keep the pending tool result instead of losing it.
+
+**Discord:** Button-based approval UI, configurable `discord.reactions`, and unauthorized-user reaction/thread suppression.
+
+**Slack:** `slack.reply_in_thread` config support for threaded replies.
+
+**WhatsApp:** Group-chat `require_mention` enforcement.
+
+**Webhook:** Home-channel prompt skipped and tool-progress output disabled for webhook adapters.
+
+**API server / Open WebUI:** Streaming tool progress and persistent session continuity via `X-Hermes-Session-Id`.
+
+### Tool System
+
+- **Browser:** Camofox local backend, local-backend SSRF bypass, `browser.allow_private_urls`, and VNC discovery
+- **File operations:** inline diffs, stale-file detection on write/patch, and refreshed staleness tracking after edits
+- **ACP:** client-provided MCP servers from editors are exposed as Hermes tools
+- **Skills:** `research-paper-writing` replaces `ml-paper-writing`, and the docs site gained a skills browse/search page
+
+### Security
+
+- Block secret exfiltration through browser URLs and model-visible tool output
+- Redact secrets from `execute_code` sandbox output
+- Protect additional credential directories: `.docker`, `.azure`, `.config/gh`
+- Add GitHub OAuth token patterns and related redaction improvements
+- Preserve existing tirith, approval, container, and prompt-injection defenses
+
+### Documentation
+
+- Public docs now cover released memory providers, credential pools, Camofox browser mode, and API/Open WebUI tool-progress streaming
+- This docs repo was updated in the `v2026.4.3` audit pass to correct stale version surfaces and fill remaining release-critical gaps
+
+### Contributors
+
+**Core:** @teknium1 -- 168 PRs across the release window.
+
+**Full Changelog:** [v2026.3.30...v2026.4.3](https://github.com/NousResearch/hermes-agent/compare/v2026.3.30...v2026.4.3)
 
 ---
 

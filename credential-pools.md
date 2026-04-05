@@ -2,9 +2,16 @@
 
 Credential pools let you register multiple API keys or OAuth tokens for the same provider. When one key hits a rate limit or billing quota, Hermes automatically rotates to the next healthy key -- keeping your session alive without switching providers.
 
-Added in v0.5.0. Implemented in `agent/credential_pool.py`.
+Added in v0.5.0 and significantly expanded in v0.7.0. Implemented in `agent/credential_pool.py`.
 
 This is different from [fallback providers](./fallback-providers.md), which switch to a *different* provider entirely. Credential pools are same-provider rotation; fallback providers are cross-provider failover. Pools are tried first -- if all pool keys are exhausted, *then* the fallback provider activates.
+
+Released v0.7.0 adds four important behaviors on top of the original pool rotation:
+
+- `least_used` strategy for same-provider load spreading
+- pool state survives smart-routing fallback transitions
+- provider reset windows are honored during pooled failover
+- after a fallback provider is used, Hermes restores the primary runtime on the next turn when recovery succeeds
 
 ## How It Works
 
@@ -108,7 +115,7 @@ credential_pool_strategies:
 |----------|----------|
 | `fill_first` (default) | Use the first healthy key until it's exhausted, then move to the next |
 | `round_robin` | Cycle through keys evenly, rotating after each selection |
-| `least_used` | Always pick the key with the lowest request count |
+| `least_used` | Always pick the healthy key with the lowest request count |
 | `random` | Random selection among healthy keys |
 
 ## Error Recovery
@@ -123,6 +130,8 @@ The pool handles different errors differently:
 | **All keys exhausted** | Fall through to `fallback_model` if configured | -- |
 
 The `has_retried_429` flag resets on every successful API call, so a single transient 429 doesn't trigger rotation.
+
+Released v0.7.0 also preserves pool metadata when Hermes temporarily switches to a fallback provider. When the primary provider becomes usable again, later turns can restore that primary runtime instead of staying pinned to the fallback indefinitely.
 
 ### Cooldown Persistence
 

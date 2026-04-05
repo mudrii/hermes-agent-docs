@@ -4,6 +4,8 @@ Hermes Agent can run as an ACP (Agent Communication Protocol) server, letting AC
 
 ACP is the right choice when you want Hermes to behave like an editor-native coding agent rather than a standalone CLI tool or messaging bot.
 
+Released v0.7.0 also lets ACP clients contribute their own MCP servers. Hermes can ingest those editor-provided MCP endpoints and expose them as additional tools inside the ACP-backed session.
+
 ---
 
 ## What is ACP?
@@ -179,6 +181,16 @@ The ACP toolset intentionally excludes features that do not fit typical editor U
 - Messaging delivery tools
 - Cron job management
 - Gateway-specific tools
+
+### Client-provided MCP servers (v0.7.0)
+
+ACP editor integrations can now attach MCP server definitions to the ACP session. Hermes ingests those client-provided servers and merges their tools into the active ACP tool surface, so editor-local MCP ecosystems can flow directly into Hermes without separate global MCP configuration.
+
+This is additive to normal Hermes MCP config:
+
+- `config.yaml` MCP servers still load normally
+- ACP-provided MCP servers are session-scoped to the editor connection
+- tool naming and MCP safety rules still follow the normal Hermes MCP path
 
 ---
 

@@ -2,7 +2,7 @@
 
 The Hermes gateway is the long-running background process that connects Hermes Agent to external messaging platforms. It manages incoming messages, session state, platform authentication, cron scheduling, and outbound delivery — all through a single unified pipeline.
 
-This document covers the released gateway surface through v0.6.0 (v2026.3.30).
+This document covers the released gateway surface through v0.7.0 (v2026.4.3).
 
 ---
 
@@ -19,6 +19,13 @@ The gateway is not a webhook handler or a stateless API proxy. It is a persisten
 - Emits hook callbacks to trusted local Python code via `gateway/hooks.py`
 
 The gateway is implemented in `gateway/run.py` with supporting modules for configuration (`gateway/config.py`), session management (`gateway/session.py`), delivery (`gateway/delivery.py`), pairing (`gateway/pairing.py`), status tracking (`gateway/status.py`), and platform adapters (`gateway/platforms/`).
+
+Released v0.7.0 adds a major hardening pass across the gateway surface:
+
+- approval routing now correctly resumes blocked agent runs
+- API-server sessions can persist continuity through `X-Hermes-Session-Id`
+- webhook adapters suppress live tool-progress chatter
+- Discord adds native button-based approval prompts
 
 ---
 
@@ -107,7 +114,7 @@ When users send images, voice messages, or documents on messaging platforms, the
 - Audio cached at `{HERMES_HOME}/audio_cache/` — available for STT transcription
 - Documents cached at `{HERMES_HOME}/document_cache/` — available for file access
 
-Supported document types for download and caching: `.pdf`, `.md`, `.txt`, `.docx`, `.xlsx`, `.pptx`.
+Supported document types for download and caching: `.pdf`, `.md`, `.txt`, `.docx`, `.xlsx`, `.pptx`, `.zip`.
 
 ---
 

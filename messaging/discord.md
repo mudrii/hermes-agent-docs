@@ -2,7 +2,7 @@
 
 Hermes integrates with Discord as a bot using the `discord.py` library. The bot receives messages, processes them through the full Hermes Agent pipeline (tool use, memory, reasoning), and responds in real time. It supports text, voice messages, file attachments, images, video, and voice channels.
 
-This document covers v0.2.0 through v0.6.0 (v2026.3.30).
+This document covers v0.2.0 through v0.7.0 (v2026.4.3).
 
 ---
 
@@ -168,6 +168,7 @@ discord:
   free_response_channels:
     - "123456789012345678"    # channel IDs that don't require @mention
   auto_thread: false          # auto-create threads on @mention (v0.3.0)
+  reactions: true             # show processing reactions (v0.7.0)
 
 group_sessions_per_user: true
 ```
@@ -196,6 +197,7 @@ group_sessions_per_user: true
 - `require_mention: false` — respond to all messages in channels (use with care in busy servers)
 - `free_response_channels` — list of channel IDs where @mention is not required
 - `auto_thread` — when true, automatically creates a thread for each @mention response (v0.3.0)
+- `reactions` — when `false`, disables Discord message-processing reactions added by the adapter (v0.7.0)
 - `group_sessions_per_user: true` — keep each participant's context isolated (default, recommended)
 
 ---
@@ -244,6 +246,26 @@ With `group_sessions_per_user: false`:
 - Users share context growth and token costs
 
 Channel topic is included in session context so the agent is aware of the channel's purpose.
+
+---
+
+## Dangerous Command Approvals (v0.7.0)
+
+Released v0.7.0 adds Discord-native approval UI:
+
+- `/approve` and `/deny` are registered as slash commands
+- dangerous command prompts render interactive approval buttons in Discord
+- only authorized users can resolve those buttons
+
+The button UI replaces the old text-only approval flow on Discord, but the slash commands still exist as an explicit fallback.
+
+### Reactions and unauthorized users
+
+Released v0.7.0 also tightens Discord behavior around unauthorized users:
+
+- reactions can be disabled with `discord.reactions: false`
+- unauthorized users do not trigger processing reactions
+- unauthorized users do not trigger auto-thread creation
 
 ---
 

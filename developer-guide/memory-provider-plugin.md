@@ -1,22 +1,63 @@
 # Memory Provider Plugins
 
-**Status: Planned for a future release.** Memory provider plugins are not part of v0.6.0. The plugin implementations (byterover, holographic, honcho-plugin, mem0, openviking, retaindb) exist on the development branch but have not been released.
+Memory provider plugins are a released v0.7.0 feature. Hermes now exposes an abstract `MemoryProvider` interface plus a `MemoryManager` that always keeps the built-in provider and can attach at most one external provider plugin at a time.
 
-## Current State (v0.6.0)
+## Released Architecture
 
-Hermes Agent v0.6.0 uses a dual-layer memory architecture:
+Hermes memory is now split into two layers:
 
-- **Built-in memory** -- local files (`MEMORY.md` and `USER.md`) managed by the `memory` tool, injected into the system prompt as a frozen snapshot at session start
-- **Honcho integration** -- optional cloud-backed AI-native user modeling via the Honcho API, providing cross-session dialectic reasoning and dual-peer representations
+- **Built-in provider** -- local `MEMORY.md` / `USER.md` storage and the existing `memory` tool
+- **External provider plugin** -- an optional plugin selected by `memory.provider` and loaded from `plugins/memory/<name>/`
 
-Both layers can run independently or together in `hybrid` mode (the default when Honcho is enabled).
+The built-in provider is always registered first and cannot be removed. The external provider can add context injection, sync behavior, and provider-specific tools.
 
-## Planned Plugin Interface
+## Provider Interface
 
-A memory provider plugin framework will allow third-party memory backends to be registered alongside or in place of the built-in memory system. The plugin interface will:
+Released providers implement the `MemoryProvider` ABC in `agent/memory_provider.py`. The manager lifecycle is wired in `run_agent.py` and `agent/memory_manager.py`.
 
-- Allow plugins to register custom memory storage and retrieval backends
-- Support the same lifecycle hooks as the existing plugin system (`on_session_start`, `on_session_end`, etc.)
-- Integrate with the existing `memory` tool surface so the agent's memory operations route transparently to the configured backend
+At a high level, a provider can:
 
-See [plugins.md](../plugins.md) for the current plugin architecture and [memory.md](../memory.md) for the built-in memory system.
+- return its provider name
+- expose provider-specific tool schemas
+- initialize per-session state
+- contribute memory/context text to the system prompt
+- handle provider-specific tool invocations
+- flush or sync state on session boundaries
+
+The manager also maintains tool-to-provider routing so provider-specific tools resolve back to the correct memory backend.
+
+## Released Providers
+
+The v0.7.0 source tree ships the following released providers under `plugins/memory/`:
+
+- `honcho`
+- `byterover`
+- `hindsight`
+- `holographic`
+- `mem0`
+- `openviking`
+- `retaindb`
+
+Honcho is the reference plugin and restores full parity with the old dedicated Honcho integration while conforming to the new provider interface.
+
+## Configuration
+
+Select a provider in `~/.hermes/config.yaml`:
+
+```yaml
+memory:
+  provider: honcho
+```
+
+Provider-specific setup is handled by each plugin. Several plugins also write profile-scoped config files under `$HERMES_HOME`.
+
+## Operational Model
+
+Released v0.7.0 keeps the built-in memory system authoritative for local notes while allowing one provider plugin to extend or replace parts of the recall/write path. In practice:
+
+- the built-in memory provider stays present
+- one external provider may be registered
+- provider-specific tools are exposed only when that provider is active
+- prompt injection and persistence boundaries remain enforced by the main Hermes runtime
+
+See [memory.md](../memory.md) for the built-in memory model, [honcho.md](../honcho.md) for the reference provider, and [plugins.md](../plugins.md) for the general plugin architecture.

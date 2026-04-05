@@ -23,7 +23,7 @@ The `/browser` slash command provides an interactive browser workflow from the C
 5. Call `browser_vision` for screenshot-based visual analysis when the accessibility tree is insufficient
 6. Call `browser_close` when done to release the session
 
-The underlying mechanism uses the `agent-browser` CLI (a Node.js wrapper around Chromium) in local mode, or CDP (Chrome DevTools Protocol) when connected via `/browser connect`. The accessibility tree representation (ariaSnapshot) is provided by `agent-browser` and uses ref IDs (`@e1`, `@e2`, ...) for element addressing. Cloud backends (Browserbase, Browser Use) are selected via `browser.cloud_provider` in config.yaml and bypass the local `agent-browser` entirely.
+The underlying mechanism uses the `agent-browser` CLI (a Node.js wrapper around Chromium) in local mode, or CDP (Chrome DevTools Protocol) when connected via `/browser connect`. In v0.7.0, setting `CAMOFOX_URL` routes the same tool surface through the local Camofox REST backend instead. The accessibility tree representation uses ref IDs (`@e1`, `@e2`, ...) for element addressing. Cloud backends (Browserbase, Browser Use) are selected via `browser.cloud_provider` in config.yaml and bypass the local browser path entirely.
 
 ---
 
@@ -33,10 +33,11 @@ The underlying mechanism uses the `agent-browser` CLI (a Node.js wrapper around 
 |---------|--------------|----------|
 | **Browserbase cloud** | Set `browser.cloud_provider: browserbase` in config.yaml + `BROWSERBASE_API_KEY` | Managed cloud browsers with anti-bot, CAPTCHA solving, residential proxies |
 | **Browser Use cloud** | Set `browser.cloud_provider: browser-use` in config.yaml + `BROWSER_USE_API_KEY` | Alternative cloud browser provider |
+| **Camofox local** | Set `CAMOFOX_URL=http://localhost:9377` | Local anti-detection browsing with persistent sessions and VNC debugging |
 | **Local Chrome via CDP** | Run `/browser connect` in CLI or set `BROWSER_CDP_URL` env var | Attach to your own Chrome instance; free, real-time |
 | **Local Chromium** | Install `agent-browser` CLI (default when no cloud provider is configured) | Local Chromium driven by `agent-browser`; no credentials required |
 
-The cloud provider is selected via the `browser.cloud_provider` key in `~/.hermes/config.yaml`. When the key is absent or empty, local mode is used. When `BROWSER_CDP_URL` is set (e.g., via `/browser connect`), it takes priority over both cloud providers and local mode.
+The cloud provider is selected via the `browser.cloud_provider` key in `~/.hermes/config.yaml`. When the key is absent or empty, local mode is used. When `BROWSER_CDP_URL` is set (e.g. via `/browser connect`), it takes priority over both cloud providers and local mode. When `CAMOFOX_URL` is set, all browser operations route through Camofox instead of the local `agent-browser` CLI.
 
 ## Overview
 
@@ -45,6 +46,7 @@ Pages are represented as **accessibility trees** — text-based snapshots of pag
 Key capabilities:
 
 - **Multi-provider cloud execution** — Browserbase or Browser Use, no local browser install needed
+- **Camofox local anti-detection mode** — local browser sessions backed by a dedicated Camofox service
 - **Local Chrome integration** — attach to your running Chrome via CDP (Chrome DevTools Protocol)
 - **Built-in stealth** — random fingerprints, CAPTCHA solving, residential proxies (Browserbase)
 - **Session isolation** — each task gets its own browser session
@@ -106,6 +108,26 @@ BROWSER_USE_API_KEY=***
 
 Get your API key at [browser-use.com](https://browser-use.com).
 
+### Camofox local mode (v0.7.0)
+
+Set `CAMOFOX_URL` in `~/.hermes/.env`:
+
+```bash
+CAMOFOX_URL=http://localhost:9377
+```
+
+Hermes then routes `browser_navigate`, `browser_snapshot`, `browser_click`, `browser_type`, `browser_vision`, and related browser tools through the Camofox REST service. The released integration supports:
+
+- persistent browser sessions keyed to the current task
+- optional managed persistence via `browser.camofox.managed_persistence`
+- VNC URL discovery returned from Camofox health/status so you can inspect the live browser visually
+
+The upstream service can be run from the published Camofox browser image:
+
+```bash
+docker run -p 9377:9377 -e CAMOFOX_PORT=9377 jo-inc/camofox-browser
+```
+
 ### Local Chrome via CDP (/browser connect)
 
 Connect Hermes browser tools to your own running Chrome instance via CDP. This is useful when you want to see what the agent is doing in real-time, use pages that require your own cookies/sessions, or avoid cloud browser costs.
@@ -133,7 +155,7 @@ When connected via CDP, all browser tools (`browser_navigate`, `browser_click`, 
 
 ### Local browser mode
 
-If no cloud credentials are set and `/browser connect` is not used, Hermes uses the browser tools through a local Chromium installation driven by `agent-browser`:
+If no cloud credentials are set, `CAMOFOX_URL` is unset, and `/browser connect` is not used, Hermes uses the browser tools through a local Chromium installation driven by `agent-browser`:
 
 ```bash
 npm install -g agent-browser
@@ -162,6 +184,9 @@ BROWSER_INACTIVITY_TIMEOUT=300
 # Override CDP endpoint directly (set by /browser connect, or manually)
 BROWSER_CDP_URL=ws://localhost:9222
 
+# Route browser tools through a local Camofox service
+CAMOFOX_URL=http://localhost:9377
+
 # Vision model for browser_vision screenshot analysis
 AUXILIARY_VISION_MODEL=
 
@@ -176,7 +201,12 @@ browser:
   cloud_provider: browserbase    # "browserbase" or "browser-use" (empty = local mode)
   record_sessions: false          # Auto-record browser sessions as WebM video
   inactivity_timeout: 120         # Seconds before auto-cleanup (env var override available)
+  allow_private_urls: false       # Allow RFC1918 / loopback URLs on remote backends
+  camofox:
+    managed_persistence: false
 ```
+
+`browser.allow_private_urls` only affects remote or cloud browser paths. Released v0.7.0 skips the private-URL SSRF block for local backends such as Camofox, local Chromium, and direct CDP-attached browsers.
 
 ## Available Tools
 

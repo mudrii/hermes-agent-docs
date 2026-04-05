@@ -19,6 +19,8 @@ Added in v0.4.0 ([PR #2166](https://github.com/NousResearch/hermes-agent/pull/21
 
 A `GET /health` endpoint returns `{"status": "ok", "platform": "webhook"}` for health checks.
 
+Released v0.7.0 hardens webhook mode further by skipping the normal home-channel prompt and suppressing live tool-progress chatter for webhook adapters. Webhooks stay focused on the final routed result rather than interactive gateway status noise.
+
 ---
 
 ## Prerequisites

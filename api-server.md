@@ -4,6 +4,11 @@ The API server exposes Hermes Agent as an OpenAI-compatible HTTP endpoint. Any f
 
 Your agent handles requests with its full toolset (terminal, file operations, web search, memory, skills) and returns the final response. Tool calls execute invisibly server-side.
 
+Released v0.7.0 adds two important continuity features:
+
+- real-time tool-progress messages in streaming responses
+- optional chat-completions continuity via the `X-Hermes-Session-Id` header
+
 ## Quick Start
 
 ### 1. Enable the API server
@@ -41,7 +46,7 @@ curl http://localhost:8642/v1/chat/completions \
 
 ### POST /v1/chat/completions
 
-Standard OpenAI Chat Completions format. Stateless — the full conversation is included in each request via the `messages` array.
+Standard OpenAI Chat Completions format. By default this is stateless — the full conversation is included in each request via the `messages` array. In released v0.7.0, clients can opt into server-side continuity by sending and reusing an `X-Hermes-Session-Id` header.
 
 **Request:**
 
@@ -73,7 +78,20 @@ Standard OpenAI Chat Completions format. Stateless — the full conversation is 
 }
 ```
 
-**Streaming** (`"stream": true`): Returns Server-Sent Events (SSE) with token-by-token response chunks. When streaming is enabled in config, tokens are emitted live as the LLM generates them. When disabled, the full response is sent as a single SSE chunk.
+**Streaming** (`"stream": true`): Returns Server-Sent Events (SSE) with token-by-token response chunks. In released v0.7.0 the SSE stream also includes Hermes tool-progress updates so Open WebUI-style frontends can see activity while the agent is working. When streaming is disabled in config, the full response is sent as a single SSE chunk.
+
+#### Session continuity with `X-Hermes-Session-Id`
+
+To continue a chat-completions session without the client owning the full continuity state, send a stable session header:
+
+```bash
+curl http://localhost:8642/v1/chat/completions \
+  -H "Content-Type: application/json" \
+  -H "X-Hermes-Session-Id: my-project-session" \
+  -d '{"model":"hermes-agent","messages":[{"role":"user","content":"List the repo files"}]}'
+```
+
+Hermes returns the active session header on the response as well, so clients can persist or reuse it on later requests.
 
 ### POST /v1/responses
 
@@ -118,7 +136,7 @@ Chain responses to maintain full context (including tool calls) across turns:
 }
 ```
 
-The server reconstructs the full conversation from the stored response chain — all previous tool calls and results are preserved.
+The server reconstructs the full conversation from the stored response chain — all previous tool calls and results are preserved. Response chains persist in the shared SessionDB-backed response store, so continuity survives normal process restarts.
 
 #### Named conversations
 

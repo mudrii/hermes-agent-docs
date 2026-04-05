@@ -2,7 +2,7 @@
 
 Hermes connects to WhatsApp through a built-in bridge based on **Baileys**. This works by emulating a WhatsApp Web session — not through the official WhatsApp Business API. No Meta developer account or Business verification is required.
 
-This document covers v0.2.0 through v0.6.0 (v2026.3.30).
+This document covers v0.2.0 through v0.7.0 (v2026.4.3).
 
 ---
 
@@ -103,6 +103,7 @@ unauthorized_dm_behavior: pair
 # WhatsApp-specific override
 whatsapp:
   unauthorized_dm_behavior: ignore
+  require_mention: false
 
   # Optional: customize the reply header
   reply_prefix: "⚕ **Hermes Agent**\n──────\n"   # default
@@ -111,6 +112,7 @@ whatsapp:
 ```
 
 - `unauthorized_dm_behavior: ignore` makes WhatsApp stay silent for unauthorized DMs, which is usually the better choice for a private number
+- `require_mention: true` restricts group chats so Hermes only responds when explicitly mentioned (released in v0.7.0)
 - `reply_prefix` controls the header prepended to agent responses (supports `\n` for newlines)
 
 ---
@@ -165,6 +167,14 @@ v0.2.0 added native media sending for images, videos, and documents. The adapter
 - Images as native WhatsApp photos
 - Videos as native video messages
 - Documents as file attachments
+
+---
+
+## Group Mention Gating (v0.7.0)
+
+Released v0.7.0 adds `whatsapp.require_mention` for group chats. When enabled, Hermes ignores ordinary group messages and only responds when the incoming message explicitly mentions the bot. This is useful in busy group chats where always-on responses would be noisy.
+
+This setting affects group chats only. Direct chats still behave normally according to the allowlist and unauthorized-DM rules.
 
 ---
 

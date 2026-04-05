@@ -4,7 +4,7 @@
 
 Hermes Agent is an autonomous AI agent with a built-in learning loop. It creates skills from experience, improves them during use, searches its own past conversations for context, and builds a deepening model of who you are across sessions. It runs on a $5 VPS, a GPU cluster, or serverless infrastructure -- not tied to your laptop.
 
-Current version: **v0.6.0 (v2026.3.30)** -- released March 30, 2026.
+Current version: **v0.7.0 (v2026.4.3)** -- released April 3, 2026.
 
 ---
 
@@ -34,6 +34,7 @@ Real-time token-by-token delivery in the CLI and all gateway platforms. Response
 ### Closed Learning Loop
 
 - **Persistent memory** -- agent-curated facts written to `MEMORY.md` with periodic nudges to persist durable knowledge
+- **Pluggable memory providers** -- the built-in memory layer can now be extended with released memory-provider plugins such as Honcho and other provider backends (v0.7.0)
 - **Autonomous skill creation** -- after complex tasks (5+ tool calls), the agent creates reusable skill documents
 - **Skill self-improvement** -- skills are patched during use when they are outdated, incomplete, or wrong
 - **FTS5 session search** -- full-text search across all past sessions with LLM summarization for cross-session recall
@@ -69,7 +70,15 @@ Switch with `hermes model` -- no code changes, no lock-in.
 
 ### OpenAI-Compatible API Server (v0.4.0)
 
-Expose Hermes as an `/v1/chat/completions` endpoint with a `/api/jobs` REST API for cron job management. Hardened with input limits, field whitelists, SQLite-backed response persistence across restarts, CORS origin protection, and `Idempotency-Key` support (v0.5.0). The API server exposes its own `hermes-api-server` toolset.
+Expose Hermes as an `/v1/chat/completions` and `/v1/responses` endpoint with a `/api/jobs` REST API for cron job management. Hardened with input limits, field whitelists, SQLite-backed response persistence across restarts, CORS origin protection, and `Idempotency-Key` support (v0.5.0). In v0.7.0 the API server added real-time tool progress streaming plus optional session continuity for chat-completions clients via the `X-Hermes-Session-Id` header. The API server exposes its own `hermes-api-server` toolset.
+
+### Credential Pools (v0.7.0)
+
+Register multiple credentials for the same provider and let Hermes rotate within that provider before falling back elsewhere. Released v0.7.0 adds `least_used` pool selection, 401 refresh-and-rotate behavior, and smarter recovery that preserves pool state through fallback routing and restores the primary runtime on later turns.
+
+### Camofox Browser Backend (v0.7.0)
+
+Hermes can route browser tools through a local Camofox anti-detection backend by setting `CAMOFOX_URL`. This adds persistent local browser sessions, VNC URL discovery for visual debugging, and local-backend browsing without the normal remote-backend private-URL restrictions.
 
 ### @ Context References (v0.4.0)
 

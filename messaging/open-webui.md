@@ -2,7 +2,7 @@
 
 [Open WebUI](https://github.com/open-webui/open-webui) is a self-hosted chat interface for AI. With Hermes Agent's built-in API server, you can use Open WebUI as a polished web frontend for your agent — complete with conversation management, user accounts, and a modern chat interface.
 
-This document covers v0.2.0 (v2026.3.12) and v0.3.0 (v2026.3.17).
+This document covers the released Open WebUI integration through v0.7.0 (v2026.4.3).
 
 ---
 
@@ -19,6 +19,11 @@ This document covers v0.2.0 (v2026.3.12) and v0.3.0 (v2026.3.17).
 Open WebUI connects to Hermes Agent's API server just like it would connect to OpenAI. Your agent handles the requests with its full toolset — terminal, file operations, web search, memory, skills — and returns the final response.
 
 The API server is also the integration point for any other OpenAI-compatible client (curl, Python scripts, VS Code extensions, etc.).
+
+Released v0.7.0 adds two API-server capabilities relevant to web frontends:
+
+- streaming tool-progress updates in SSE responses
+- optional session continuity via `X-Hermes-Session-Id` for chat-completions clients
 
 ---
 
@@ -162,7 +167,7 @@ To use the Responses API mode:
 
 With the Responses API, Open WebUI sends requests in the Responses format (`input` array + `instructions`), and Hermes Agent can preserve full tool call history across turns via `previous_response_id`.
 
-Note: Open WebUI currently manages conversation history client-side even in Responses mode — it sends the full message history in each request rather than using `previous_response_id`. The Responses API mode is mainly useful for future compatibility as frontends evolve.
+Note: Open WebUI currently manages conversation history client-side even in Responses mode — it sends the full message history in each request rather than using `previous_response_id`. The Responses API mode is mainly useful for future compatibility as frontends evolve. For other compatible clients, Hermes also supports `X-Hermes-Session-Id` on `/v1/chat/completions` when you want server-side session continuity without switching to `/v1/responses`.
 
 ---
 
@@ -224,6 +229,6 @@ docker run -e OPENAI_API_BASE_URL=http://172.17.0.1:8642/v1 ...
 |---------|----------|
 | No models appear in the dropdown | Check the URL has `/v1` suffix. Verify the gateway is running: `curl http://localhost:8642/health`. Check model listing: `curl http://localhost:8642/v1/models`. |
 | Connection test passes but no models load | Almost always the missing `/v1` suffix. The connection test is a basic connectivity check — it does not verify model listing. |
-| Response takes a long time | Hermes Agent may be executing multiple tool calls before producing its final response. This is normal for complex queries. The response appears all at once when the agent finishes. |
+| Response takes a long time | Hermes Agent may be executing multiple tool calls before producing its final response. On the released v0.7.0 API server, streaming mode includes tool-progress updates while the agent works. |
 | "Invalid API key" errors | Make sure your `OPENAI_API_KEY` in Open WebUI matches the `API_SERVER_KEY` in Hermes Agent. If no key is configured on the Hermes side, any non-empty value works. |
 | Docker networking issues | From inside a Docker container, `localhost` refers to the container, not your host. Use `host.docker.internal` or `--network=host`. |
