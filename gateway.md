@@ -114,7 +114,7 @@ When users send images, voice messages, or documents on messaging platforms, the
 - Audio cached at `{HERMES_HOME}/audio_cache/` — available for STT transcription
 - Documents cached at `{HERMES_HOME}/document_cache/` — available for file access
 
-Supported document types for download and caching: `.pdf`, `.md`, `.txt`, `.docx`, `.xlsx`, `.pptx`, `.zip`.
+Supported document types for download and caching: `.pdf`, `.md`, `.txt`, `.docx`, `.xlsx`, `.pptx`.
 
 ---
 

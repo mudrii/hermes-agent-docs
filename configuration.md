@@ -672,6 +672,7 @@ discord:
   require_mention: true         # Require @mention before responding in server channels. Default: true.
   free_response_channels: ""    # Comma-separated channel IDs where @mention is not required
   auto_thread: true             # Auto-create threads on @mention in channels. Default: true.
+  reactions: true               # Show processing reactions in Discord. Default: true.
 ```
 
 ---
@@ -680,6 +681,7 @@ discord:
 
 ```yaml
 whatsapp:
+  require_mention: false        # Require a mention in WhatsApp group chats before responding. Default: false.
   # Reply prefix prepended to every outgoing WhatsApp message.
   # Default uses the built-in header. Set to "" to disable.
   # Supports \n for newlines.

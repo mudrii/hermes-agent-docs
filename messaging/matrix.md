@@ -4,7 +4,7 @@ Hermes Agent integrates with Matrix, the open, federated messaging protocol. Mat
 
 Hermes works with any Matrix homeserver — Synapse, Conduit, Dendrite, or matrix.org.
 
-This document covers v0.2.0 through v0.6.0 (v2026.3.30).
+This document covers v0.2.0 through v0.7.0 (v2026.4.3).
 
 ---
 
@@ -261,6 +261,16 @@ v0.5.0 hardened E2EE access-token handling ([PR #3562](https://github.com/NousRe
 
 **v0.5.0** also added exponential backoff for `SyncError` in the sync loop ([PR #3280](https://github.com/NousResearch/hermes-agent/pull/3280)), preventing tight reconnect loops during homeserver maintenance windows.
 
+### E2EE Decryption Hardening (v0.7.0)
+
+Released v0.7.0 hardens Matrix E2EE handling further:
+
+- missing room keys are requested automatically
+- trusted-device handling is less brittle during recovery
+- buffered events are retried after the required keys arrive
+
+This reduces the number of transient decryption failures in encrypted rooms and improves recovery after reconnects or device-trust changes.
+
 ---
 
 ## Message Length and Media Support
@@ -310,5 +320,6 @@ No configuration change is required — the adapter automatically uses the MSC32
 ## Changelog
 
 - **v0.6.0:** Native MSC3245 voice messages with waveform player support ([PR #3877](https://github.com/NousResearch/hermes-agent/pull/3877)).
+- **v0.7.0:** E2EE decryption hardening -- request missing keys, auto-trust devices, retry buffered events ([PR #4083](https://github.com/NousResearch/hermes-agent/pull/4083)).
 - **v0.5.0:** Access-token hardening for E2EE — token validated and rotated defensively on startup ([PR #3562](https://github.com/NousResearch/hermes-agent/pull/3562)).
 - **v0.5.0:** Exponential backoff for `SyncError` in sync loop ([PR #3280](https://github.com/NousResearch/hermes-agent/pull/3280)).

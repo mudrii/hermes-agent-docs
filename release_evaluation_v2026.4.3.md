@@ -47,7 +47,7 @@ These commits are relevant for future docs work, but not for `v0.7.0` release do
 | Camofox is a released browser backend | `tools/browser_tool.py`, `tools/browser_camofox.py`, release notes | `README.md`, `browser.md`, `changelog.md` |
 | `/v1/chat/completions` supports `X-Hermes-Session-Id` | `gateway/platforms/api_server.py` | `README.md`, `api-server.md`, `messaging/open-webui.md`, `gateway.md` |
 | Streaming API responses include tool progress | `gateway/platforms/api_server.py`, release notes | `api-server.md`, `messaging/open-webui.md`, `changelog.md` |
-| ACP can accept client-provided MCP servers | `acp_adapter/session.py` and release notes, plus source/release evidence | `acp.md`, `changelog.md` |
+| ACP can accept client-provided MCP servers | `acp_adapter/server.py` and release notes, plus source/release evidence | `acp.md`, `changelog.md` |
 | Discord uses button-based approvals and configurable reactions | `gateway/platforms/discord.py` | `messaging/discord.md`, `changelog.md` |
 | WhatsApp supports `require_mention` in group chats | `gateway/platforms/whatsapp.py` | `messaging/whatsapp.md`, `changelog.md` |
 | Webhook adapters suppress tool-progress chatter | release notes and gateway/platform behavior | `messaging/webhook.md`, `gateway.md`, `changelog.md` |
@@ -85,8 +85,11 @@ The following user-facing documentation drifts were corrected directly in `herme
 - `api-server.md`
 - `messaging/open-webui.md`
 - `messaging/discord.md`
+- `messaging/matrix.md`
 - `messaging/whatsapp.md`
 - `messaging/webhook.md`
 - `acp.md`
+- `configuration.md`
+- `reference/environment-variables.md`
 - `security.md`
 - `credential-pools.md`
