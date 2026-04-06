@@ -515,6 +515,20 @@ def register(ctx):
 
 **Use cases:** timer alerts, background job completions, webhook receivers, messaging bridge adapters, IoT sensor events.
 
-## Memory Provider Plugins (Planned)
+## Memory Provider Plugins (Released in v0.7.0)
 
-Memory provider plugins are planned for a future release. The current v0.6.0 uses dual-layer memory: built-in (`MEMORY.md`/`USER.md`) and optional Honcho integration. A plugin interface for third-party memory backends (byterover, holographic, honcho-plugin, mem0, openviking, retaindb) exists on the development branch but is not yet released. See [developer-guide/memory-provider-plugin.md](developer-guide/memory-provider-plugin.md) for details.
+Released `v0.7.0` turns external memory backends into a first-class plugin surface. Providers implement the `MemoryProvider` interface and register through the same plugin loading path as other Hermes extensions.
+
+Released provider plugins include:
+
+- `honcho`
+- `openviking`
+- `mem0`
+- `hindsight`
+- `holographic`
+- `retaindb`
+- `byterover`
+
+The built-in file-backed memory (`MEMORY.md` / `USER.md`) remains active. Hermes can then layer one external provider alongside it for cross-session retrieval and persistence. Configure the active provider with `hermes memory setup` or by setting `memory.provider` in `~/.hermes/config.yaml`.
+
+See [developer-guide/memory-provider-plugin.md](developer-guide/memory-provider-plugin.md) for the implementation contract and [memory.md](memory.md) for operator-facing setup details.

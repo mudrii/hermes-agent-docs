@@ -1,6 +1,6 @@
 # Architecture
 
-This page is the top-level map of Hermes Agent internals, updated through v0.6.0. The project is organized around a shared agent core that serves multiple platform frontends, a centralized provider router, a SQLite session store, and a set of loosely-coupled optional subsystems.
+This page is the top-level map of Hermes Agent internals, reviewed against the released v0.7.0 surface (`v2026.4.3`). The project is organized around a shared agent core that serves multiple platform frontends, a centralized provider router, a SQLite session store, and a set of loosely-coupled optional subsystems.
 
 ## High-Level Structure
 
@@ -23,11 +23,11 @@ hermes-agent/
 +-- gateway/                  Messaging gateway, session routing, delivery,
 |                             pairing, hooks
 +-- cron/                     Scheduled job storage and scheduler
-+-- honcho_integration/       Honcho memory integration
++-- plugins/memory/           External memory-provider plugins
 +-- acp_adapter/              ACP editor integration server (VS Code, Zed, JetBrains)
 +-- acp_registry/             ACP registry manifest + icon
 +-- environments/             RL/benchmark environment framework
-+-- skills/                   Bundled skill documents (70+)
++-- skills/                   Bundled skill documents
 +-- optional-skills/          Official optional skills
 +-- tests/                    Test suite
 ```
@@ -85,17 +85,17 @@ hermes-agent/
           v                    v                        v
 +--- Messaging --------+ +--- ACP ----------------+ +--- Cron -----------+
 |  gateway/            | |  acp_adapter/           | |  cron/             |
-|  8 platform          | |  stdio/JSON-RPC         | |  scheduler + jobs  |
-|  adapters            | |  VS Code, Zed,          | |  SQLite-backed     |
+|  multi-platform      | |  stdio/JSON-RPC         | |  scheduler + jobs  |
+|  gateway + API       | |  VS Code, Zed,          | |  SQLite-backed     |
 |  Session routing     | |  JetBrains              | |  60s tick interval |
 |  Delivery            | +------------------------+ +--------------------+
 +----------------------+
 
 +--- Optional Subsystems -----------------------------------------------+
-|  honcho_integration/ -> cross-session user modeling                   |
+|  plugins/memory/     -> external memory providers (Honcho, Mem0, etc.)|
 |  environments/       -> RL benchmark framework                        |
-|  tools/              -> 40+ tool implementations                      |
-|  skills/             -> 70+ bundled skill documents                   |
+|  tools/              -> built-in tool implementations and runtimes    |
+|  skills/             -> bundled skills plus optional skill catalog    |
 +----------------------------------------------------------------------+
 ```
 

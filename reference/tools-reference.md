@@ -1,8 +1,8 @@
 # Built-in Tools Reference
 
-This page documents the built-in Hermes tool registry as it exists in code. Availability can still vary by platform, credentials, and enabled toolsets.
+This page documents the released built-in Hermes tool registry through v0.7.0 (`v2026.4.3`). Availability can still vary by platform, installed extras, credentials, and enabled toolsets.
 
-**Tool count:** 52 registered tools across 20 toolsets (as of v0.6.0). One tool (`web_search`) appears in both the `web` and `browser` toolsets but is registered once in the registry -- giving 51 unique tool names if you count the `browser` toolset's inclusion of `web_search` separately.
+Older fixed totals in previous docs passes went stale quickly as the tool surface evolved. Treat the per-tool tables below as the source of truth for this docs repo rather than any historical aggregate count.
 
 ## `browser` toolset
 

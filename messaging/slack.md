@@ -4,7 +4,7 @@ Hermes connects to Slack using Socket Mode — a WebSocket-based connection that
 
 Classic Slack apps (RTM API) were fully deprecated in March 2025. Hermes uses the modern Bolt SDK with Socket Mode.
 
-This document covers v0.2.0 through v0.6.0 (v2026.3.30).
+This document covers the released Slack adapter surface through v0.7.0 (`v2026.4.3`).
 
 ---
 

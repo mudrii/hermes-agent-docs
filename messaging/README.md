@@ -2,7 +2,7 @@
 
 The Hermes gateway supports 14 messaging platforms plus an OpenAI-compatible API server. All platforms share the same session model, authorization system, and chat commands — only the setup steps and platform-specific quirks differ.
 
-This section covers v0.2.0 (v2026.3.12) through v0.6.0 (v2026.3.30).
+This section covers the released messaging and API surface through v0.7.0 (`v2026.4.3`). Individual pages may still call out older release milestones where later releases did not materially change setup.
 
 ---
 

@@ -1,6 +1,6 @@
 # Architecture
 
-This page is the authoritative map of Hermes Agent internals, updated through v0.5.0 (v2026.3.28). The project is organized around a shared agent core that serves multiple platform frontends, a centralized provider router, a SQLite session store, and a set of loosely-coupled optional subsystems.
+This page is the authoritative map of Hermes Agent internals, reviewed against the released v0.7.0 surface (`v2026.4.3`). The project is organized around a shared agent core that serves multiple platform frontends, a centralized provider router, a SQLite session store, and a set of loosely-coupled optional subsystems.
 
 ---
 
@@ -63,17 +63,17 @@ This page is the authoritative map of Hermes Agent internals, updated through v0
           v                    v                        v
 +--- Messaging --------+ +--- ACP ----------------+ +--- Cron -----------+
 |  gateway/            | |  acp_adapter/           | |  cron/             |
-|  8 platform          | |  stdio/JSON-RPC         | |  scheduler + jobs  |
-|  adapters            | |  VS Code, Zed,          | |  SQLite-backed     |
+|  multi-platform      | |  stdio/JSON-RPC         | |  scheduler + jobs  |
+|  gateway + API       | |  VS Code, Zed,          | |  SQLite-backed     |
 |  Session routing     | |  JetBrains              | |  60s tick interval |
 |  Delivery            | +------------------------+ +--------------------+
 +----------------------+
 
 +--- Optional Subsystems -----------------------------------------------+
-|  honcho_integration/ -> cross-session user modeling                   |
+|  plugins/memory/     -> external memory providers (Honcho, Mem0, etc.)|
 |  environments/       -> RL benchmark framework                        |
-|  tools/              -> 49 tool implementations                       |
-|  skills/             -> 96 bundled + 22 optional skill documents      |
+|  tools/              -> built-in tool implementations and runtimes    |
+|  skills/             -> bundled skills plus optional skill catalog     |
 +----------------------------------------------------------------------+
 ```
 
@@ -817,9 +817,9 @@ Several cross-cutting design themes appear throughout the codebase:
 | `agent/title_generator.py` | `maybe_auto_title()` -- auto-generate session titles |
 | `agent/redact.py` | `redact_sensitive_text()`, `RedactingFormatter` -- secret masking |
 | `agent/display.py` | `KawaiiSpinner`, tool preview/emoji helpers |
-| `gateway/` | Platform adapters (Telegram, Discord, Slack, WhatsApp, Signal, Email, Home Assistant) |
+| `gateway/` | Platform adapters plus the OpenAI-compatible API server |
 | `cron/` | Scheduled job storage and scheduler |
-| `honcho_integration/` | Honcho memory integration |
+| `plugins/memory/` | External memory-provider plugins (Honcho, OpenViking, Mem0, Hindsight, Holographic, RetainDB, ByteRover) |
 | `acp_adapter/` | ACP editor integration server |
 | `environments/` | RL/benchmark environment framework |
 | `skills/` | Bundled skill documents |

@@ -2,7 +2,7 @@
 
 Hermes integrates with Telegram as a full-featured conversational bot using the [python-telegram-bot](https://python-telegram-bot.org/) library. Once connected, you can chat from any device, send voice memos that get auto-transcribed, receive scheduled task results, and use the agent in group chats or Telegram forum topics.
 
-This document covers v0.2.0 through v0.6.0 (v2026.3.30).
+This document covers the released Telegram adapter surface through v0.7.0 (`v2026.4.3`).
 
 ---
 

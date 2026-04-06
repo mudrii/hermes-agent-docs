@@ -6,7 +6,7 @@ Signal is the most privacy-focused mainstream messenger — end-to-end encrypted
 
 The Signal adapter uses `httpx` (already a core Hermes dependency) for all communication. No additional Python packages are required beyond `signal-cli` itself.
 
-This document covers v0.2.0 through v0.6.0 (v2026.3.30).
+This document covers the released Signal adapter surface through v0.7.0 (`v2026.4.3`).
 
 ---
 

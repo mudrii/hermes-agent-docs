@@ -272,7 +272,7 @@ Hermes has two entry points: start the terminal UI with `hermes`, or run the gat
 | Document | Contents |
 |----------|----------|
 | [architecture.md](architecture.md) | Component diagram, agent loop, context compression, session storage, internal design |
-| [changelog.md](changelog.md) | v0.6.0, v0.5.0, v0.4.0, v0.3.0 and v0.2.0 release notes with full feature lists |
+| [changelog.md](changelog.md) | Released change history from v0.7.0 back through the earlier v0.x lines |
 | [streaming.md](streaming.md) | Unified streaming infrastructure, token delivery, platform support (v0.3.0) |
 
 ### Setup & Configuration
@@ -292,12 +292,24 @@ Hermes has two entry points: start the terminal UI with `hermes`, or run the gat
 | [plugins.md](plugins.md) | Plugin architecture, discovery, registration, custom tools (v0.3.0) |
 | [hooks.md](hooks.md) | Gateway and plugin lifecycle hooks, event types |
 | [browser.md](browser.md) | Browser automation, Browserbase, Browser Use, CDP connect |
+| [credential-pools.md](credential-pools.md) | Same-provider credential rotation, pool strategies, fallback interplay |
+| [fallback-providers.md](fallback-providers.md) | Provider failover chains, retry logic, health checks |
+| [context-references.md](context-references.md) | `@file` and `@url` context injection, syntax, constraints |
+| [code-execution.md](code-execution.md) | `execute_code`, sandbox model, and when to prefer it over direct tools |
 | [checkpoints.md](checkpoints.md) | Filesystem checkpoints, rollback, git worktree isolation |
 | [cron.md](cron.md) | Scheduled task system, schedule formats, job management |
 | [voice-mode.md](voice-mode.md) | Voice interaction, STT/TTS providers, Discord voice channels (v0.3.0) |
 | [batch-processing.md](batch-processing.md) | Batch trajectory generation for SFT/RL training data |
 | [delegation.md](delegation.md) | Subagent spawning, task isolation, parallel workstreams |
 | [api-server.md](api-server.md) | OpenAI-compatible HTTP API, endpoints, compatible frontends |
+| [honcho.md](honcho.md) | Honcho-backed user modeling, session mapping, and identity controls |
+| [image-generation.md](image-generation.md) | Image generation providers, prompts, routing, and constraints |
+| [vision.md](vision.md) | Vision analysis, multimodal input, and messaging-platform support |
+| [tts.md](tts.md) | Text-to-speech backends and delivery modes |
+| [personality.md](personality.md) | Personality system, SOUL.md, and identity layering |
+| [provider-routing.md](provider-routing.md) | Provider detection, prefix matching, smart routing, runtime selection |
+| [environments.md](environments.md) | RL and benchmark environments shipped with Hermes |
+| [rl-training.md](rl-training.md) | Training workflows, trajectories, and Atropos integration |
 | [skins.md](skins.md) | CLI themes, custom skins, banner configuration |
 
 ### Skills & Tools
@@ -305,7 +317,7 @@ Hermes has two entry points: start the terminal UI with `hermes`, or run the gat
 | Document | Contents |
 |----------|----------|
 | [skills.md](skills.md) | Skills system, SKILL.md format, 96 bundled + 22 optional skills catalog |
-| [tools.md](tools.md) | All 49 built-in tools reference with parameters and toolsets |
+| [tools.md](tools.md) | Built-in tools reference with activation rules, parameters, and examples |
 | [toolsets.md](toolsets.md) | Toolset definitions, compositions, per-platform configuration |
 | [mcp.md](mcp.md) | MCP client integration, stdio/HTTP transports, sampling, tool filtering |
 
@@ -314,15 +326,16 @@ Hermes has two entry points: start the terminal UI with `hermes`, or run the gat
 | Document | Contents |
 |----------|----------|
 | [security.md](security.md) | Five-layer security model, PII redaction, approvals, tirith scanning, OAuth |
-| [memory.md](memory.md) | MEMORY.md/USER.md system, Honcho integration, session storage |
+| [memory.md](memory.md) | Built-in memory files, external memory providers, and write/read behavior |
 | [acp.md](acp.md) | ACP server for IDE integration (VS Code, Zed, JetBrains) |
+| [credential-pools.md](credential-pools.md) | Provider-local key pools and recovery behavior |
 
 ### Gateway & Messaging
 
 | Document | Contents |
 |----------|----------|
 | [gateway.md](gateway.md) | Gateway architecture, session management, authorization, streaming |
-| [messaging/](messaging/) | Per-platform setup guides for all 16 messaging platforms |
+| [messaging/](messaging/) | Per-platform setup guides for the released messaging adapters plus API/Open WebUI |
 | [messaging/telegram.md](messaging/telegram.md) | Telegram Bot API setup, forum topics, voice notes |
 | [messaging/discord.md](messaging/discord.md) | Discord bot setup, voice channels, threads |
 | [messaging/slack.md](messaging/slack.md) | Slack Bolt + Socket Mode setup |
@@ -339,65 +352,58 @@ Hermes has two entry points: start the terminal UI with `hermes`, or run the gat
 | [messaging/open-webui.md](messaging/open-webui.md) | Open WebUI / API server frontend |
 | [messaging/sms.md](messaging/sms.md) | SMS via Twilio |
 
-### Feature Deep Dives
+### Getting Started & Operations
 
 | Document | Contents |
 |----------|----------|
-| [features/code-execution.md](features/code-execution.md) | Sandboxed code execution, Docker/Modal/Daytona backends |
-| [features/context-references.md](features/context-references.md) | @file and @url context injection, tab completion |
-| [features/credential-pools.md](features/credential-pools.md) | Multi-key credential pooling, rotation, exhaustion tracking |
-| [features/fallback-providers.md](features/fallback-providers.md) | Provider failover chains, retry logic, health checks |
-| [features/honcho.md](features/honcho.md) | Honcho dialectic user modeling, session mapping, identity |
-| [features/image-generation.md](features/image-generation.md) | Image generation via fal.ai, DALL-E, provider routing |
-| [features/vision.md](features/vision.md) | Vision analysis, multi-modal input, image attachments |
-| [features/tts.md](features/tts.md) | Text-to-speech: Edge TTS, ElevenLabs, NeuTTS |
-| [features/personality.md](features/personality.md) | Personality system, SOUL.md, per-profile personas |
-| [features/provider-routing.md](features/provider-routing.md) | Smart model routing, prefix matching, provider detection |
-| [features/rl-training.md](features/rl-training.md) | Atropos RL integration, environments, trajectory export |
-| [features/environments.md](features/environments.md) | RL environments: WebResearchEnv, YC-Bench, OPD |
-
-### Getting Started
-
-| Document | Contents |
-|----------|----------|
-| [getting-started/quickstart.md](getting-started/quickstart.md) | First conversation in 5 minutes |
-| [getting-started/first-config.md](getting-started/first-config.md) | Initial provider and model setup |
-| [getting-started/gateway-setup.md](getting-started/gateway-setup.md) | Setting up the messaging gateway |
+| [getting-started/learning-path.md](getting-started/learning-path.md) | Suggested onboarding sequence through install, config, skills, and messaging |
+| [getting-started/nix-setup.md](getting-started/nix-setup.md) | Nix and Home Manager installation path |
+| [getting-started/updating.md](getting-started/updating.md) | Safe upgrade flow, `hermes update`, and rollback guidance |
 
 ### Developer Guide
 
 | Document | Contents |
 |----------|----------|
-| [developer-guide/architecture-deep-dive.md](developer-guide/architecture-deep-dive.md) | Detailed agent internals, call flow, state machine |
-| [developer-guide/adding-a-tool.md](developer-guide/adding-a-tool.md) | How to create a new built-in tool |
-| [developer-guide/adding-a-platform.md](developer-guide/adding-a-platform.md) | How to create a new gateway platform adapter |
-| [developer-guide/adding-a-provider.md](developer-guide/adding-a-provider.md) | How to add a new inference provider |
-| [developer-guide/adding-a-skill.md](developer-guide/adding-a-skill.md) | SKILL.md authoring guide, categories, activation |
-| [developer-guide/testing.md](developer-guide/testing.md) | Test suite, pytest markers, integration tests |
-| [developer-guide/plugin-development.md](developer-guide/plugin-development.md) | Plugin API, hooks, custom commands |
-| [developer-guide/mcp-server-development.md](developer-guide/mcp-server-development.md) | Building MCP servers for Hermes |
-| [developer-guide/acp-protocol.md](developer-guide/acp-protocol.md) | ACP wire protocol, message types, IDE integration |
+| [developer-guide/architecture.md](developer-guide/architecture.md) | Top-level internal map and subsystem boundaries |
+| [developer-guide/agent-loop.md](developer-guide/agent-loop.md) | `AIAgent` turn lifecycle and orchestration internals |
+| [developer-guide/adding-tools.md](developer-guide/adding-tools.md) | How to create or extend built-in tools |
+| [developer-guide/adding-providers.md](developer-guide/adding-providers.md) | How to add inference providers and setup flows |
+| [developer-guide/creating-skills.md](developer-guide/creating-skills.md) | SKILL authoring guide, structure, and conventions |
+| [developer-guide/extending-cli.md](developer-guide/extending-cli.md) | CLI command wiring and extension points |
 | [developer-guide/context-compression.md](developer-guide/context-compression.md) | Compression algorithm, session lineage, tuning |
 | [developer-guide/session-storage.md](developer-guide/session-storage.md) | SQLite schema, FTS5 search, session lifecycle |
-| [developer-guide/security-model.md](developer-guide/security-model.md) | Approval tiers, PII redaction, secret scanning |
-| [developer-guide/batch-trajectories.md](developer-guide/batch-trajectories.md) | Trajectory format, SFT data generation |
-| [developer-guide/nix-packaging.md](developer-guide/nix-packaging.md) | Nix flake, NixOS module, uv2nix build |
-| [developer-guide/memory-provider-plugin.md](developer-guide/memory-provider-plugin.md) | Memory provider plugin framework (planned, not in v0.6.0) |
+| [developer-guide/provider-runtime.md](developer-guide/provider-runtime.md) | Runtime resolution and provider selection internals |
+| [developer-guide/prompt-assembly.md](developer-guide/prompt-assembly.md) | Prompt layering and system-prompt composition |
+| [developer-guide/tools-runtime.md](developer-guide/tools-runtime.md) | Tool registry, dispatch, and safety model |
+| [developer-guide/gateway-internals.md](developer-guide/gateway-internals.md) | Gateway orchestration and adapter lifecycle |
+| [developer-guide/cron-internals.md](developer-guide/cron-internals.md) | Scheduler internals and cron execution model |
+| [developer-guide/trajectory-format.md](developer-guide/trajectory-format.md) | Trajectory serialization and training-data format |
+| [developer-guide/memory-provider-plugin.md](developer-guide/memory-provider-plugin.md) | Released memory-provider plugin framework (v0.7.0) |
 
 ### Reference
 
 | Document | Contents |
 |----------|----------|
-| [reference/config-keys.md](reference/config-keys.md) | Complete config.yaml key reference |
-| [reference/env-vars.md](reference/env-vars.md) | All environment variables |
+| [reference/cli-commands.md](reference/cli-commands.md) | CLI command reference by command family |
+| [reference/environment-variables.md](reference/environment-variables.md) | Environment variables by subsystem |
+| [reference/profile-commands.md](reference/profile-commands.md) | Profile-specific command quick reference |
 | [reference/slash-commands.md](reference/slash-commands.md) | Complete slash command reference |
-| [reference/tool-schemas.md](reference/tool-schemas.md) | JSON schemas for all 49 tools |
-| [reference/skill-categories.md](reference/skill-categories.md) | All skill categories and their skills |
-| [reference/gateway-events.md](reference/gateway-events.md) | Gateway event types and hook payloads |
-| [reference/sqlite-schema.md](reference/sqlite-schema.md) | Session store SQLite schema reference |
-| [reference/api-endpoints.md](reference/api-endpoints.md) | API server endpoint reference |
-| [reference/mcp-tools.md](reference/mcp-tools.md) | MCP tool naming and filtering reference |
-| [reference/provider-aliases.md](reference/provider-aliases.md) | Provider ID aliases and routing |
+| [reference/tools-reference.md](reference/tools-reference.md) | Released built-in tools reference |
+| [reference/toolsets-reference.md](reference/toolsets-reference.md) | Toolset membership and gating rules |
+| [reference/skills-catalog.md](reference/skills-catalog.md) | Bundled skills catalog |
+| [reference/optional-skills-catalog.md](reference/optional-skills-catalog.md) | Official optional skills catalog |
+| [reference/mcp-config-reference.md](reference/mcp-config-reference.md) | MCP config schema and transport options |
+| [reference/faq.md](reference/faq.md) | Common operational questions and troubleshooting |
+
+### Audit & Validation
+
+| Document | Contents |
+|----------|----------|
+| [review_plan_v2026.4.7.md](review_plan_v2026.4.7.md) | Current release-bounded review plan for the April 7, 2026 audit rerun |
+| [repo_review_v2026.4.7.md](repo_review_v2026.4.7.md) | Detailed source-tree and documentation review mapped by subsystem |
+| [release_evaluation_v2026.4.7.md](release_evaluation_v2026.4.7.md) | Release validation, diff sizing, and unreleased-main exclusions |
+| [documentation_integrity_findings_v2026.4.7.md](documentation_integrity_findings_v2026.4.7.md) | Integrity findings and corrections applied in this pass |
+| [source_validation_matrix_v2026.4.7.md](source_validation_matrix_v2026.4.7.md) | Claim-to-source matrix with local and online validation links |
 
 ### Contributing
 
