@@ -21,7 +21,7 @@ The `/browser` slash command provides an interactive browser workflow from the C
 3. Call `browser_snapshot` to read the accessibility tree and get ref IDs
 4. Use `browser_click`, `browser_type`, `browser_press`, etc. to interact
 5. Call `browser_vision` for screenshot-based visual analysis when the accessibility tree is insufficient
-6. Call `browser_close` when done to release the session
+6. Session cleanup is automatic — `browser_close` is a no-op in v0.8.0
 
 The underlying mechanism uses the `agent-browser` CLI (a Node.js wrapper around Chromium) in local mode, or CDP (Chrome DevTools Protocol) when connected via `/browser connect`. Setting `CAMOFOX_URL` routes the same tool surface through the local Camofox REST backend instead. The accessibility tree representation uses ref IDs (`@e1`, `@e2`, ...) for element addressing. Cloud backends (Browserbase, Browser Use, Firecrawl) are selected via `browser.cloud_provider` in config.yaml and bypass the local browser path entirely.
 
@@ -221,7 +221,7 @@ AUXILIARY_WEB_EXTRACT_MODEL=
 
 ```yaml
 browser:
-  cloud_provider: browserbase    # "browserbase" or "browser-use" (empty = local mode)
+  cloud_provider: browserbase    # "browserbase" | "browser-use" | "firecrawl" (empty = local mode)
   record_sessions: false          # Auto-record browser sessions as WebM video
   inactivity_timeout: 120         # Seconds before auto-cleanup (env var override available)
   allow_private_urls: false       # Allow RFC1918 / loopback URLs on remote backends
@@ -330,7 +330,6 @@ Agent workflow:
 4. browser_type(ref="@e5", text="SecurePass123")
 5. browser_click(ref="@e8")  → clicks "Create Account"
 6. browser_snapshot()  → confirms success
-7. browser_close()
 ```
 
 ### Researching Dynamic Content
@@ -342,7 +341,6 @@ Agent workflow:
 1. browser_navigate("https://github.com/trending")
 2. browser_snapshot(full=true)  → reads trending repo list
 3. Returns formatted results
-4. browser_close()
 ```
 
 ## Session Recording

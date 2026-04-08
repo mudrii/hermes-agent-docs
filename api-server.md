@@ -341,15 +341,6 @@ curl http://localhost:8642/v1/chat/completions \
 
 ## What's New
 
-### v0.4.0 (PR #1756, #2450, #2456, #2451, #2472)
-
-- OpenAI-compatible API server introduced as a gateway platform adapter
-- `POST /v1/chat/completions` and `POST /v1/responses` endpoints
-- `/api/jobs` REST API for cron job management
-- Request body size limits, field whitelists, and CORS origin protection
-- SQLite-backed response persistence for `previous_response_id` chaining
-- Idempotency-Key support on both endpoints (PR #2903)
-
 ### v0.8.0
 
 - **Conversation history preserved on `/v1/runs` multi-message input** — When `/v1/runs` receives an OpenAI-style array of messages, all messages except the last user turn are extracted as `conversation_history`. Previously only the last message was kept, silently discarding earlier turns.
@@ -362,6 +353,15 @@ curl http://localhost:8642/v1/chat/completions \
 - **Allow `Idempotency-Key` in CORS headers** (PR #3530) — Browser frontends that send idempotency keys now work correctly without CORS preflight errors.
 - **Auto-repair `jobs.json` with invalid control characters** (PR #3537) — If `jobs.json` contains bare control characters (e.g., from a crash mid-write), the file is automatically repaired on load and rewritten with proper JSON escaping.
 - **Explicit `hermes-api-server` toolset** (PR #3304) — The API server platform now has its own named toolset in `platform_toolsets.api_server` configuration.
+
+### v0.4.0 (PR #1756, #2450, #2456, #2451, #2472)
+
+- OpenAI-compatible API server introduced as a gateway platform adapter
+- `POST /v1/chat/completions` and `POST /v1/responses` endpoints
+- `/api/jobs` REST API for cron job management
+- Request body size limits, field whitelists, and CORS origin protection
+- SQLite-backed response persistence for `previous_response_id` chaining
+- Idempotency-Key support on both endpoints (PR #2903)
 
 ## Limitations
 

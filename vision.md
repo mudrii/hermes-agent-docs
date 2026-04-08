@@ -74,7 +74,7 @@ Workarounds:
 
 ## vision_analyze Tool
 
-The `vision_analyze` tool analyzes images from URLs with custom prompts. It uses the centralized auxiliary vision router, which can select OpenRouter, Nous, Codex, native Anthropic, or a custom OpenAI-compatible endpoint.
+The `vision_analyze` tool analyzes images from URLs with custom prompts. It uses the centralized auxiliary vision router, which tries OpenRouter, Nous Portal, and the active provider in sequence.
 
 | Parameter | Description |
 |-----------|-------------|

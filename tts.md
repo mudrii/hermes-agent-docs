@@ -43,7 +43,7 @@ tts:
     model: "gpt-4o-mini-tts"
     voice: "alloy"              # alloy, echo, fable, onyx, nova, shimmer
     base_url: "https://api.openai.com/v1"  # Override for compatible endpoints
-  minimax:
+  minimax:                       # Not pre-populated in the default config — add this block manually to override the defaults shown in the comments
     model: "speech-2.8-hd"     # speech-2.8-hd (default) or speech-2.8-turbo
     voice_id: "English_Graceful_Lady"
     speed: 1
