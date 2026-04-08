@@ -641,7 +641,7 @@ call_llm(
 | Anthropic | `claude-haiku-4-5-20251001` |
 | z.ai | `glm-4.5-flash` |
 | Kimi/Moonshot | `kimi-k2-turbo-preview` |
-| MiniMax | `MiniMax-M2.7-highspeed` |
+| MiniMax | `MiniMax-M2.7` |
 | AI Gateway | `google/gemini-3-flash` |
 | Codex | `gpt-5.2-codex` |
 
