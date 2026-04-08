@@ -292,7 +292,7 @@ Available hooks in plugins (`VALID_HOOKS` as of v0.8.0):
 |------|------|-----------|
 | `pre_tool_call` | Before any tool runs | `tool_name`, `args`, `task_id` |
 | `post_tool_call` | After any tool returns | `tool_name`, `args`, `result`, `task_id` |
-| `pre_llm_call` | Before each LLM API call per turn | `session_id`, `user_message`, `conversation_history`, `is_first_turn`, `model`, `platform` |
+| `pre_llm_call` | Once per user turn, before the API call loop | `session_id`, `user_message`, `conversation_history`, `is_first_turn`, `model`, `platform` |
 | `post_llm_call` | After the turn's tool-calling loop completes | `session_id`, `user_message`, `assistant_response`, `conversation_history`, `model`, `platform` |
 | `pre_api_request` | Before each individual LLM API request | `session_id`, `message_count`, `tool_count`, `model`, `platform` |
 | `post_api_request` | After each individual LLM API response | `session_id`, `usage`, `model`, `platform` |

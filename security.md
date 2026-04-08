@@ -794,8 +794,8 @@ Existing protections to be aware of:
 | Subagent toolset restriction | Subagents inherit only the parent's enabled toolset (v0.5.0, [#3269](https://github.com/NousResearch/hermes-agent/pull/3269)) |
 | Timing attack mitigations | Constant-time comparisons for timing-sensitive checks (v0.8.0, [#5944](https://github.com/NousResearch/hermes-agent/pull/5944)) |
 | Tar traversal prevention | Path traversal entries in archives blocked before extraction (v0.8.0, [#5944](https://github.com/NousResearch/hermes-agent/pull/5944)) |
-| Cron path traversal hardening | Cron job IDs and output paths normalized and validated (v0.8.0, [#5613](https://github.com/NousResearch/hermes-agent/pull/5613)) |
-| Cross-session isolation | Session state scoped to prevent cross-session reads under concurrent load (v0.8.0, [#5613](https://github.com/NousResearch/hermes-agent/pull/5613)) |
+| Cron path traversal hardening | Cron job IDs and output paths normalized and validated (v0.8.0) |
+| Cross-session isolation | Session state scoped to prevent cross-session reads under concurrent load (v0.8.0) |
 | Terminal workdir sanitization | `workdir` parameter sanitized across all terminal backends (v0.8.0, [#5629](https://github.com/NousResearch/hermes-agent/pull/5629)) |
 | MCP OSV malware scanning | stdio MCP packages scanned via OSV API before spawn; fail-open (v0.8.0, [#5305](https://github.com/NousResearch/hermes-agent/pull/5305)) |
 | Approval session escalation | `allow-once` grants strictly session-scoped; cannot be escalated to `allow-always` (v0.8.0, [#5280](https://github.com/NousResearch/hermes-agent/pull/5280)) |

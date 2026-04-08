@@ -291,11 +291,11 @@ For gateway hooks:
 For plugin hooks (fully active since v0.5.0; `pre_api_request`, `post_api_request`, `on_session_finalize`, `on_session_reset` added in v0.8.0):
 
 1. `on_session_start` — fires once when a new session is first created
-2. `pre_llm_call` — fires once per user turn, before the tool-calling loop
+2. `pre_llm_call` — fires once per user turn, before the API call loop
 3. `pre_api_request` — fires before each individual LLM API request within a turn
-4. `pre_tool_call` — fires just before each tool execution inside the loop
-5. `post_tool_call` — fires just after each tool returns inside the loop
-6. `post_api_request` — fires after each individual LLM API response
+4. `post_api_request` — fires after each individual LLM API response (before tool execution for that response)
+5. `pre_tool_call` — fires just before each tool execution inside the loop
+6. `post_tool_call` — fires just after each tool returns inside the loop
 7. `post_llm_call` — fires once per user turn, after the loop completes
 8. `on_session_end` — fires at the end of every `run_conversation` call
 9. `on_session_finalize` — fires when a session is permanently closed (`/new`, `/reset`, or process exit)
