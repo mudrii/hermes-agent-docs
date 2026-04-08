@@ -29,7 +29,6 @@ Three kinds of toolsets exist:
 | `delegation` | `delegate_task` | Spawn subagents with isolated context for complex subtasks |
 | `file` | `patch`, `read_file`, `search_files`, `write_file` | File manipulation — read, write, patch (with fuzzy matching), and search (content + files) |
 | `homeassistant` | `ha_call_service`, `ha_get_state`, `ha_list_entities`, `ha_list_services` | Home Assistant smart home control and monitoring |
-| `honcho` | `honcho_conclude`, `honcho_context`, `honcho_profile`, `honcho_search` | Honcho AI-native memory for persistent cross-session user modeling |
 | `image_gen` | `image_generate` | Creative generation tools (images via FLUX 2 Pro) |
 | `memory` | `memory` | Persistent memory across sessions (personal notes and user profile) |
 | `messaging` | `send_message` | Cross-platform messaging — send messages to Telegram, Discord, Slack, SMS, etc. |
@@ -44,6 +43,8 @@ Three kinds of toolsets exist:
 | `vision` | `vision_analyze` | Image analysis and vision tools |
 | `web` | `web_extract`, `web_search` | Web research and content extraction tools |
 
+> **v0.8.0:** The `honcho` toolset was removed. Honcho is now a memory provider plugin — its tools are injected by `MemoryManager` rather than the toolset system. See [honcho.md](./honcho.md) or [memory.md](./memory.md).
+
 ## Composite Toolsets
 
 Composite toolsets include other toolsets via the `includes` field. They are resolved recursively — if `A` includes `B` and `B` includes `C`, resolving `A` yields all tools from `A`, `B`, and `C`.
@@ -51,9 +52,9 @@ Composite toolsets include other toolsets via the `includes` field. They are res
 | Toolset | Kind | Resolves to |
 |---------|------|-------------|
 | `debugging` | composite | `patch`, `process`, `read_file`, `search_files`, `terminal`, `web_extract`, `web_search`, `write_file` |
-| `safe` | composite | `image_generate`, `mixture_of_agents`, `vision_analyze`, `web_extract`, `web_search` |
+| `safe` | composite | `image_generate`, `vision_analyze`, `web_extract`, `web_search` |
 
-`debugging` includes `web` and `file` in addition to its direct tools (`terminal`, `process`). `safe` includes `web`, `vision`, and `image_gen` in addition to `mixture_of_agents`.
+`debugging` includes `web` and `file` in addition to its direct tools (`terminal`, `process`). `safe` includes `web`, `vision`, and `image_gen` — it does not include `mixture_of_agents`.
 
 ## Platform Toolsets
 
@@ -78,11 +79,10 @@ clarify,
 execute_code, delegate_task,
 cronjob,
 send_message,
-honcho_context, honcho_profile, honcho_search, honcho_conclude,
 ha_list_entities, ha_get_state, ha_list_services, ha_call_service
 ```
 
-Tools gated on environment variables or runtime conditions (`send_message`, `honcho_*`, `ha_*`, `image_generate`, `mixture_of_agents`) are silently excluded when their `check_fn` returns `False`.
+Tools gated on environment variables or runtime conditions (`send_message`, `ha_*`, `image_generate`, `mixture_of_agents`) are silently excluded when their `check_fn` returns `False`.
 
 | Toolset | Kind | Description |
 |---------|------|-------------|
@@ -292,7 +292,7 @@ The complete set of named toolsets available in a default Hermes installation, t
 ```
 Core:
   browser, clarify, code_execution, cronjob, delegation, file,
-  homeassistant, honcho, image_gen, memory, messaging, moa, rl,
+  homeassistant, image_gen, memory, messaging, moa, rl,
   search, session_search, skills, terminal, todo, tts, vision, web
 
 Composite:

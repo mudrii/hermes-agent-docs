@@ -46,7 +46,6 @@ tools.code_execution_tool
 tools.delegate_tool
 tools.process_registry
 tools.send_message_tool
-tools.honcho_tools
 tools.homeassistant_tool
 ```
 
@@ -128,27 +127,9 @@ Requires `HASS_TOKEN` environment variable. Gated via check function.
 | `ha_list_entities` | List Home Assistant entities. Optionally filter by domain (light, switch, climate, sensor, binary_sensor, cover, fan) or by area name (living room, kitchen, bedroom). |
 | `ha_list_services` | List available Home Assistant services (actions) for device control. Shows what actions can be performed on each device type and what parameters they accept. |
 
-### `honcho` toolset
+### `honcho` toolset (removed in v0.8.0)
 
-Honcho AI-native memory for persistent cross-session user modeling. Gated via check function when Honcho is configured.
-
-| Tool | Description |
-|------|-------------|
-| `honcho_conclude` | Write a conclusion about the user back to Honcho's memory. Conclusions are persistent facts that build the user's profile -- preferences, corrections, clarifications, project context. |
-| `honcho_context` | Ask Honcho a natural language question and get a synthesized answer using Honcho's LLM (dialectic reasoning). Higher cost than `honcho_profile` or `honcho_search`. Can query about any peer: the user (default), the AI assistant, or any named person. |
-| `honcho_profile` | Retrieve the user's peer card from Honcho -- a curated list of key facts about them (name, role, preferences, communication style, patterns). Fast, no LLM reasoning, minimal cost. |
-| `honcho_search` | Semantic search over Honcho's stored context about the user. Returns raw excerpts ranked by relevance -- no LLM synthesis. Cheaper and faster than `honcho_context`. |
-
-**Activating Honcho:** To enable the four Honcho tools (`honcho_context`, `honcho_profile`, `honcho_search`, `honcho_conclude`), configure a Honcho instance in `~/.hermes/config.yaml`:
-
-```yaml
-honcho:
-  enabled: true
-  base_url: "https://api.honcho.dev"   # or self-hosted URL
-  app_name: "hermes"
-```
-
-Set `HONCHO_API_KEY` in `~/.hermes/.env`. Once configured, the Honcho check function activates and the four tools appear in the session's tool definitions. The tools are available in all platform toolsets (CLI, Telegram, Discord, etc.) as part of `_HERMES_CORE_TOOLS`.
+The standalone `honcho` toolset and its four tools (`honcho_conclude`, `honcho_context`, `honcho_profile`, `honcho_search`) were removed in v0.8.0. Honcho is now a memory provider plugin rather than a toolset. Memory access through Honcho is injected by `MemoryManager` at session start rather than via the toolset system. See [honcho.md](./honcho.md) or [memory.md](./memory.md) for configuration details.
 
 ### `image_gen` toolset
 
@@ -436,7 +417,6 @@ Each tool can define a `check_fn` that returns `True` or `False`. When `check_fn
 - `mixture_of_agents` gates on `OPENROUTER_API_KEY`
 - `ha_*` tools gate on `HASS_TOKEN`
 - `rl_*` tools gate on `TINKER_API_KEY` and `WANDB_API_KEY`
-- `honcho_*` tools gate on Honcho being active
 - `send_message` gates on the gateway running
 
 ### Error Handling
