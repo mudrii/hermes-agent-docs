@@ -171,7 +171,7 @@ required for agent workflows.
 ## Implementation Notes
 
 - **Pipeline:** `hermes_cli/model_switch.py` — `switch_model()` handles flag parsing, alias resolution, aggregator detection, credential resolution, model name normalization, and result construction. The CLI and gateway share this function identically.
-- **Aggregator check:** `hermes_cli/providers.py` — `is_aggregator()` returns `True` for `openrouter` and `nous`.
+- **Aggregator check:** `hermes_cli/providers.py` — `is_aggregator()` returns `True` for `openrouter`, `vercel`, `opencode`, `opencode-go`, `kilo`, and `huggingface`. Non-aggregators (including `nous`) accept bare model names rather than `vendor/model` slugs.
 - **Model normalization:** `hermes_cli/model_normalize.py` — `normalize_model_for_provider()` applies per-provider formatting rules (e.g. Anthropic bare names vs OpenRouter vendor/name slugs).
 - **Metadata:** `agent/models_dev.py` — `get_model_info()` fetches `ModelInfo` (context window, max output, cost, capabilities) from the models.dev registry for the confirmation message.
 - **In-place agent update:** When a cached agent exists for the session, `agent.switch_model()` is called to update model, provider, api_key, base_url, and api_mode in-place without creating a new agent instance.

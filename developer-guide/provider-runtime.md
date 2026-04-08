@@ -87,7 +87,7 @@ Auxiliary tasks (vision, web extraction, context compression summaries, session 
 | Anthropic | `claude-haiku-4-5-20251001` |
 | Z.AI | `glm-4.5-flash` |
 | Kimi/Moonshot | `kimi-k2-turbo-preview` |
-| MiniMax | `MiniMax-M2.7-highspeed` |
+| MiniMax | `MiniMax-M2.7` |
 | AI Gateway | `google/gemini-3-flash` |
 | Codex | `gpt-5.2-codex` |
 
@@ -164,6 +164,6 @@ Default auxiliary models per provider (used by `agent/auxiliary_client.py`):
 | Google AI Studio | `gemini-3-flash-preview` |
 | Z.AI | `glm-4.5-flash` |
 | Kimi/Moonshot | `kimi-k2-turbo-preview` |
-| MiniMax | `MiniMax-M2.7-highspeed` (rewritten to `/v1` endpoint) |
+| MiniMax | `MiniMax-M2.7` (rewritten to `/v1` endpoint) |
 | AI Gateway | `google/gemini-3-flash` |
 | Codex | `gpt-5.2-codex` |
