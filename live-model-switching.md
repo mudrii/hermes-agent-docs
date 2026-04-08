@@ -91,7 +91,7 @@ A `/model` switch **with `--global`** is persistent:
 
 The switch pipeline uses the current provider context to minimize unnecessary provider changes:
 
-1. When the requested model is available on the current aggregator (OpenRouter or Nous Portal), the provider stays the same — only the model name changes.
+1. When the requested model is available on OpenRouter or Nous Portal (which shares OpenRouter's curated model catalog), the provider stays the same — only the model name changes.
 2. When the model is not available on the current aggregator, Hermes searches authenticated providers in order and falls back to the first one that has the model.
 3. When `--provider` is given explicitly, that provider is used directly.
 

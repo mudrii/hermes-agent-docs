@@ -83,7 +83,7 @@ Auxiliary tasks (vision, web extraction, context compression summaries, session 
 | Provider | Default Auxiliary Model |
 |----------|----------------------|
 | OpenRouter | `google/gemini-3-flash-preview` |
-| Nous Portal | `gemini-3-flash` |
+| Nous Portal | `google/gemini-3-flash-preview` |
 | Anthropic | `claude-haiku-4-5-20251001` |
 | Z.AI | `glm-4.5-flash` |
 | Kimi/Moonshot | `kimi-k2-turbo-preview` |
