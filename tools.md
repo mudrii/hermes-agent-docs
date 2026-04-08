@@ -223,7 +223,7 @@ RL training tools for running reinforcement learning on Tinker-Atropos. Requires
 | Tool | Description |
 |------|-------------|
 | `process` | Manage background processes started with `terminal(background=true)`. Actions: `list` (show all), `poll` (check status + new output), `log` (full output with pagination), `wait` (block until done or timeout), `kill` (terminate), `write` (send input to stdin). |
-| `terminal` | Execute shell commands. Filesystem persists between calls. Do not use cat/head/tail — use `read_file`. Do not use grep/rg/find — use `search_files`. Supports `background=true` for async execution and `pty=true` for interactive CLI tools. |
+| `terminal` | Execute shell commands. Filesystem persists between calls. Do not use cat/head/tail — use `read_file`. Do not use grep/rg/find — use `search_files`. Supports `background=true` for async execution, `pty=true` for interactive CLI tools, and `notify_on_complete=true` to auto-notify the agent when a background process exits. |
 
 ### `todo` toolset
 
@@ -387,7 +387,7 @@ Existence is checked at mount time with mtime+size caching — files that have n
 Start background processes and manage them:
 
 ```python
-terminal(command="pytest -v tests/", background=true)
+terminal(command="pytest -v tests/", background=True)
 # Returns: {"session_id": "proc_abc123", "pid": 12345}
 
 process(action="list")
@@ -399,6 +399,24 @@ process(action="write", session_id="proc_abc123", data="y")
 ```
 
 PTY mode (`pty=true`) enables interactive CLI tools like Codex and Claude Code.
+
+### notify_on_complete (v0.8.0)
+
+Pass `notify_on_complete=True` with `background=True` to have the agent automatically notified when the process exits — no polling needed:
+
+```python
+terminal(
+    command="python train.py --epochs 50",
+    background=True,
+    notify_on_complete=True,
+)
+```
+
+When the process exits, a new agent turn is triggered automatically with the process output and exit status attached. The agent can then summarize results, handle errors, or continue with dependent work — without any explicit `process(action="wait")` or `process(action="poll")` calls.
+
+Background processes keep a rolling 200 KB output buffer (`MAX_OUTPUT_CHARS = 200_000`). The completion notification includes whatever is in the buffer at exit time. `ProcessRegistry` persists process state to `~/.hermes/processes.json` for crash recovery.
+
+See [notify-on-complete.md](./notify-on-complete.md) for full details including execution environments and use cases.
 
 ## Sudo Support
 

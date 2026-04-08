@@ -4,7 +4,7 @@
 
 Hermes Agent is an autonomous AI agent with a built-in learning loop. It creates skills from experience, improves them during use, searches its own past conversations for context, and builds a deepening model of who you are across sessions. It runs on a $5 VPS, a GPU cluster, or serverless infrastructure -- not tied to your laptop.
 
-Current version: **v0.7.0 (v2026.4.3)** -- released April 3, 2026.
+Current version: **v0.8.0 (v2026.4.8)** -- released April 8, 2026.
 
 ---
 

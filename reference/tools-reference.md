@@ -1,6 +1,6 @@
 # Built-in Tools Reference
 
-This page documents the released built-in Hermes tool registry through v0.7.0 (`v2026.4.3`). Availability can still vary by platform, installed extras, credentials, and enabled toolsets.
+This page documents the released built-in Hermes tool registry through v0.8.0 (`v2026.4.8`). Availability can still vary by platform, installed extras, credentials, and enabled toolsets.
 
 Older fixed totals in previous docs passes went stale quickly as the tool surface evolved. Treat the per-tool tables below as the source of truth for this docs repo rather than any historical aggregate count.
 
@@ -129,7 +129,7 @@ Older fixed totals in previous docs passes went stale quickly as the tool surfac
 | Tool | Description | Requires environment |
 |------|-------------|----------------------|
 | `process` | Manage background processes started with terminal(background=true). Actions: 'list' (show all), 'poll' (check status + new output), 'log' (full output with pagination), 'wait' (block until done or timeout), 'kill' (terminate), 'write' (send stdin). | -- |
-| `terminal` | Execute shell commands on a Linux environment. Filesystem persists between calls. Do not use cat/head/tail to read files -- use read_file instead. Do not use grep/rg/find to search -- use search_files instead. | -- |
+| `terminal` | Execute shell commands on a Linux environment. Filesystem persists between calls. Do not use cat/head/tail to read files -- use read_file instead. Do not use grep/rg/find to search -- use search_files instead. Supports `background=true` for async execution and `notify_on_complete=true` to auto-notify the agent when the background process exits (v0.8.0). | -- |
 
 ## `todo` toolset
 

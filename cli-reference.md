@@ -45,7 +45,7 @@ Running `hermes` with no arguments starts an interactive chat session.
 | Command | Purpose |
 |---------|---------|
 | `hermes chat` | Interactive or one-shot chat with the agent. |
-| `hermes model` | Interactively choose the default provider and model. As of v0.5.0 (PR #3080), this is the canonical way to switch models; the `/model` slash command was removed from CLI and gateway. |
+| `hermes model` | Interactively choose the default provider and model. |
 | `hermes mcp` | Manage MCP servers (v0.4.0 — PR #2465). See [`hermes mcp`](#hermes-mcp) below. |
 | `hermes gateway` | Run or manage the messaging gateway service. |
 | `hermes setup` | Interactive setup wizard for all or part of the configuration. |
@@ -62,6 +62,7 @@ Running `hermes` with no arguments starts an interactive chat session.
 | `hermes tools` | Configure enabled tools per platform. |
 | `hermes sessions` | Browse, export, prune, rename, and delete sessions. |
 | `hermes insights` | Show token/cost/activity analytics. |
+| `hermes logs` | Tail and filter agent log files. New in v0.8.0. |
 | `hermes claw` | OpenClaw migration helpers. |
 | `hermes version` | Show version information. |
 | `hermes update` | Pull latest code and reinstall dependencies. |
@@ -148,7 +149,7 @@ Interactive provider and model selector. Use this to:
 
 The selected provider and model are persisted to `~/.hermes/config.yaml` under the `model:` key so later sessions use the saved selection even when `HERMES_INFERENCE_PROVIDER` is not set in the shell.
 
-**v0.5.0 (PR #3080):** The `/model` slash command was removed from both CLI and gateway. `hermes model` is the sole canonical way to switch the default provider and model. A shared `switch_model()` pipeline (PR #2795, #2799) handles custom endpoints and provider-aware routing for both CLI and gateway.
+**v0.8.0:** The `/model` slash command is available again in both CLI and messaging gateway (PR #5181, #5742). Use it to switch provider and model mid-session without restarting. `hermes model` remains the canonical way to set the persistent default. A shared `switch_model()` pipeline handles custom endpoints and provider-aware routing.
 
 ---
 
@@ -266,6 +267,8 @@ Runs the WhatsApp pairing/setup flow, including mode selection (`bot` or `self-c
 ---
 
 ## `hermes login` / `hermes logout`
+
+> **Deprecated:** `hermes login` / `hermes logout` are stale aliases kept for backward compatibility. Use `hermes auth add` and `hermes auth remove` instead.
 
 ```bash
 hermes login [--provider nous|openai-codex] [--portal-url ...] [--inference-url ...]
@@ -559,14 +562,67 @@ Manage authentication credentials for providers.
 | `remove <provider>` | Remove stored credentials for a provider. |
 | `reset` | Clear all stored auth credentials and start fresh. Prompts for confirmation. |
 
+### Notes
+
+`hermes auth remove <provider>` permanently removes stored credentials for a provider. If the credential was originally seeded from an environment variable (e.g., `OPENROUTER_API_KEY`), `hermes auth remove` clears the stored copy from `~/.hermes/auth.json` as well. The environment variable itself is not modified, but the persisted credential is gone. To prevent the env-seeded value from being picked up again on next startup, unset the variable from `~/.hermes/.env` or your shell environment.
+
 ### Examples
 
 ```bash
 hermes auth list                   # show all provider auth status
 hermes auth add openrouter         # add OpenRouter API key
 hermes auth add nous               # start Nous Portal OAuth flow
-hermes auth remove anthropic       # remove Anthropic credentials
+hermes auth remove anthropic       # remove Anthropic credentials (including env-seeded copy)
 hermes auth reset                  # clear all auth (with confirmation)
+```
+
+---
+
+## `hermes logs`
+
+New in v0.8.0.
+
+```bash
+hermes logs [source] [options]
+```
+
+Tail and filter Hermes log files. Log files are written to `~/.hermes/logs/`:
+
+| File | Contents |
+|------|----------|
+| `agent.log` | General agent activity (default source) |
+| `errors.log` | Errors and exceptions only |
+| `gateway.log` | Messaging gateway platform events |
+
+### Sources
+
+```bash
+hermes logs                    # last 50 lines of agent.log
+hermes logs errors             # last 50 lines of errors.log
+hermes logs gateway            # last 50 lines of gateway.log
+```
+
+### Options
+
+| Option | Description |
+|--------|-------------|
+| `-n <lines>` | Number of lines to show (default: 50). |
+| `-f`, `--follow` | Follow the log in real time (like `tail -f`). |
+| `--level <level>` | Filter to lines at or above this log level. Values: `DEBUG`, `INFO`, `WARNING`, `ERROR`, `CRITICAL`. |
+| `--session <id>` | Filter by session ID substring. |
+| `--since <duration>` | Show only lines from the last N minutes/hours. Format: `30m`, `1h`, `2h`. |
+
+### Examples
+
+```bash
+hermes logs                          # last 50 lines of agent.log
+hermes logs -f                       # follow agent.log in real time
+hermes logs errors                   # last 50 lines of errors.log
+hermes logs gateway -n 100           # last 100 lines of gateway.log
+hermes logs --level WARNING          # only WARNING and above
+hermes logs --session abc123         # filter by session ID substring
+hermes logs --since 1h               # lines from the last hour
+hermes logs --since 30m -f           # follow, starting 30 min ago
 ```
 
 ---
@@ -703,7 +759,7 @@ Slash commands are dispatched from a central `COMMAND_REGISTRY` in `hermes_cli/c
 | `/skin [name]` | Yes | -- | Show or change the display skin/theme. |
 | `/voice [on\|off\|tts\|status]` | Yes | Yes | Toggle voice mode. Recording key defaults to `Ctrl+B` (configurable via `voice.record_key` in `config.yaml`). |
 
-> **v0.5.0 note (PR #3080):** `/model` was removed from CLI and gateway. Use `hermes model` from the shell to switch the active provider and model.
+> **v0.8.0 (PR #5181, #5742):** `/model` is available again in CLI and all messaging gateway platforms. Use it to switch provider and model mid-session. `hermes model` remains the canonical way to update the persistent default in `config.yaml`.
 
 ### Tools and Skills Commands
 

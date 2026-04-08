@@ -31,8 +31,9 @@ hermes [global-options] <command> [subcommand/options]
 | `hermes gateway` | Run or manage the messaging gateway service. |
 | `hermes setup` | Interactive setup wizard for all or part of the configuration. |
 | `hermes whatsapp` | Configure and pair the WhatsApp bridge. |
-| `hermes login` / `logout` | Authenticate with OAuth-backed providers. |
+| `hermes login` / `logout` | Authenticate with OAuth-backed providers. Deprecated — use `hermes auth` instead. |
 | `hermes auth` | Manage credential pools -- add, list, remove, reset, set strategy. |
+| `hermes logs` | Tail and filter agent log files (agent.log, errors.log, gateway.log). New in v0.8.0. |
 | `hermes status` | Show agent, auth, and platform status. |
 | `hermes cron` | Inspect and tick the cron scheduler. |
 | `hermes webhook` | Manage dynamic webhook subscriptions for event-driven activation. |
@@ -185,6 +186,43 @@ hermes auth reset openrouter                             # Clear cooldowns
 ```
 
 Subcommands: `add`, `list`, `remove`, `reset`. When called with no subcommand, launches the interactive management wizard.
+
+## `hermes logs`
+
+New in v0.8.0.
+
+```bash
+hermes logs [source] [options]
+```
+
+Tail and filter Hermes log files from `~/.hermes/logs/`.
+
+| Source | File | Contents |
+|--------|------|----------|
+| (default) | `agent.log` | General agent activity |
+| `errors` | `errors.log` | Errors and exceptions only |
+| `gateway` | `gateway.log` | Messaging gateway platform events |
+
+| Option | Description |
+|--------|-------------|
+| `-n <lines>` | Number of lines (default: 50). |
+| `-f`, `--follow` | Follow in real time. |
+| `--level <level>` | Minimum log level: `DEBUG`, `INFO`, `WARNING`, `ERROR`, `CRITICAL`. |
+| `--session <id>` | Filter by session ID substring. |
+| `--since <duration>` | Show lines from the last N minutes/hours (e.g., `30m`, `1h`). |
+
+Examples:
+
+```bash
+hermes logs                          # last 50 lines of agent.log
+hermes logs -f                       # follow agent.log
+hermes logs errors                   # last 50 lines of errors.log
+hermes logs gateway -n 100           # last 100 lines of gateway.log
+hermes logs --level WARNING          # WARNING and above only
+hermes logs --session abc123         # filter by session ID
+hermes logs --since 1h               # lines from the last hour
+hermes logs --since 30m -f           # follow, starting 30 min ago
+```
 
 ## `hermes status`
 

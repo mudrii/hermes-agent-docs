@@ -477,6 +477,31 @@ Skills for red-teaming model robustness, jailbreaking, and safety bypass researc
 | `test-driven-development` | Enforces RED-GREEN-REFACTOR cycle with test-first approach. Use before writing any implementation code. | `software-development/test-driven-development` |
 | `writing-plans` | Creates comprehensive implementation plans with bite-sized tasks, exact file paths, and complete code examples. | `software-development/writing-plans` |
 
+## New Skills in v0.8.0
+
+The following skills were added in v0.8.0 (v2026.4.8):
+
+### creative
+
+| Skill | Description | PR |
+|-------|-------------|-----|
+| `popular-web-designs` | Recreate and adapt popular website UI/UX patterns and design systems using HTML, CSS, and JavaScript. | [#5863](https://github.com/NousResearch/hermes-agent/pull/5863) |
+| `p5js` | Create generative art, visualizations, and interactive sketches using p5.js. Covers canvas drawing, animations, interaction, and exporting. | [#5910](https://github.com/NousResearch/hermes-agent/pull/5910) |
+| `manim-video` | Produce mathematical animations and explainer videos with Manim Community Edition. | [#5868](https://github.com/NousResearch/hermes-agent/pull/5868) |
+
+### research
+
+| Skill | Description | PR |
+|-------|-------------|-----|
+| `llm-wiki` | Query and browse LLM-generated wiki-style knowledge entries via the llm-wiki CLI. | [#5851](https://github.com/NousResearch/hermes-agent/pull/5851) |
+| `research-paper-writing` | Write research papers for academic venues (NeurIPS, ICML, ICLR, EMNLP). LaTeX templates, submission checklists, and reviewer guidelines. | [#5889](https://github.com/NousResearch/hermes-agent/pull/5889) |
+
+### software-development
+
+| Skill | Description | PR |
+|-------|-------------|-----|
+| `gitnexus-explorer` | Explore and query GitHub repositories, issues, PRs, and commit history using the gitnexus CLI. | [#5876](https://github.com/NousResearch/hermes-agent/pull/5876) |
+
 ## New Skills in v0.6.0
 
 The following skills were added in v0.6.0 (v2026.3.30):
@@ -583,6 +608,12 @@ Browse all: `hermes skills browse --source official`
 | `oss-forensics` | Supply chain investigation, evidence recovery, and forensic analysis for GitHub repositories. Covers deleted commit recovery, force-push detection, IOC extraction, multi-source evidence collection, and structured forensic reporting. | `security/oss-forensics` |
 | `sherlock` | OSINT username search across 400+ social networks. Hunt down social media accounts by username. Requires the sherlock CLI. | `security/sherlock` |
 
+## Bundled Skills Sync on Update (v0.8.0)
+
+When you run `hermes update`, bundled skills are synced to all configured profiles (PR #5795). Previously, only the active profile's skills directory was updated. Now, each profile in `~/.hermes/profiles/` receives the same bundled skill updates so all profiles stay in sync without manual copying.
+
+This sync applies only to skills that originated from the bundled set. Agent-created skills and hub-installed skills are not touched.
+
 ## Per-Platform Skill Enable/Disable
 
 Skills can be enabled or disabled per platform in `~/.hermes/config.yaml`:
@@ -599,6 +630,8 @@ skills:
 ```
 
 The `platform_disabled` key overrides the global `disabled` list for the named platform. The platform name is resolved from the `HERMES_PLATFORM` environment variable at runtime. If `platform_disabled` is set for the current platform, it completely replaces the global `disabled` list for that platform.
+
+**v0.8.0 (PR #4799):** In the Telegram platform, per-platform disabled skills are now respected in the skills menu (the inline keyboard menu that appears when a user types `/skills`). Skills listed under `platform_disabled.telegram` no longer appear in the Telegram menu, consistent with how they are already excluded from `skills_list()` results.
 
 ## Agent-Managed Skills
 

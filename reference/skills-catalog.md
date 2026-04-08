@@ -41,6 +41,9 @@ Creative content generation -- ASCII art, hand-drawn style diagrams, visual desi
 | `ascii-art` | Generate ASCII art using pyfiglet (571 fonts), cowsay, boxes, toilet, image-to-ascii, remote APIs, and LLM fallback. No API keys required. | `creative/ascii-art` |
 | `ascii-video` | Production pipeline for ASCII art video -- any format. Converts video/audio/images/generative input into colored ASCII character video output (MP4, GIF, image sequence). | `creative/ascii-video` |
 | `excalidraw` | Create hand-drawn style diagrams using Excalidraw JSON format. Generate .excalidraw files for architecture diagrams, flowcharts, sequence diagrams, concept maps, and more. | `creative/excalidraw` |
+| `manim-video` | Produce mathematical animations and explainer videos with Manim Community Edition. Added in v0.8.0. | `creative/manim-video` |
+| `p5js` | Create generative art, visualizations, and interactive sketches using p5.js. Covers canvas drawing, animations, interaction, and exporting. Added in v0.8.0. | `creative/p5js` |
+| `popular-web-designs` | Recreate and adapt popular website UI/UX patterns and design systems using HTML, CSS, and JavaScript. Added in v0.8.0. | `creative/popular-web-designs` |
 | `songwriting-and-ai-music` | Songwriting craft and AI music generation -- chord progressions, lyric structure, song sections, and prompting for Suno and Udio. | `creative/songwriting-and-ai-music` |
 
 ## devops
@@ -245,8 +248,10 @@ Skills for academic research, paper discovery, literature review, domain reconna
 | `blogwatcher` | Monitor blogs and RSS/Atom feeds for updates using the blogwatcher CLI. | `research/blogwatcher` |
 | `domain-intel` | Passive domain reconnaissance using Python stdlib. Subdomain discovery, SSL certificate inspection, WHOIS lookups, DNS records, domain availability checks. No API keys required. | `research/domain-intel` |
 | `duckduckgo-search` | Free web search via DuckDuckGo -- text, news, images, videos. No API key needed. | `research/duckduckgo-search` |
+| `llm-wiki` | Query and browse LLM-generated wiki-style knowledge entries via the llm-wiki CLI. Added in v0.8.0. | `research/llm-wiki` |
 | `ml-paper-writing` | Write publication-ready ML/AI papers for NeurIPS, ICML, ICLR, ACL, AAAI, COLM. Includes LaTeX templates, reviewer guidelines, and citation verification. | `research/ml-paper-writing` |
 | `polymarket` | Query Polymarket prediction market data -- search markets, get prices, orderbooks, and price history. Read-only via public REST APIs, no API key needed. | `research/polymarket` |
+| `research-paper-writing` | Write research papers for academic venues (NeurIPS, ICML, ICLR, EMNLP). LaTeX templates, submission checklists, and reviewer guidelines. Added in v0.8.0. | `research/research-paper-writing` |
 
 ## red-teaming
 
@@ -273,6 +278,7 @@ Skills for LLM red-teaming, jailbreaking, and safety filter bypass research.
 | Skill | Description | Path |
 |-------|-------------|------|
 | `code-review` | Guidelines for performing thorough code reviews with security and quality focus. | `software-development/code-review` |
+| `gitnexus-explorer` | Explore and query GitHub repositories, issues, PRs, and commit history using the gitnexus CLI. Added in v0.8.0. | `software-development/gitnexus-explorer` |
 | `plan` | Plan mode for Hermes -- inspect context, write a markdown plan into `.hermes/plans/` in the active workspace/backend working directory, and do not execute the work. | `software-development/plan` |
 | `requesting-code-review` | Use when completing tasks, implementing major features, or before merging. Validates work meets requirements through systematic review process. | `software-development/requesting-code-review` |
 | `subagent-driven-development` | Use when executing implementation plans with independent tasks. Dispatches fresh delegate_task per task with two-stage review. | `software-development/subagent-driven-development` |

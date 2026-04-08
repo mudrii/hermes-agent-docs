@@ -122,3 +122,81 @@ completions_menu       # autocomplete dropdown
 - **Custom styles**: Override `_build_tui_style_dict()` and add entries for your custom style classes
 - **Slash commands**: Override `process_command()`, handle your commands, and call `super().process_command(cmd)` for everything else
 - **Don't override `run()`** unless absolutely necessary -- the extension hooks exist specifically to avoid that coupling
+
+---
+
+## Plugin CLI Subcommand Registration (v0.8.0)
+
+Plugins can register top-level `hermes <name>` subcommands without touching `main.py`. The `PluginContext.register_cli_command()` method in `hermes_cli/plugins.py` handles the registration.
+
+### How it works
+
+When Hermes starts, `discover_plugins()` loads each enabled plugin and calls its `setup()` entry point, passing a `PluginContext`. The plugin calls `ctx.register_cli_command()` to declare its CLI subcommand. After all plugins are loaded, `main.py` iterates the registered commands and adds them to the argument parser.
+
+### register_cli_command() signature
+
+```python
+def register_cli_command(
+    self,
+    name: str,
+    help: str,
+    setup_fn: Callable,
+    handler_fn: Callable | None = None,
+    description: str = "",
+) -> None:
+    """Register a CLI subcommand (e.g. ``hermes honcho ...``)."""
+```
+
+Parameters:
+
+| Parameter | Description |
+|-----------|-------------|
+| `name` | Subcommand name. The resulting command is `hermes <name>`. |
+| `help` | Short help string shown in `hermes --help`. |
+| `setup_fn` | Called during argument parser setup. Receives the subparser so the plugin can add its own flags and subcommands. |
+| `handler_fn` | Called when the user runs the command. Receives parsed `argparse.Namespace`. Optional — can be set later. |
+| `description` | Longer description shown in the subcommand's own `--help`. |
+
+### Example plugin
+
+```python
+# my_plugin/__init__.py
+
+def setup(ctx):
+    ctx.register_cli_command(
+        name="myplugin",
+        help="My plugin's CLI commands.",
+        setup_fn=_setup_parser,
+        handler_fn=_handle_command,
+        description="Extended description for hermes myplugin --help.",
+    )
+
+def _setup_parser(subparser):
+    subparser.add_argument("--verbose", action="store_true")
+    sub = subparser.add_subparsers(dest="myplugin_cmd")
+    sub.add_parser("run", help="Run the plugin.")
+    sub.add_parser("status", help="Show status.")
+
+def _handle_command(args):
+    if args.myplugin_cmd == "run":
+        print("Running my plugin...")
+    elif args.myplugin_cmd == "status":
+        print("Status OK")
+```
+
+After installing this plugin, users can run:
+
+```bash
+hermes myplugin run
+hermes myplugin status
+hermes myplugin --help
+```
+
+### Plugin loading
+
+Plugins are discovered from:
+- `~/.hermes/plugins/` (user-installed)
+- `./.hermes/plugins/` (project-local, when `HERMES_ENABLE_PROJECT_PLUGINS=true`)
+- Pip-installed packages declaring a `hermes_agent.plugins` entry point
+
+Disabled plugins (listed in `config.yaml` under `plugins.disabled`) are skipped during discovery. Use `hermes plugins enable <name>` / `hermes plugins disable <name>` to manage plugin state.

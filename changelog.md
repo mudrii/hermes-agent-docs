@@ -2,7 +2,33 @@
 
 All notable changes to Hermes Agent are documented here.
 
-**Current stable release: v0.7.0** (v2026.4.3, April 3, 2026)
+**Current stable release: v0.8.0** (v2026.4.8, April 8, 2026)
+
+---
+
+## v0.8.0 -- April 8, 2026
+
+> The intelligence release — background task auto-notifications, free MiMo v2 Pro on Nous Portal, live model switching across all platforms, self-optimized GPT/Codex guidance, native Google AI Studio, smart inactivity timeouts, approval buttons, MCP OAuth 2.1, and 209 merged PRs with 82 resolved issues.
+
+### Highlights
+
+- **Background process auto-notifications (`notify_on_complete`)** — pass `notify_on_complete=True` to `terminal()` with `background=True` and the agent is automatically notified when the process exits. No polling needed. (PR [#5779](https://github.com/NousResearch/hermes-agent/pull/5779))
+- **Live model switching (`/model`)** — the `/model` slash command is available again in CLI and all gateway platforms (Telegram, Discord, Slack, and others) for mid-session provider and model switching. (PR [#5181](https://github.com/NousResearch/hermes-agent/pull/5181), [#5742](https://github.com/NousResearch/hermes-agent/pull/5742))
+- **Centralized logging (`hermes logs`)** — structured logging to `~/.hermes/logs/` with a new `hermes logs` command for tailing and filtering `agent.log`, `errors.log`, and `gateway.log`. (PR [#5430](https://github.com/NousResearch/hermes-agent/pull/5430), [#5426](https://github.com/NousResearch/hermes-agent/pull/5426))
+- **Plugin CLI subcommands** — plugins can register `hermes <name>` top-level subcommands via `ctx.register_cli_command()` without modifying `main.py`. (PR [#5295](https://github.com/NousResearch/hermes-agent/pull/5295))
+- **Google AI Studio (Gemini) native provider** — direct Gemini access via Google's AI Studio API with models.dev context length detection. (PR [#5577](https://github.com/NousResearch/hermes-agent/pull/5577))
+- **Inactivity-based agent timeouts** — timeouts now track actual tool activity; actively working agents are never killed mid-task. (PR [#5389](https://github.com/NousResearch/hermes-agent/pull/5389), [#5440](https://github.com/NousResearch/hermes-agent/pull/5440))
+- **Approval buttons on Slack and Telegram** — dangerous command approval via native platform buttons instead of typing `/approve`. (PR [#5890](https://github.com/NousResearch/hermes-agent/pull/5890), [#5975](https://github.com/NousResearch/hermes-agent/pull/5975))
+- **MCP OAuth 2.1 PKCE + OSV malware scanning** — standards-compliant OAuth for MCP servers plus automatic package malware scanning. (PR [#5420](https://github.com/NousResearch/hermes-agent/pull/5420), [#5305](https://github.com/NousResearch/hermes-agent/pull/5305))
+- **Security hardening** — consolidated SSRF protections, timing attack mitigations, tar traversal prevention, credential leakage guards, cron path traversal hardening, and cross-session isolation. (PR [#5944](https://github.com/NousResearch/hermes-agent/pull/5944), [#5613](https://github.com/NousResearch/hermes-agent/pull/5613))
+- **Bundled skills synced to all profiles** on `hermes update`. (PR [#5795](https://github.com/NousResearch/hermes-agent/pull/5795))
+- **Per-platform disabled skills** respected in Telegram skills menu. (PR [#4799](https://github.com/NousResearch/hermes-agent/pull/4799))
+- **`hermes auth remove` clears env-seeded credentials** permanently from `~/.hermes/auth.json`.
+- **`--yolo` flag** no longer silently dropped before the `chat` subcommand. (PR [#5145](https://github.com/NousResearch/hermes-agent/pull/5145))
+- **New bundled skills** — `creative/popular-web-designs`, `creative/p5js`, `creative/manim-video`, `research/llm-wiki`, `research/research-paper-writing`, `software-development/gitnexus-explorer`.
+- **Supermemory memory provider** — new memory plugin with multi-container and per-user scoping. (PR [#5737](https://github.com/NousResearch/hermes-agent/pull/5737))
+- **Windows native image paste** support. (PR [#5917](https://github.com/NousResearch/hermes-agent/pull/5917))
+- **Matrix Tier 1** — reactions, read receipts, rich formatting, and room management. (PR [#5275](https://github.com/NousResearch/hermes-agent/pull/5275))
 
 ---
 
