@@ -190,6 +190,7 @@ Constant in source: `MAX_DEPTH = 2` in `tools/delegate_tool.py`.
 - Only the final summary enters the parent's context, keeping token usage efficient
 - Subagents inherit the parent's **API key and provider configuration** unless overridden in delegation config
 - **v0.5.0 (PR #3004):** Subagents now have **independent iteration budgets**. Each subagent gets its own `max_iterations` counter (default: 50 per `delegation.max_iterations`). Previously, subagents shared the parent's budget, causing them to hit the limit prematurely when the parent had already consumed many turns.
+- **v0.8.0 (PR #5309):** Subagent sessions are **linked to the parent session** via `parent_session_id` and **hidden from the session list** by default. `hermes sessions list` and `session_search` exclude child sessions unless you pass `include_children=True` to the `SessionDB.list_sessions()` API.
 
 ## Configuration
 

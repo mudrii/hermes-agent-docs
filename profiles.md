@@ -1,6 +1,6 @@
 # Profiles (Multi-Instance Hermes)
 
-Introduced in **v0.6.0 (v2026.3.30)**. ([#3681](https://github.com/NousResearch/hermes-agent/pull/3681))
+Introduced in **v0.6.0 (v2026.3.30)**. ([#3681](https://github.com/NousResearch/hermes-agent/pull/3681)). v0.8.0 added profile-scoped memory isolation, clone support, and profile-aware service units.
 
 ---
 
@@ -209,6 +209,29 @@ User-modified skills are never overwritten.
 When a non-default profile is active, CLI output uses `display_hermes_home()` to show paths relative to the profile name rather than the raw filesystem path. For example, `~/.hermes/profiles/coder/config.yaml` is displayed as `[coder] config.yaml` in status output, error messages, and diagnostic commands like `hermes doctor`. This keeps output readable when working with multiple profiles.
 
 ---
+
+## Profile-Scoped Memory Isolation (v0.8.0)
+
+Memory providers are fully isolated per profile ([#4845](https://github.com/NousResearch/hermes-agent/pull/4845)). Each profile's memory manager receives `hermes_home` pointing to that profile's directory during `initialize()`, so all provider-specific config, storage, and state live under `~/.hermes/profiles/<name>/` rather than the shared default home.
+
+The `memories/` subdirectory (`MEMORY.md`, `USER.md`) and any provider-specific config files (e.g. `supermemory.json`, `hindsight/config.json`, `mem0.json`) are scoped to the profile and do not bleed between profiles.
+
+### Clone support for memory
+
+| Flag | Memory included |
+|------|----------------|
+| `--clone` | No — fresh `memories/` for the new profile |
+| `--clone-all` | Yes — copies the full `memories/` directory |
+
+## Profile-Aware Service Units (v0.8.0)
+
+Gateway service units (systemd/launchd) now include the `--profile` flag in the service command argv ([#5972](https://github.com/NousResearch/hermes-agent/pull/5972)). This ensures that when a service starts at boot, it launches the correct profile gateway rather than the default profile.
+
+```bash
+coder gateway install   # registers hermes-gateway-coder.service with --profile coder in the command
+```
+
+Prior to v0.8.0, all installed gateways started as the default profile, meaning named-profile gateways would not survive reboots correctly.
 
 ## How it works
 

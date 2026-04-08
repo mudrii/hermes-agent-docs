@@ -203,9 +203,14 @@ Results include a snippet (40 tokens, delimited by `>>>` and `<<<`), surrounding
 - `resolve_session_by_title()` follows numbered lineage variants (e.g. `"my session"` -> `"my session #2"`)
 - Auto-titling: after the first user-assistant exchange, `maybe_auto_title()` fires a background thread that calls `call_llm(task="compression", max_tokens=30, temperature=0.3)` to generate a 3-7 word title
 
-## Session Lineage
+## Session Lineage and Subagent Sessions
 
-Sessions form chains via `parent_session_id`. This happens when context compression triggers a session split in the gateway.
+Sessions form chains via `parent_session_id`. This happens in two cases:
+
+1. **Context compression splits** — when the gateway triggers a compression-driven session split, the new session records the previous session as its parent.
+2. **Subagent sessions (v0.8.0 — PR #5309)** — when `delegate_task` spawns a child agent, the child's session is stored with the parent's `session_id` as `parent_session_id`.
+
+By default, `list_sessions()` excludes child sessions (those with a non-NULL `parent_session_id`). Pass `include_children=True` to include them. This keeps `hermes sessions list` and `session_search` uncluttered while preserving the full subagent transcript for debugging.
 
 ## Schema v6: Reasoning Persistence
 

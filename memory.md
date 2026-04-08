@@ -279,6 +279,147 @@ The memory files remain on disk. Re-enabling memory loads them again in the next
 
 ---
 
+---
+
+## Supermemory Provider (v0.8.0)
+
+Supermemory is a new memory provider plugin added in v0.8.0 ([#5737](https://github.com/NousResearch/hermes-agent/pull/5737), [#5933](https://github.com/NousResearch/hermes-agent/pull/5933)). It uses the [Supermemory](https://supermemory.ai) API for semantic long-term memory with profile recall, semantic search, explicit memory tools, and automatic session-end conversation ingest.
+
+### Setup
+
+```bash
+hermes memory setup supermemory    # interactive setup wizard
+```
+
+Or set the API key directly:
+
+```bash
+export SUPERMEMORY_API_KEY=your-key
+```
+
+### Configuration
+
+Config is stored at `$HERMES_HOME/supermemory.json`:
+
+| Key | Default | Description |
+|-----|---------|-------------|
+| `container_tag` | `"hermes"` | Container to store/recall memories in |
+| `search_mode` | `"hybrid"` | Search mode: `hybrid`, `memories`, or `documents` |
+| `auto_recall` | `true` | Automatically recall context before each turn |
+| `auto_capture` | `true` | Automatically capture turns at session end |
+| `max_recall_results` | `10` | Max memories to return per recall |
+| `enable_custom_container_tags` | `false` | Enable multi-container routing |
+| `custom_containers` | `[]` | Additional container tags when multi-container is enabled |
+| `entity_context` | *(see below)* | Template for what the model should extract |
+
+**Multi-container support:** When `enable_custom_container_tags` is true, the agent can store and retrieve from multiple named containers. The default container (`container_tag`) is always included.
+
+**Identity template:** The `container_tag` field supports a `{identity}` variable that is replaced with the active profile name at runtime. For example, `container_tag: "hermes-{identity}"` produces `hermes-coder` for the `coder` profile, enabling per-profile memory isolation.
+
+**Env var override:** `SUPERMEMORY_CONTAINER_TAG` overrides the config file's `container_tag` at runtime. Env var takes precedence over `$HERMES_HOME/supermemory.json`.
+
+### Enable
+
+```yaml
+# ~/.hermes/config.yaml
+memory:
+  provider: supermemory
+```
+
+---
+
+## Hindsight Provider (v0.8.0 Overhaul)
+
+The Hindsight memory plugin was overhauled in v0.8.0 ([#5094](https://github.com/NousResearch/hermes-agent/pull/5094)). It supports both cloud (API key) and local (self-hosted) modes with knowledge graph, entity resolution, and multi-strategy retrieval.
+
+### Config loading order
+
+1. Environment variables (`HINDSIGHT_API_KEY`, `HINDSIGHT_BANK_ID`, `HINDSIGHT_BUDGET`, `HINDSIGHT_API_URL`, `HINDSIGHT_MODE`)
+2. Profile-scoped config: `$HERMES_HOME/hindsight/config.json`
+3. Legacy shared config: `~/.hindsight/config.json` (backward compat only)
+
+Profile-scoped config is preferred. Each profile gets its own Hindsight config under `$HERMES_HOME/hindsight/config.json`, enabling different bank IDs and modes per profile.
+
+### Memory setup wizard fixes
+
+The memory setup wizard (`hermes memory setup hindsight`) was fixed in the v0.8.0 overhaul to correctly handle conditional field rendering (`cloud`-only vs `local`-only fields) and to resolve the missing `get_hermes_home` import that caused wizard setup to fail in some configurations.
+
+---
+
+## mem0 Provider (v0.8.0)
+
+### API v2 compatibility
+
+The mem0 provider was updated in v0.8.0 ([#5423](https://github.com/NousResearch/hermes-agent/pull/5423)) for compatibility with the Mem0 Platform API v2, which wraps search and recall results in a `{"results": [...]}` envelope. The `_unwrap_results()` helper normalizes both the v1 list format and the v2 dict format transparently.
+
+### Env vars merged with mem0.json
+
+Previously, if `$HERMES_HOME/mem0.json` existed, env vars were ignored entirely. In v0.8.0 ([#4939](https://github.com/NousResearch/hermes-agent/pull/4939)), env vars provide defaults and `mem0.json` overrides individual keys. Fields set in `mem0.json` take precedence; fields missing from `mem0.json` fall back to env vars. This avoids silent failures when only some fields are in the JSON file.
+
+Environment variables: `MEM0_API_KEY`, `MEM0_USER_ID`, `MEM0_AGENT_ID`.
+
+### Prefetch context fencing
+
+The prefetch result is returned in a fenced `## Mem0 Memory` block so the model can distinguish Mem0 context from other system prompt sections.
+
+### Per-user memory scoping in gateway
+
+The provider now uses the gateway-provided `user_id` kwarg from `initialize()` for per-user isolation in multi-user gateway sessions. CLI sessions fall back to `MEM0_USER_ID` / `mem0.json` as before.
+
+---
+
+## RetainDB Provider (v0.8.0)
+
+RetainDB received a set of fixes in v0.8.0 ([#5461](https://github.com/NousResearch/hermes-agent/pull/5461)):
+
+- **API routes** — corrected endpoint paths for all operations (search, ingest, profile, context query)
+- **Write queue** — replaced synchronous writes with a SQLite-backed durable async write queue (crash-safe; pending rows replay on startup)
+- **Dialectic** — the `ask_user` dialectic endpoint now works correctly for contextual Q&A
+- **Agent model** — the `get_agent_model` endpoint is wired correctly for identity seeding
+- **File tools** — upload, list, read, ingest, and delete file operations fixed
+
+---
+
+## Shared Thread Sessions (v0.8.0)
+
+Starting in v0.8.0 ([#5391](https://github.com/NousResearch/hermes-agent/pull/5391)), gateway threads (Telegram forum topics, Discord threads, Slack threads) default to **shared sessions** where all participants see the same conversation history. This is the expected UX for threaded conversations where multiple users @mention the bot and interact collaboratively.
+
+**Behavior changes:**
+
+- When a `thread_id` is present, the session key no longer includes `user_id` (threads are shared by default)
+- Messages in shared threads are prefixed with `[sender name]` so the agent can tell participants apart
+- The system prompt shows a "Multi-user thread" note instead of a per-turn User line (avoids breaking the prompt cache)
+- Regular group messages (no thread) and DMs remain per-user isolated (unchanged)
+
+**To restore per-user isolation in threads:**
+
+```yaml
+# ~/.hermes/config.yaml (or gateway config)
+thread_sessions_per_user: true
+```
+
+---
+
+## Subagent Sessions (v0.8.0)
+
+Starting in v0.8.0 ([#5309](https://github.com/NousResearch/hermes-agent/pull/5309)), subagent sessions are linked to their parent session and hidden from the session list by default.
+
+- Subagent sessions are stored with `parent_session_id` pointing to the parent agent's session
+- `hermes sessions list` and `session_search` exclude sessions that have a `parent_session_id` (child sessions) by default
+- Pass `include_children=True` to `SessionDB.list_sessions()` to see subagent sessions
+
+This keeps the session list clean while preserving the full subagent transcript for debugging and lineage tracking.
+
+---
+
+## Profile-Scoped Memory Isolation (v0.8.0)
+
+Memory providers now scope storage to the active profile ([#4845](https://github.com/NousResearch/hermes-agent/pull/4845)). The `initialize()` call receives `hermes_home` pointing to the profile's directory (`~/.hermes/profiles/<name>/`), ensuring memory files, config, and provider-specific storage are fully isolated per profile.
+
+**Clone support:** `hermes profile create --clone` and `--clone-all` include memory state in the copy. `--clone` copies `config.yaml`, `.env`, and `SOUL.md` (fresh memory). `--clone-all` copies the full profile including `memories/`.
+
+---
+
 ## Honcho Integration: Cross-Session User Modeling
 
 Honcho is an AI-native memory system that gives Hermes persistent, cross-session understanding of users. While Hermes has built-in memory (`MEMORY.md` and `USER.md`), Honcho adds a deeper layer of user modeling -- learning preferences, goals, and communication style across conversations via a dual-peer architecture where both the user and the AI build representations over time.

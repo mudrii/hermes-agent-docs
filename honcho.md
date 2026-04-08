@@ -2,7 +2,7 @@
 
 [Honcho](https://honcho.dev) is an AI-native memory system that gives Hermes persistent, cross-session understanding of users. While Hermes has built-in memory (`MEMORY.md` and `USER.md`), Honcho adds a deeper layer of **user modeling** -- learning preferences, goals, communication style, and context across conversations via a dual-peer architecture where both the user and the AI build representations over time.
 
-First integrated in v0.2.0 ([PR #38](https://github.com/NousResearch/hermes-agent/pull/38)). Expanded significantly in v0.3.0 with session isolation, dialectic reasoning, and gateway integration.
+First integrated in v0.2.0 ([PR #38](https://github.com/NousResearch/hermes-agent/pull/38)). Expanded significantly in v0.3.0 with session isolation, dialectic reasoning, and gateway integration. Migrated to the memory provider plugin architecture in v0.7.0. Overhauled in v0.8.0 with plugin drift fixes, CLI registration system, and a `recall_mode` bug fix.
 
 ## Works Alongside Built-in Memory
 
@@ -282,13 +282,29 @@ hermes honcho identity ~/.hermes/SOUL.md
 
 This uploads the file content through Honcho's observation pipeline. The AI peer representation is then injected into the system prompt alongside the user's.
 
+## v0.8.0 Changes
+
+### Plugin drift overhaul and CLI registration
+
+The Honcho memory plugin received a drift overhaul in v0.8.0 ([#5295](https://github.com/NousResearch/hermes-agent/pull/5295)) to bring it back into full parity with the memory provider interface. The `hermes honcho ...` CLI subcommands are now registered dynamically via the plugin CLI registration system (`ctx.register_cli_command()`) rather than being hardcoded into the main CLI parser. This means other memory plugins can register their own subcommands using the same mechanism.
+
+### Holographic prompt and trust score preserved
+
+Holographic prompt rendering and trust score display in the system prompt were preserved in the v0.8.0 drift fix ([#4872](https://github.com/NousResearch/hermes-agent/pull/4872)), ensuring the prompt block format is unchanged for users relying on these features.
+
+### `recall_mode` fix in `hermes doctor`
+
+A bug was fixed in v0.8.0 ([#5645](https://github.com/NousResearch/hermes-agent/pull/5645)) where `hermes doctor` used the field name `memory_mode` instead of the correct `recall_mode` when validating Honcho configuration. If you saw Honcho flagged as misconfigured in `hermes doctor` output despite having a valid `recallMode` setting, this fix resolves it. The correct field to check and set is `recallMode` (camelCase in JSON, `recall_mode` in doctor output).
+
 ## Implementation
 
-The Honcho integration lives in `honcho_integration/` with four modules:
+The Honcho integration lives in `plugins/memory/honcho/` with four modules:
 
-- `__init__.py` -- package exports
+- `__init__.py` -- provider class and plugin registration
 - `client.py` -- Honcho API client wrapper
 - `session.py` -- session management and lifecycle
 - `cli.py` -- CLI command implementations
+
+The `register(ctx)` function calls `ctx.register_memory_provider(HonchoMemoryProvider())` and registers the `honcho` CLI subcommand via `ctx.register_cli_command()`.
 
 Honcho is fully opt-in -- zero behavior change when disabled or unconfigured. All Honcho calls are non-fatal; if the service is unreachable, the agent continues normally.
