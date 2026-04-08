@@ -203,6 +203,65 @@ Results include a snippet (40 tokens, delimited by `>>>` and `<<<`), surrounding
 - `resolve_session_by_title()` follows numbered lineage variants (e.g. `"my session"` -> `"my session #2"`)
 - Auto-titling: after the first user-assistant exchange, `maybe_auto_title()` fires a background thread that calls `call_llm(task="compression", max_tokens=30, temperature=0.3)` to generate a 3-7 word title
 
+## Shared Thread Sessions (v0.8.0)
+
+Gateway threads — Telegram forum topics, Discord threads, Slack threads — default to **shared sessions** where every participant in the thread sees the same conversation (v0.8.0 — PR #5391). This is controlled by the `thread_sessions_per_user` gateway config option.
+
+### Session key behavior
+
+Session keys are built by `build_session_key()` in `gateway/session.py`. The key rule for threads:
+
+| Scenario | Session key includes `user_id`? | Result |
+|----------|---------------------------------|--------|
+| Regular group message (no `thread_id`) | Yes (when `group_sessions_per_user: true`) | Per-user isolated |
+| Thread message, `thread_sessions_per_user: false` (default) | No | Shared across all thread participants |
+| Thread message, `thread_sessions_per_user: true` | Yes | Per-user isolated within the thread |
+| DM (any) | N/A — DM keys use `chat_id` + optional `thread_id` | Always per-user |
+
+When a thread is shared, the session key is `agent:main:<platform>:<chat_type>:<chat_id>:<thread_id>` with no user identifier appended. All participants write into and read from the same session record in `state.db`.
+
+### Sender attribution
+
+Because multiple users share one session in shared-thread mode, each user message is automatically prefixed with `[sender name]` before being stored and sent to the model. This lets the agent distinguish participants without changing the session key logic:
+
+```
+[alice] Can you review this PR?
+[bob] Also check the security implications please.
+```
+
+The prefix is applied only when:
+- The message is not a DM (`chat_type != "dm"`)
+- A `thread_id` is present
+- `thread_sessions_per_user` is `false` (the default)
+- A `user_name` is available from the platform
+
+### Configuration
+
+```yaml
+# ~/.hermes/config.yaml (gateway section, or gateway config file)
+thread_sessions_per_user: false   # default — threads are shared sessions
+```
+
+Set to `true` to restore per-user isolation within threads (each participant gets a separate session, matching the pre-v0.8.0 behavior):
+
+```yaml
+thread_sessions_per_user: true
+```
+
+`group_sessions_per_user` (default: `true`) remains independent and controls isolation in regular group/channel messages that have no `thread_id`. The two flags are orthogonal.
+
+### Per-platform applicability
+
+| Platform | Shared threads apply? |
+|----------|-----------------------|
+| Telegram | Yes — forum topic threads (`message_thread_id`) |
+| Discord | Yes — message threads |
+| Slack | Yes — message threads |
+| Feishu | Yes — threaded replies |
+| All others | Thread keying used where `thread_id` is surfaced by the platform |
+
+DMs on all platforms are unaffected — they are always keyed per-user by `chat_id`.
+
 ## Session Lineage and Subagent Sessions
 
 Sessions form chains via `parent_session_id`. This happens in two cases:
