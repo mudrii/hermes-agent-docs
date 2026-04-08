@@ -541,10 +541,11 @@ def register(ctx):
         name="my-plugin",
         help="Manage my-plugin",
         setup_fn=_setup_my_subparser,
+        handler_fn=_handle_my_command,  # optional
     )
 ```
 
-After the plugin loads, `hermes my-plugin status` works as a first-class CLI subcommand. The `setup_fn` receives an argparse subparser and can add nested sub-subparsers, arguments, and defaults.
+After the plugin loads, `hermes my-plugin status` works as a first-class CLI subcommand. The `setup_fn` receives an argparse subparser and can add nested sub-subparsers, arguments, and defaults. The optional `handler_fn` parameter sets `set_defaults(func=handler_fn)` on the subparser automatically, so you can omit the explicit `set_defaults` call inside `setup_fn` when a single top-level handler covers all actions.
 
 ## Prompting for Required Env Vars During Install (v0.8.0)
 
@@ -559,7 +560,7 @@ requires_env:
     required: true
 ```
 
-Simple string entries are checked for presence. Dict entries with `required: true` block installation if the variable is absent and the user does not supply a value at the prompt. Values entered at the prompt are written to `~/.hermes/.env`.
+Simple string entries are checked for presence. Dict entries (rich format) support `description`, `url`, and `secret` metadata. All variables are prompted regardless of format; empty input skips gracefully with a reminder to set the value in `~/.hermes/.env` later.
 
 ## Memory Provider Plugins (Released in v0.7.0)
 

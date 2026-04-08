@@ -485,7 +485,7 @@ When `--auth oauth` is specified, `hermes mcp add` initiates the OAuth 2.1 PKCE 
 3. Opens the browser to the authorization URL
 4. Starts a local callback server to receive the authorization code
 5. Exchanges the code for tokens (access + refresh)
-6. Stores tokens securely in `~/.hermes/.env` under `MCP_<NAME>_API_KEY`
+6. Stores tokens to `~/.hermes/mcp-tokens/<name>.json` (0o600 permissions) and reuses them automatically across sessions.
 
 **Note (v0.5.0):** The Hermes-native PKCE OAuth implementation was removed in v0.5.0 (PR #3107). MCP servers that require OAuth must use the standard OAuth 2.1 flow via `--auth oauth`. The flow above uses the standard MCP SDK OAuth support, not a Hermes-specific implementation.
 

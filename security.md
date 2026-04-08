@@ -798,5 +798,6 @@ Existing protections to be aware of:
 | Cross-session isolation | Session state scoped to prevent cross-session reads under concurrent load (v0.8.0, [#5613](https://github.com/NousResearch/hermes-agent/pull/5613)) |
 | Terminal workdir sanitization | `workdir` parameter sanitized across all terminal backends (v0.8.0, [#5629](https://github.com/NousResearch/hermes-agent/pull/5629)) |
 | MCP OSV malware scanning | stdio MCP packages scanned via OSV API before spawn; fail-open (v0.8.0, [#5305](https://github.com/NousResearch/hermes-agent/pull/5305)) |
+| Approval session escalation | `allow-once` grants strictly session-scoped; cannot be escalated to `allow-always` (v0.8.0, [#5280](https://github.com/NousResearch/hermes-agent/pull/5280)) |
 
 If your PR affects security, note it explicitly in the PR description.
