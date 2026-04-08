@@ -15,7 +15,7 @@ All notable changes to Hermes Agent are documented here.
 - **Background process auto-notifications (`notify_on_complete`)** — pass `notify_on_complete=True` to `terminal()` with `background=True` and the agent is automatically notified when the process exits. No polling needed. (PR [#5779](https://github.com/NousResearch/hermes-agent/pull/5779))
 - **Live model switching (`/model`)** — the `/model` slash command is available again in CLI and all gateway platforms (Telegram, Discord, Slack, and others) for mid-session provider and model switching. (PR [#5181](https://github.com/NousResearch/hermes-agent/pull/5181), [#5742](https://github.com/NousResearch/hermes-agent/pull/5742))
 - **Centralized logging (`hermes logs`)** — structured logging to `~/.hermes/logs/` with a new `hermes logs` command for tailing and filtering `agent.log`, `errors.log`, and `gateway.log`. (PR [#5430](https://github.com/NousResearch/hermes-agent/pull/5430), [#5426](https://github.com/NousResearch/hermes-agent/pull/5426))
-- **Plugin CLI subcommands** — plugins can register `hermes <name>` top-level subcommands via `ctx.register_cli_command()` without modifying `main.py`. (PR [#5295](https://github.com/NousResearch/hermes-agent/pull/5295))
+- **Plugin API-level hooks** — new `pre_api_request`, `post_api_request`, `on_session_finalize`, and `on_session_reset` hooks added to the plugin system, alongside `ctx.register_cli_command()` for top-level subcommands. (PR [#5427](https://github.com/NousResearch/hermes-agent/pull/5427), [#5295](https://github.com/NousResearch/hermes-agent/pull/5295), [#6129](https://github.com/NousResearch/hermes-agent/pull/6129))
 - **Google AI Studio (Gemini) native provider** — direct Gemini access via Google's AI Studio API with models.dev context length detection. (PR [#5577](https://github.com/NousResearch/hermes-agent/pull/5577))
 - **Inactivity-based agent timeouts** — timeouts now track actual tool activity; actively working agents are never killed mid-task. (PR [#5389](https://github.com/NousResearch/hermes-agent/pull/5389), [#5440](https://github.com/NousResearch/hermes-agent/pull/5440))
 - **Approval buttons on Slack and Telegram** — dangerous command approval via native platform buttons instead of typing `/approve`. (PR [#5890](https://github.com/NousResearch/hermes-agent/pull/5890), [#5975](https://github.com/NousResearch/hermes-agent/pull/5975))
@@ -29,6 +29,9 @@ All notable changes to Hermes Agent are documented here.
 - **Supermemory memory provider** — new memory plugin with multi-container and per-user scoping. (PR [#5737](https://github.com/NousResearch/hermes-agent/pull/5737))
 - **Windows native image paste** support. (PR [#5917](https://github.com/NousResearch/hermes-agent/pull/5917))
 - **Matrix Tier 1** — reactions, read receipts, rich formatting, and room management. (PR [#5275](https://github.com/NousResearch/hermes-agent/pull/5275))
+- **Jittered backoff for API retries** — exponential backoff with jitter replaces fixed retry intervals, improving resilience under rate limiting. (PR [#6048](https://github.com/NousResearch/hermes-agent/pull/6048))
+- **Smart thinking block signature management** — Anthropic thinking block signatures are preserved and managed correctly across multi-turn tool calls. (PR [#6112](https://github.com/NousResearch/hermes-agent/pull/6112))
+- **Honcho toolset removed** — Honcho now ships as a memory provider plugin in `plugins/memory/honcho/` rather than as a built-in toolset. Existing users must install via `hermes plugins install honcho`. (PR [#5295](https://github.com/NousResearch/hermes-agent/pull/5295))
 
 ---
 

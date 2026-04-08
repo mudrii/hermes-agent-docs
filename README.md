@@ -232,6 +232,7 @@ hermes tools        # Configure which tools are enabled (curses UI)
 hermes setup        # Run the full setup wizard (configures everything at once)
 hermes gateway      # Start the messaging gateway (Telegram, Discord, etc.)
 hermes mcp          # Install, configure, and authenticate MCP servers (v0.4.0)
+hermes logs         # View and follow structured log files (v0.8.0)
 hermes claw migrate # Migrate settings and memories from OpenClaw
 hermes doctor       # Diagnose configuration issues across all providers
 hermes update       # Update to the latest version (with auto-restart for gateway)
@@ -248,7 +249,7 @@ Hermes has two entry points: start the terminal UI with `hermes`, or run the gat
 | Start chatting | `hermes` | Run `hermes gateway setup` + `hermes gateway start`, then send the bot a message |
 | Start fresh conversation | `/new` or `/reset` | `/new` or `/reset` |
 | Resume a named session | `/resume [session]` (v0.5.0) | `/resume [session]` (v0.5.0) |
-| Change model | `hermes model` | `hermes model` |
+| Change model | `hermes model` or `/model` (v0.8.0) | `hermes model` or `/model` (v0.8.0) |
 | Set a personality | `/personality [name]` | `/personality [name]` |
 | Retry or undo the last turn | `/retry`, `/undo` | `/retry`, `/undo` |
 | Compress context / check usage | `/compress`, `/usage`, `/insights [--days N]` | `/compress`, `/usage`, `/insights [days]` |
@@ -291,6 +292,9 @@ Hermes has two entry points: start the terminal UI with `hermes`, or run the gat
 |----------|----------|
 | [plugins.md](plugins.md) | Plugin architecture, discovery, registration, custom tools (v0.3.0) |
 | [hooks.md](hooks.md) | Gateway and plugin lifecycle hooks, event types |
+| [logging.md](logging.md) | Centralized logging to `~/.hermes/logs/`, `hermes logs` command, rotation, and redaction (v0.8.0) |
+| [live-model-switching.md](live-model-switching.md) | `/model` command, mid-session provider and model switching, interactive pickers (v0.8.0) |
+| [notify-on-complete.md](notify-on-complete.md) | `notify_on_complete` parameter, process registry, background task auto-notifications (v0.8.0) |
 | [browser.md](browser.md) | Browser automation, Browserbase, Browser Use, CDP connect |
 | [credential-pools.md](credential-pools.md) | Same-provider credential rotation, pool strategies, fallback interplay |
 | [fallback-providers.md](fallback-providers.md) | Provider failover chains, retry logic, health checks |
@@ -399,10 +403,11 @@ Hermes has two entry points: start the terminal UI with `hermes`, or run the gat
 
 | Document | Contents |
 |----------|----------|
-| [review_plan_v2026.4.7.md](review_plan_v2026.4.7.md) | Current release-bounded review plan for the April 7, 2026 audit rerun |
+| [documentation_integrity_findings_v2026.4.8.md](documentation_integrity_findings_v2026.4.8.md) | Integrity findings and corrections applied in the v0.8.0 docs pass |
+| [review_plan_v2026.4.7.md](review_plan_v2026.4.7.md) | Release-bounded review plan for the April 7, 2026 audit rerun |
 | [repo_review_v2026.4.7.md](repo_review_v2026.4.7.md) | Detailed source-tree and documentation review mapped by subsystem |
 | [release_evaluation_v2026.4.7.md](release_evaluation_v2026.4.7.md) | Release validation, diff sizing, and unreleased-main exclusions |
-| [documentation_integrity_findings_v2026.4.7.md](documentation_integrity_findings_v2026.4.7.md) | Integrity findings and corrections applied in this pass |
+| [documentation_integrity_findings_v2026.4.7.md](documentation_integrity_findings_v2026.4.7.md) | Integrity findings and corrections applied in the v0.7.0 docs pass |
 | [source_validation_matrix_v2026.4.7.md](source_validation_matrix_v2026.4.7.md) | Claim-to-source matrix with local and online validation links |
 
 ### Contributing
