@@ -303,23 +303,28 @@ Available hooks in plugins (`VALID_HOOKS` as of v0.8.0):
 
 The `pre_llm_call` and `post_llm_call` hooks fire once per user turn. `pre_api_request` and `post_api_request` fire on every individual API call within a turn (useful for per-request tracing). `pre_llm_call` can optionally return a dict with a `"context"` key whose string value is appended to the user message for that turn only — it is not persisted to the session DB or prompt cache. All four session/LLM hooks were activated in v0.5.0 (PR [#3542](https://github.com/NousResearch/hermes-agent/pull/3542)). The API-level hooks and session lifecycle hooks (`on_session_finalize`, `on_session_reset`) were added in v0.8.0.
 
-## Plugin Lifecycle Hooks (v0.5.0)
+## Plugin Lifecycle Hooks
 
-Prior to v0.5.0, only `pre_tool_call` and `post_tool_call` fired. The four session-level and LLM-level hooks (`pre_llm_call`, `post_llm_call`, `on_session_start`, `on_session_end`) were defined but not wired into the agent loop. As of v0.5.0 (PR [#3542](https://github.com/NousResearch/hermes-agent/pull/3542)) all six hooks are fully active in the CLI, gateway, and cron sessions.
+Prior to v0.5.0, only `pre_tool_call` and `post_tool_call` fired. The four session-level and LLM-level hooks (`pre_llm_call`, `post_llm_call`, `on_session_start`, `on_session_end`) were defined but not wired into the agent loop. As of v0.5.0 (PR [#3542](https://github.com/NousResearch/hermes-agent/pull/3542)) the original six hooks are fully active. In v0.8.0 four more hooks were added: `pre_api_request`, `post_api_request`, `on_session_finalize`, and `on_session_reset`.
 
 ### Execution order within a turn
 
 ```
-on_session_start        ← once, when a brand-new session is created
-pre_llm_call            ← once per user turn, before the tool-calling loop
-  [tool-calling loop]
-    pre_tool_call       ← before each tool
-    post_tool_call      ← after each tool
-post_llm_call           ← once per user turn, after the loop completes
-on_session_end          ← at the end of every run_conversation call
+on_session_start            ← once, when a brand-new session is created
+pre_llm_call                ← once per user turn
+  [per-API-call loop]
+    pre_api_request         ← before each individual LLM API request (v0.8.0)
+    post_api_request        ← after each individual LLM API response (v0.8.0)
+    [tool-calling]
+      pre_tool_call         ← before each tool
+      post_tool_call        ← after each tool
+post_llm_call               ← once per user turn, after the loop completes
+on_session_end              ← at the end of every run_conversation call
+on_session_finalize         ← once, when session is permanently closed (v0.8.0)
+on_session_reset            ← once, when a new session is created after reset (v0.8.0)
 ```
 
-### Complete plugin example with all six hooks
+### Complete plugin example with all ten hooks
 
 ```python
 # ~/.hermes/plugins/my-observer/__init__.py
@@ -372,6 +377,25 @@ def _on_post_tool_call(tool_name, args, result, task_id, **kwargs):
           "result_len": len(result or "")})
 
 
+# v0.8.0 hooks — fire on every individual LLM API call within a turn
+def _on_pre_api_request(session_id, message_count, tool_count, model, platform, **kwargs):
+    _log({"event": "pre_api_request", "session_id": session_id,
+          "message_count": message_count, "tool_count": tool_count})
+
+
+def _on_post_api_request(session_id, usage, model, platform, **kwargs):
+    _log({"event": "post_api_request", "session_id": session_id, "usage": usage})
+
+
+# v0.8.0 hooks — permanent session lifecycle events
+def _on_session_finalize(session_id, platform, **kwargs):
+    _log({"event": "session_finalize", "session_id": session_id, "platform": platform})
+
+
+def _on_session_reset(session_id, platform, **kwargs):
+    _log({"event": "session_reset", "session_id": session_id, "platform": platform})
+
+
 def register(ctx):
     ctx.register_hook("on_session_start", _on_session_start)
     ctx.register_hook("pre_llm_call", _on_pre_llm_call)
@@ -379,6 +403,10 @@ def register(ctx):
     ctx.register_hook("on_session_end", _on_session_end)
     ctx.register_hook("pre_tool_call", _on_pre_tool_call)
     ctx.register_hook("post_tool_call", _on_post_tool_call)
+    ctx.register_hook("pre_api_request", _on_pre_api_request)
+    ctx.register_hook("post_api_request", _on_post_api_request)
+    ctx.register_hook("on_session_finalize", _on_session_finalize)
+    ctx.register_hook("on_session_reset", _on_session_reset)
 ```
 
 ## Shipping Data Files

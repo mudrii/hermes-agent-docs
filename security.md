@@ -745,7 +745,7 @@ A single PR consolidated multiple SSRF, timing, and traversal fixes across the c
 - **Tar traversal prevention** — archives unpacked during self-update and skill install are now checked for path traversal entries (e.g. `../`) before extraction.
 - **Credential leakage guards** — additional scrubbing applied to error messages and log lines that might contain credential-like patterns.
 
-### Cross-Session Isolation and Cron Path Traversal (PR #5613)
+### Cross-Session Isolation and Cron Path Traversal
 
 - **Cross-session isolation** — session state is scoped more tightly to prevent one session from reading another's in-progress state under concurrent gateway load.
 - **Cron path traversal hardening** — cron job IDs and output paths are validated and normalized before use in filesystem operations, blocking crafted job IDs from escaping the cron output directory.
