@@ -2,7 +2,7 @@
 
 The Hermes gateway is the long-running background process that connects Hermes Agent to external messaging platforms. It manages incoming messages, session state, platform authentication, cron scheduling, and outbound delivery — all through a single unified pipeline.
 
-This document covers the released gateway surface through v0.7.0 (v2026.4.3).
+This document covers the released gateway surface through v0.8.0 (v2026.4.8).
 
 ---
 
@@ -20,12 +20,20 @@ The gateway is not a webhook handler or a stateless API proxy. It is a persisten
 
 The gateway is implemented in `gateway/run.py` with supporting modules for configuration (`gateway/config.py`), session management (`gateway/session.py`), delivery (`gateway/delivery.py`), pairing (`gateway/pairing.py`), status tracking (`gateway/status.py`), and platform adapters (`gateway/platforms/`).
 
-Released v0.7.0 adds a major hardening pass across the gateway surface:
+Released v0.7.0 added a major hardening pass across the gateway surface:
 
 - approval routing now correctly resumes blocked agent runs
 - API-server sessions can persist continuity through `X-Hermes-Session-Id`
 - webhook adapters suppress live tool-progress chatter
 - Discord adds native button-based approval prompts
+
+Released v0.8.0 adds further improvements:
+
+- **Inactivity-based agent timeout** — the gateway now tracks actual tool activity instead of wall-clock time. Active tasks (tool calls in progress) are never killed; only truly idle agents time out.
+- **Approval buttons on Slack & Telegram** — dangerous command prompts render as platform-native interactive buttons instead of requiring `/approve` or `/deny` text commands. Slack also preserves thread context during approval waits.
+- **Duplicate message prevention** — gateway-level deduplication plus a partial stream guard prevent double delivery in edge cases.
+- **Thread-safe PairingStore** with atomic writes.
+- **Profile-aware service units** — the installed systemd/launchd service units are now aware of the active profile.
 
 ---
 
@@ -798,6 +806,23 @@ When a message is delivered to a platform via `send_message` or cron delivery, t
 ---
 
 ## Changelog
+
+### v0.8.0 (v2026.4.8)
+
+- **Inactivity-based agent timeout** — replaces wall-clock timeout with smart activity tracking. Active tasks that are executing tool calls are never killed; only agents that have been genuinely idle beyond the threshold are evicted ([PR #5389](https://github.com/NousResearch/hermes-agent/pull/5389), [#5440](https://github.com/NousResearch/hermes-agent/pull/5440)).
+- **Approval buttons for Slack & Telegram** — dangerous command approval prompts render as platform-native interactive buttons. Typing `/approve` or `/deny` still works as a fallback, but users can now click a button directly. Slack also preserves thread context during approval waits ([PR #5890](https://github.com/NousResearch/hermes-agent/pull/5890), [#5975](https://github.com/NousResearch/hermes-agent/pull/5975)).
+- **Duplicate message prevention** — gateway-level deduplication plus a partial stream guard prevent double-delivery edge cases ([PR #4878](https://github.com/NousResearch/hermes-agent/pull/4878)).
+- **Thread-safe PairingStore** with atomic writes — eliminates a race condition when concurrent pairing requests hit the same file ([PR #5656](https://github.com/NousResearch/hermes-agent/pull/5656)).
+- **Profile-aware service units** — the generated systemd and launchd service units now correctly reflect the active Hermes profile ([PR #5972](https://github.com/NousResearch/hermes-agent/pull/5972)).
+- **Matrix Tier 1** — Matrix reaches feature parity with the top-tier platforms: reactions, read receipts, rich formatting, room management commands, `MATRIX_REQUIRE_MENTION`, `MATRIX_AUTO_THREAD`, E2EE cron delivery, Synapse compatibility, encrypted media handling, and CJK input fixes ([PR #5275](https://github.com/NousResearch/hermes-agent/pull/5275), [#5106](https://github.com/NousResearch/hermes-agent/pull/5106), [#5271](https://github.com/NousResearch/hermes-agent/pull/5271), [#5665](https://github.com/NousResearch/hermes-agent/pull/5665)).
+- **Signal full MEDIA: delivery** — `send_image_file`, `send_voice`, and `send_video` are now implemented ([PR #5602](https://github.com/NousResearch/hermes-agent/pull/5602)).
+- **Webhook `{__raw__}` token and `thread_id` passthrough** — the prompt template accepts `{__raw__}` for full raw payload delivery, and `thread_id` is passed through for forum topic routing ([PR #5662](https://github.com/NousResearch/hermes-agent/pull/5662)).
+- **Discord channel controls** — `ignored_channels` and `no_thread_channels` config options ([PR #5975](https://github.com/NousResearch/hermes-agent/pull/5975)).
+- **Slack thread engagement** — the bot auto-responds in bot-started and mentioned threads without requiring an `@mention` per reply ([PR #5897](https://github.com/NousResearch/hermes-agent/pull/5897)).
+- **Feishu interactive card approval buttons** ([PR #6043](https://github.com/NousResearch/hermes-agent/pull/6043)).
+- **Mattermost file attachments** — posts with file attachments are now delivered with `DOCUMENT` message type ([PR #5609](https://github.com/NousResearch/hermes-agent/pull/5609)).
+- **Webhook `delivery_info` persistence** — delivery routing metadata is now persisted across the session lifetime ([PR #5942](https://github.com/NousResearch/hermes-agent/pull/5942)).
+- **Cron inactivity timeout** — cron jobs now use activity-based timeout, allowing long-running active tasks to complete without interruption ([PR #5440](https://github.com/NousResearch/hermes-agent/pull/5440)).
 
 ### v0.4.0 (v2026.3.23)
 

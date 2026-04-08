@@ -2,7 +2,7 @@
 
 The Hermes gateway supports 14 messaging platforms plus an OpenAI-compatible API server. All platforms share the same session model, authorization system, and chat commands — only the setup steps and platform-specific quirks differ.
 
-This section covers the released messaging and API surface through v0.7.0 (`v2026.4.3`). Individual pages may still call out older release milestones where later releases did not materially change setup.
+This section covers the released messaging and API surface through v0.8.0 (`v2026.4.8`). Individual pages may still call out older release milestones where later releases did not materially change setup.
 
 ---
 
@@ -119,7 +119,7 @@ All toolsets include full terminal access, file operations, web search, and othe
 - [Email](email.md) — IMAP/SMTP polling, thread headers, attachment handling
 - [Matrix](matrix.md) — Any homeserver, E2EE, room auto-join
 - [Mattermost](mattermost.md) — Self-hosted, thread reply mode, REST API
-- [Feishu / Lark](feishu.md) — WebSocket or Webhook, message cards, group @mention gating (v0.6.0)
+- [Feishu / Lark](feishu.md) — WebSocket or Webhook, message cards, group @mention gating, interactive card approval buttons (v0.6.0+)
 - [WeCom](wecom.md) — AI Bot WebSocket, Enterprise WeChat, configurable DM/group policies (v0.6.0)
 - [DingTalk](dingtalk.md) — Stream Mode, no public URL required
 - [Home Assistant](homeassistant.md) — State change events, smart home tools

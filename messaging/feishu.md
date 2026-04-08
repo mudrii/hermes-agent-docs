@@ -192,3 +192,23 @@ The app must be registered on [open.larksuite.com](https://open.larksuite.com) r
 ## Security
 
 Set `FEISHU_ALLOWED_USERS` to restrict which Feishu users can interact with the bot. Without it, the gateway denies all users by default. Treat `FEISHU_APP_SECRET`, `FEISHU_ENCRYPT_KEY`, and `FEISHU_VERIFICATION_TOKEN` as secrets — store them in `~/.hermes/.env` with file permissions `600`.
+
+---
+
+## v0.8.0 Changes
+
+### Interactive card approval buttons ([PR #6043](https://github.com/NousResearch/hermes-agent/pull/6043))
+
+Dangerous command approval prompts now render as **interactive Feishu card buttons**. When the agent requests approval for a terminal command, the bot sends a card with Approve and Deny action buttons. Clicking a button resolves the approval without requiring the user to type a command.
+
+### Reconnect and ACL fixes ([PR #5665](https://github.com/NousResearch/hermes-agent/pull/5665))
+
+Fixes message drops that could occur during WebSocket reconnection, along with ACL (access control) reliability improvements that could cause authorized messages to be incorrectly rejected after a reconnect.
+
+---
+
+## Changelog
+
+- **v0.8.0:** Interactive card approval buttons ([PR #6043](https://github.com/NousResearch/hermes-agent/pull/6043)).
+- **v0.8.0:** Reconnect message drop and ACL fixes ([PR #5665](https://github.com/NousResearch/hermes-agent/pull/5665)).
+- **v0.6.0:** Feishu/Lark adapter added ([PR #3799](https://github.com/NousResearch/hermes-agent/pull/3799), [PR #3817](https://github.com/NousResearch/hermes-agent/pull/3817)).

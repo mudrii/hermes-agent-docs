@@ -2,7 +2,7 @@
 
 Hermes integrates with Telegram as a full-featured conversational bot using the [python-telegram-bot](https://python-telegram-bot.org/) library. Once connected, you can chat from any device, send voice memos that get auto-transcribed, receive scheduled task results, and use the agent in group chats or Telegram forum topics.
 
-This document covers the released Telegram adapter surface through v0.7.0 (`v2026.4.3`).
+This document covers the released Telegram adapter surface through v0.8.0 (`v2026.4.8`).
 
 ---
 
@@ -150,6 +150,30 @@ Group chat IDs are negative numbers (e.g., `-1001234567890`). Your personal DM c
 
 Telegram supergroups can have forum mode enabled, which creates named topics (threads). The adapter fully supports forum topic session isolation — each topic gets its own session. The `thread_id` from the Telegram message is used as part of the session key.
 
+**Group topics skill binding (v0.8.0):** You can bind a skill to specific supergroup forum topics using the `group_topics` config ([PR #4886](https://github.com/NousResearch/hermes-agent/pull/4886)):
+
+```json
+{
+  "platforms": {
+    "telegram": {
+      "extra": {
+        "group_topics": [
+          {
+            "chat_id": "-1001234567890",
+            "topics": [
+              {"thread_id": 42, "skill": "code-review"},
+              {"thread_id": 87, "skill": "devops"}
+            ]
+          }
+        ]
+      }
+    }
+  }
+}
+```
+
+When a message arrives in a configured forum topic, the bound skill is automatically loaded for that agent run.
+
 ### Private Chat Topics (v0.5.0)
 
 Private Chat Topics ([PR #3163](https://github.com/NousResearch/hermes-agent/pull/3163)) extend forum-style topics to **any supergroup** — not just groups with Telegram's official forum mode enabled. Any supergroup with topics created (whether or not "Topics" is toggled on in group settings) can use this feature. Each topic is mapped to a distinct Hermes project with its own isolated session and conversation history — sending a message in topic A does not affect the session in topic B within the same group.
@@ -245,15 +269,23 @@ When a user shares a location pin, the adapter formats the coordinates and a Goo
 
 The adapter uses a scoped lock file to prevent two gateway instances from polling with the same bot token simultaneously. If a conflict is detected via Telegram's API error, polling stops immediately with `error_code: "telegram_polling_conflict"` and a non-retryable fatal error is recorded.
 
+### Duplicate Message Prevention (v0.8.0)
+
+The adapter guards against duplicate message delivery that can occur when a send times out and the library retries. A dedup check ensures the same message is not delivered twice to the user ([PR #5153](https://github.com/NousResearch/hermes-agent/pull/5153)).
+
+### Interactive Model Picker (v0.8.0)
+
+The `/model` command displays a **paginated inline keyboard** for model selection. Use the Next/Prev navigation buttons to browse all available models. Selecting a model switches immediately without restarting the session ([PR #5742](https://github.com/NousResearch/hermes-agent/pull/5742), [#3bc2fe80](https://github.com/NousResearch/hermes-agent/pull/5742)).
+
 ---
 
 ## Exec Approval
 
-When the agent tries to run a potentially dangerous command, it asks for approval in the chat:
+When the agent tries to run a potentially dangerous command, it presents an approval prompt in the chat. In v0.8.0, this prompt renders as **interactive inline buttons** — click **Approve** or **Deny** directly instead of typing a command.
 
-> This command is potentially dangerous (recursive delete). Reply `/approve` to allow or `/deny` to block.
+The text commands `/approve` and `/deny` still work as a fallback.
 
-Use `/approve` to allow the command or `/deny` to block it. This was changed from bare `yes`/`no` text in v0.4.0 ([PR #2002](https://github.com/NousResearch/hermes-agent/pull/2002)).
+**Emoji reactions** (v0.8.0): the bot adds emoji reactions to the user's message to indicate approval status — a pending reaction while waiting, then a check or cross when resolved ([PR #5975](https://github.com/NousResearch/hermes-agent/pull/5975)).
 
 ---
 
@@ -374,3 +406,16 @@ gateway:
 ```
 
 PR [#3870](https://github.com/NousResearch/hermes-agent/pull/3870)
+
+---
+
+## Changelog
+
+- **v0.8.0:** Group topics skill binding for supergroup forum topics ([PR #4886](https://github.com/NousResearch/hermes-agent/pull/4886)).
+- **v0.8.0:** Emoji reactions for approval status and notifications ([PR #5975](https://github.com/NousResearch/hermes-agent/pull/5975)).
+- **v0.8.0:** Paginated model picker with Next/Prev inline button navigation ([PR #5742](https://github.com/NousResearch/hermes-agent/pull/5742)).
+- **v0.8.0:** Approval buttons — interactive inline buttons replace text `/approve`/`/deny` ([PR #5890](https://github.com/NousResearch/hermes-agent/pull/5890)).
+- **v0.8.0:** Duplicate message delivery prevented on send timeout ([PR #5153](https://github.com/NousResearch/hermes-agent/pull/5153)).
+- **v0.6.0:** Webhook mode — Telegram can receive updates via HTTP push instead of polling ([PR #3880](https://github.com/NousResearch/hermes-agent/pull/3880)).
+- **v0.6.0:** Group mention gating — `TELEGRAM_REQUIRE_MENTION` and `TELEGRAM_MENTION_PATTERNS` ([PR #3870](https://github.com/NousResearch/hermes-agent/pull/3870)).
+- **v0.5.0:** Private Chat Topics with per-topic skill binding ([PR #3163](https://github.com/NousResearch/hermes-agent/pull/3163)).

@@ -19,7 +19,7 @@ Added in v0.4.0 ([PR #2166](https://github.com/NousResearch/hermes-agent/pull/21
 
 A `GET /health` endpoint returns `{"status": "ok", "platform": "webhook"}` for health checks.
 
-Released v0.7.0 hardens webhook mode further by skipping the normal home-channel prompt and suppressing live tool-progress chatter for webhook adapters. Webhooks stay focused on the final routed result rather than interactive gateway status noise.
+Released v0.7.0 hardens webhook mode by skipping the normal home-channel prompt and suppressing live tool-progress chatter for webhook adapters. v0.8.0 adds `{__raw__}` template support, `thread_id` passthrough for forum-topic delivery, and `delivery_info` persistence.
 
 ---
 
@@ -232,6 +232,31 @@ prompt: |
 
 If a key is missing from the payload, the substitution is left as-is (no error).
 
+### `{__raw__}` Template Token (v0.8.0)
+
+The special token `{__raw__}` expands to the entire raw payload as indented JSON. This is useful for routes where you want to pass the full payload to the agent without listing every field:
+
+```yaml
+prompt: |
+  Process this webhook payload:
+  {__raw__}
+```
+
+([PR #5662](https://github.com/NousResearch/hermes-agent/pull/5662))
+
+### `thread_id` Passthrough for Forum Topics (v0.8.0)
+
+When delivering webhook responses to Telegram forum topics, set `thread_id` (or `message_thread_id`) in `deliver_extra`. The value is passed through to the Telegram send call so the response lands in the correct topic thread:
+
+```yaml
+deliver: telegram
+deliver_extra:
+  chat_id: "-1001234567890"
+  thread_id: "42"
+```
+
+([PR #5662](https://github.com/NousResearch/hermes-agent/pull/5662))
+
 ---
 
 ## Troubleshooting
@@ -245,3 +270,10 @@ If a key is missing from the payload, the substitution is left as-is (no error).
 | HTTP 413 Payload too large | The payload exceeds `max_body_bytes`. Increase the limit or reduce payload size. |
 | Response not delivered | Check `deliver` and `deliver_extra` values. For cross-platform delivery (telegram, discord, etc.), the target platform must be enabled and connected. |
 | Port already in use | Set a different port: `platforms.webhook.extra.port: 8645`. |
+
+---
+
+## Changelog
+
+- **v0.8.0:** `{__raw__}` template token for full raw payload delivery; `thread_id` passthrough for Telegram forum topics; `delivery_info` persistence across session lifetime ([PR #5662](https://github.com/NousResearch/hermes-agent/pull/5662), [#5942](https://github.com/NousResearch/hermes-agent/pull/5942)).
+- **v0.4.0:** Webhook adapter added ([PR #2166](https://github.com/NousResearch/hermes-agent/pull/2166)).

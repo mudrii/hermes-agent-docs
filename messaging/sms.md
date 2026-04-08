@@ -4,7 +4,7 @@ Hermes connects to SMS through the [Twilio](https://www.twilio.com/) API. People
 
 The SMS gateway shares credentials with the optional telephony skill. If you have already set up Twilio for voice calls or one-off SMS, the gateway works with the same `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, and `TWILIO_PHONE_NUMBER`.
 
-This document covers v0.2.0 through v0.5.0 (v2026.3.28).
+This document covers v0.2.0 through v0.8.0 (v2026.4.8). No SMS-specific changes were made after v0.5.0.
 
 ---
 

@@ -4,7 +4,7 @@ Hermes can receive and reply to emails using standard IMAP and SMTP protocols. S
 
 The Email adapter uses Python's built-in `imaplib`, `smtplib`, and `email` modules. No additional Python packages are required.
 
-This document covers the released Email adapter surface through v0.7.0 (`v2026.4.3`).
+This document covers the released Email adapter surface through v0.8.0 (`v2026.4.8`). No Email-specific changes were made in v0.8.0.
 
 ---
 

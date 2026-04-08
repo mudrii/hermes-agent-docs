@@ -2,7 +2,7 @@
 
 Hermes connects to WhatsApp through a built-in bridge based on **Baileys**. This works by emulating a WhatsApp Web session — not through the official WhatsApp Business API. No Meta developer account or Business verification is required.
 
-This document covers v0.2.0 through v0.7.0 (v2026.4.3).
+This document covers v0.2.0 through v0.8.0 (v2026.4.8). No WhatsApp-specific changes were made in v0.8.0.
 
 ---
 

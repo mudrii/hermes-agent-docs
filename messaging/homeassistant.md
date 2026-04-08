@@ -7,7 +7,7 @@ Hermes Agent integrates with [Home Assistant](https://www.home-assistant.io/) in
 
 Both are activated by setting `HASS_TOKEN`. The `homeassistant` toolset is automatically enabled when `HASS_TOKEN` is set.
 
-This document covers v0.2.0 through v0.5.0 (v2026.3.28).
+This document covers v0.2.0 through v0.8.0 (v2026.4.8). No Home Assistant-specific changes were made after v0.5.0.
 
 ---
 

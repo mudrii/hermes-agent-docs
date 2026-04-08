@@ -2,7 +2,7 @@
 
 [Open WebUI](https://github.com/open-webui/open-webui) is a self-hosted chat interface for AI. With Hermes Agent's built-in API server, you can use Open WebUI as a polished web frontend for your agent — complete with conversation management, user accounts, and a modern chat interface.
 
-This document covers the released Open WebUI integration through v0.7.0 (v2026.4.3).
+This document covers the released Open WebUI integration through v0.8.0 (v2026.4.8). No API-server-specific changes were made in v0.8.0.
 
 ---
 
@@ -20,10 +20,7 @@ Open WebUI connects to Hermes Agent's API server just like it would connect to O
 
 The API server is also the integration point for any other OpenAI-compatible client (curl, Python scripts, VS Code extensions, etc.).
 
-Released v0.7.0 adds two API-server capabilities relevant to web frontends:
-
-- streaming tool-progress updates in SSE responses
-- optional session continuity via `X-Hermes-Session-Id` for chat-completions clients
+The API server supports streaming tool-progress updates in SSE responses and optional session continuity via `X-Hermes-Session-Id` for chat-completions clients (added in v0.7.0).
 
 ---
 
@@ -229,6 +226,6 @@ docker run -e OPENAI_API_BASE_URL=http://172.17.0.1:8642/v1 ...
 |---------|----------|
 | No models appear in the dropdown | Check the URL has `/v1` suffix. Verify the gateway is running: `curl http://localhost:8642/health`. Check model listing: `curl http://localhost:8642/v1/models`. |
 | Connection test passes but no models load | Almost always the missing `/v1` suffix. The connection test is a basic connectivity check — it does not verify model listing. |
-| Response takes a long time | Hermes Agent may be executing multiple tool calls before producing its final response. On the released v0.7.0 API server, streaming mode includes tool-progress updates while the agent works. |
+| Response takes a long time | Hermes Agent may be executing multiple tool calls before producing its final response. Streaming mode includes tool-progress updates while the agent works. |
 | "Invalid API key" errors | Make sure your `OPENAI_API_KEY` in Open WebUI matches the `API_SERVER_KEY` in Hermes Agent. If no key is configured on the Hermes side, any non-empty value works. |
 | Docker networking issues | From inside a Docker container, `localhost` refers to the container, not your host. Use `host.docker.internal` or `--network=host`. |

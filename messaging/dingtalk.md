@@ -2,7 +2,7 @@
 
 Hermes Agent integrates with DingTalk (钉钉) as a chatbot, letting you chat with your AI assistant through direct messages or group chats. The bot connects via DingTalk's Stream Mode — a long-lived WebSocket connection that requires no public URL or webhook server — and replies using markdown-formatted messages through DingTalk's session webhook API.
 
-This document covers v0.2.0 through v0.5.0 (v2026.3.28).
+This document covers v0.2.0 through v0.8.0 (v2026.4.8). No DingTalk-specific changes were made after v0.5.0.
 
 ---
 

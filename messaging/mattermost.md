@@ -4,7 +4,7 @@ Hermes Agent integrates with Mattermost as a bot, letting you chat with your AI 
 
 No external Mattermost library is required — the adapter uses `aiohttp`, which is already a Hermes dependency.
 
-This document covers the released Mattermost adapter surface through v0.7.0 (`v2026.4.3`).
+This document covers the released Mattermost adapter surface through v0.8.0 (`v2026.4.8`).
 
 ---
 
@@ -272,8 +272,17 @@ MATTERMOST_FREE_RESPONSE_CHANNELS=abc123def456,xyz789ghi012
 
 ---
 
+## v0.8.0 Changes
+
+### File attachments ([PR #5609](https://github.com/NousResearch/hermes-agent/pull/5609)) — @nericervin
+
+Posts that contain file attachments are now delivered with message type set to `DOCUMENT`. Previously, file-containing posts were treated as plain text, causing the agent to miss the attachment context. No configuration change is needed — the fix is applied automatically.
+
+---
+
 ## Changelog
 
+- **v0.8.0:** File attachment support — message type set to `DOCUMENT` when post has file attachments ([PR #5609](https://github.com/NousResearch/hermes-agent/pull/5609)).
 - **v0.6.0:** `MATTERMOST_REQUIRE_MENTION` env var for configurable mention gating ([PR #3664](https://github.com/NousResearch/hermes-agent/pull/3664)).
 - **v0.4.0:** Mattermost adapter added with `@`-mention-only channel filter ([PR #1683](https://github.com/NousResearch/hermes-agent/pull/1683), [#2443](https://github.com/NousResearch/hermes-agent/pull/2443)).
 - **v0.4.0:** MIME type detection for media attachments ([PR #2329](https://github.com/NousResearch/hermes-agent/pull/2329)).

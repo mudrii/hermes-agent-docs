@@ -4,7 +4,27 @@ Hermes Agent integrates with Matrix, the open, federated messaging protocol. Mat
 
 Hermes works with any Matrix homeserver — Synapse, Conduit, Dendrite, or matrix.org.
 
-This document covers v0.2.0 through v0.7.0 (v2026.4.3).
+This document covers v0.2.0 through v0.8.0 (v2026.4.8).
+
+---
+
+## v0.8.0: Matrix Tier 1
+
+v0.8.0 promotes Matrix to **Tier 1** feature parity alongside Telegram and Discord. The following capabilities were added:
+
+- **Reactions** — the bot sends emoji reactions (👀) when it starts processing a message and updates them when done. Disable with `MATRIX_REACTIONS=false`.
+- **Read receipts** — the bot sends read receipts after processing each message, so users see when their message was acknowledged.
+- **Rich formatting** — full HTML formatting in outbound messages (bold, italic, code blocks, headers, lists, links).
+- **Room management commands** — `/topic`, `/invite`, `/kick`, `/ban` and related room-administration commands are now supported.
+- **`MATRIX_REQUIRE_MENTION`** — when set to `true`, the bot only responds in rooms when explicitly `@mentioned` (or in rooms listed in `MATRIX_FREE_RESPONSE_ROOMS`). Default: `true`.
+- **`MATRIX_AUTO_THREAD`** — when set to `true` (default), the bot automatically creates threads for replies in rooms. Set to `false` to post flat replies.
+- **E2EE cron delivery** — cron jobs can now deliver output to encrypted rooms.
+- **Synapse compatibility** — filesize is now passed to `nio.upload()`, fixing upload failures on Synapse servers that enforce the field.
+- **Encrypted media handling** — the adapter handles `m.image`, `m.audio`, `m.video`, and `m.file` encrypted media events, decrypting them before passing to the agent.
+- **CJK input fixes** — character encoding issues with Chinese, Japanese, and Korean input are resolved.
+- **Stable `MATRIX_DEVICE_ID`** — set `MATRIX_DEVICE_ID` in `.env` to keep a stable E2EE device identity across gateway restarts, avoiding repeated device verification.
+
+([PR #5275](https://github.com/NousResearch/hermes-agent/pull/5275), [#5106](https://github.com/NousResearch/hermes-agent/pull/5106), [#5271](https://github.com/NousResearch/hermes-agent/pull/5271), [#5665](https://github.com/NousResearch/hermes-agent/pull/5665))
 
 ---
 
@@ -170,6 +190,14 @@ The bot connects to your homeserver and starts syncing within a few seconds.
 group_sessions_per_user: true
 
 unauthorized_dm_behavior: pair    # pair | ignore
+
+# Matrix-specific settings (v0.8.0)
+matrix:
+  require_mention: true      # true (default) | false — require @mention in rooms
+  free_response_rooms:
+    - "!room_id:server"      # rooms exempt from mention requirement
+  auto_thread: true          # true (default) | false — auto-create threads
+  reactions: true            # false to disable processing lifecycle reactions
 ```
 
 ---
@@ -186,6 +214,11 @@ unauthorized_dm_behavior: pair    # pair | ignore
 | `MATRIX_HOME_ROOM` | No | Room ID for cron job delivery |
 | `MATRIX_HOME_ROOM_NAME` | No | Display name for the home room (default: `Home`) |
 | `MATRIX_ENCRYPTION` | No | Set to `true` to enable E2EE |
+| `MATRIX_DEVICE_ID` | No | Stable device ID for E2EE persistence across restarts (v0.8.0) |
+| `MATRIX_REQUIRE_MENTION` | No | `true`/`false` — require `@mention` in rooms (default: `true`) (v0.8.0) |
+| `MATRIX_FREE_RESPONSE_ROOMS` | No | Comma-separated room IDs exempt from mention requirement (v0.8.0) |
+| `MATRIX_AUTO_THREAD` | No | `true`/`false` — auto-create threads for room replies (default: `true`) (v0.8.0) |
+| `MATRIX_REACTIONS` | No | `false` to disable processing lifecycle emoji reactions (v0.8.0) |
 | `MATRIX_ALLOW_ALL_USERS` | No | Allow all users (not recommended) |
 
 ---
@@ -319,7 +352,11 @@ No configuration change is required — the adapter automatically uses the MSC32
 
 ## Changelog
 
+- **v0.8.0:** Matrix promoted to Tier 1 — reactions, read receipts, rich formatting, room management commands ([PR #5275](https://github.com/NousResearch/hermes-agent/pull/5275)).
+- **v0.8.0:** `MATRIX_REQUIRE_MENTION` and `MATRIX_AUTO_THREAD` config options ([PR #5106](https://github.com/NousResearch/hermes-agent/pull/5106)).
+- **v0.8.0:** E2EE cron delivery, encrypted media handling, Synapse filesize compat ([PR #5271](https://github.com/NousResearch/hermes-agent/pull/5271)).
+- **v0.8.0:** CJK input fixes, stable `MATRIX_DEVICE_ID`, reconnect improvements ([PR #5665](https://github.com/NousResearch/hermes-agent/pull/5665)).
 - **v0.6.0:** Native MSC3245 voice messages with waveform player support ([PR #3877](https://github.com/NousResearch/hermes-agent/pull/3877)).
-- **v0.7.0:** E2EE decryption hardening -- request missing keys, auto-trust devices, retry buffered events ([PR #4083](https://github.com/NousResearch/hermes-agent/pull/4083)).
+- **v0.7.0:** E2EE decryption hardening — request missing keys, auto-trust devices, retry buffered events ([PR #4083](https://github.com/NousResearch/hermes-agent/pull/4083)).
 - **v0.5.0:** Access-token hardening for E2EE — token validated and rotated defensively on startup ([PR #3562](https://github.com/NousResearch/hermes-agent/pull/3562)).
 - **v0.5.0:** Exponential backoff for `SyncError` in sync loop ([PR #3280](https://github.com/NousResearch/hermes-agent/pull/3280)).

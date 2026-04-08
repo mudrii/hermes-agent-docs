@@ -6,7 +6,7 @@ Signal is the most privacy-focused mainstream messenger — end-to-end encrypted
 
 The Signal adapter uses `httpx` (already a core Hermes dependency) for all communication. No additional Python packages are required beyond `signal-cli` itself.
 
-This document covers the released Signal adapter surface through v0.7.0 (`v2026.4.3`).
+This document covers the released Signal adapter surface through v0.8.0 (`v2026.4.8`).
 
 ---
 
@@ -175,6 +175,16 @@ The adapter supports sending and receiving:
 
 Attachment size limit: 100 MB.
 
+### MEDIA: Tag Delivery (v0.8.0)
+
+The Signal adapter now implements full `MEDIA:` tag delivery. When the agent produces a response containing `MEDIA:/path/to/file`, the file is sent natively:
+
+- **Images** — via `send_image_file`
+- **Voice/audio** — via `send_voice`
+- **Video** — via `send_video`
+
+Previously these fell back to sending the file path as text. ([PR #5602](https://github.com/NousResearch/hermes-agent/pull/5602))
+
 ### Message Length Limit
 
 Signal messages are limited to 8,000 characters. Longer responses are split at natural boundaries.
@@ -248,5 +258,6 @@ No configuration changes are needed — the fix is applied automatically.
 
 ## Changelog
 
+- **v0.8.0:** Full `MEDIA:` tag delivery — `send_image_file`, `send_voice`, and `send_video` implemented ([PR #5602](https://github.com/NousResearch/hermes-agent/pull/5602)).
 - **v0.6.0:** URL-encoded phone numbers and corrected attachment RPC parameter ([PR #3670](https://github.com/NousResearch/hermes-agent/pull/3670)).
 - **v0.5.0:** SSE keepalive comment lines treated as connection activity to prevent false reconnects ([PR #3316](https://github.com/NousResearch/hermes-agent/pull/3316)).

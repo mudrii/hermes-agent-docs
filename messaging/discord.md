@@ -2,7 +2,7 @@
 
 Hermes integrates with Discord as a bot using the `discord.py` library. The bot receives messages, processes them through the full Hermes Agent pipeline (tool use, memory, reasoning), and responds in real time. It supports text, voice messages, file attachments, images, video, and voice channels.
 
-This document covers v0.2.0 through v0.7.0 (v2026.4.3).
+This document covers v0.2.0 through v0.8.0 (v2026.4.8).
 
 ---
 
@@ -189,6 +189,11 @@ discord:
   free_response_channels:
     - "123456789012345678"
   auto_thread: false
+  reactions: true
+  ignored_channels:
+    - "123456789012345678"    # channels the bot never responds in (v0.8.0)
+  no_thread_channels:
+    - "987654321098765432"    # channels where bot replies flat, no thread (v0.8.0)
 
 group_sessions_per_user: true
 ```
@@ -198,7 +203,11 @@ group_sessions_per_user: true
 - `free_response_channels` — list of channel IDs where @mention is not required
 - `auto_thread` — when true, automatically creates a thread for each @mention response (v0.3.0)
 - `reactions` — when `false`, disables Discord message-processing reactions added by the adapter (v0.7.0)
+- `ignored_channels` — list of channel IDs where the bot never responds, even when mentioned (v0.8.0)
+- `no_thread_channels` — list of channel IDs where the bot replies flat (no thread created) (v0.8.0)
 - `group_sessions_per_user: true` — keep each participant's context isolated (default, recommended)
+
+The env-var equivalents are `DISCORD_IGNORED_CHANNELS` and `DISCORD_NO_THREAD_CHANNELS` (comma-separated channel IDs).
 
 ---
 
@@ -213,6 +222,8 @@ group_sessions_per_user: true
 | `DISCORD_REQUIRE_MENTION` | No | `true`/`false` — also readable from `config.yaml` |
 | `DISCORD_FREE_RESPONSE_CHANNELS` | No | Comma-separated channel IDs — also readable from `config.yaml` |
 | `DISCORD_AUTO_THREAD` | No | `true`/`false` — also readable from `config.yaml` (v0.3.0) |
+| `DISCORD_IGNORED_CHANNELS` | No | Comma-separated channel IDs the bot never responds in (v0.8.0) |
+| `DISCORD_NO_THREAD_CHANNELS` | No | Comma-separated channel IDs where bot replies flat without thread (v0.8.0) |
 | `DISCORD_ALLOW_ALL_USERS` | No | Allow all users (not recommended) |
 
 ---
@@ -335,6 +346,9 @@ Slash command responses that trigger a deferred "thinking..." indicator now prop
 
 ## Changelog
 
+- **v0.8.0:** `ignored_channels` and `no_thread_channels` config options for channel-level controls ([PR #5975](https://github.com/NousResearch/hermes-agent/pull/5975)).
+- **v0.8.0:** Skills registered as native Discord slash commands via shared gateway logic ([PR #5603](https://github.com/NousResearch/hermes-agent/pull/5603)).
+- **v0.8.0:** Interactive model picker with inline select-menu buttons ([PR #5742](https://github.com/NousResearch/hermes-agent/pull/5742)).
 - **v0.6.0:** Processing reactions on inbound messages ([PR #3871](https://github.com/NousResearch/hermes-agent/pull/3871)).
 - **v0.6.0:** `DISCORD_IGNORE_NO_MENTION` env var to skip messages mentioning other users ([PR #3640](https://github.com/NousResearch/hermes-agent/pull/3640)).
 - **v0.6.0:** Deferred "thinking..." indicator cleanup fix ([PR #3674](https://github.com/NousResearch/hermes-agent/pull/3674)).

@@ -4,7 +4,7 @@ Hermes connects to Slack using Socket Mode — a WebSocket-based connection that
 
 Classic Slack apps (RTM API) were fully deprecated in March 2025. Hermes uses the modern Bolt SDK with Socket Mode.
 
-This document covers the released Slack adapter surface through v0.7.0 (`v2026.4.3`).
+This document covers the released Slack adapter surface through v0.8.0 (`v2026.4.8`).
 
 ---
 
@@ -312,8 +312,27 @@ PR [#3903](https://github.com/NousResearch/hermes-agent/pull/3903)
 
 ---
 
+## v0.8.0 Changes
+
+### Thread engagement ([PR #5897](https://github.com/NousResearch/hermes-agent/pull/5897))
+
+The Slack adapter now automatically responds in threads that the bot started, and in threads where it has been mentioned, without requiring a new `@mention` for every reply. This makes multi-turn conversations in Slack threads much more natural.
+
+### Approval buttons ([PR #5890](https://github.com/NousResearch/hermes-agent/pull/5890))
+
+Dangerous command approval prompts now render as **Block Kit interactive buttons** — click **Approve** or **Deny** directly in the Slack message. Thread context is preserved during the approval wait, so follow-up messages land in the right thread.
+
+### `mrkdwn` formatting in `edit_message` ([PR #5733](https://github.com/NousResearch/hermes-agent/pull/5733))
+
+When streaming, progressive message edits now convert standard markdown to Slack `mrkdwn` format (bold, italic, code, etc.) so the streaming response renders correctly in the Slack client.
+
+---
+
 ## Changelog
 
+- **v0.8.0:** Auto-respond in bot-started and mentioned threads without requiring `@mention` per reply ([PR #5897](https://github.com/NousResearch/hermes-agent/pull/5897)).
+- **v0.8.0:** Native Block Kit approval buttons for dangerous command prompts ([PR #5890](https://github.com/NousResearch/hermes-agent/pull/5890)).
+- **v0.8.0:** `mrkdwn` formatting applied in `edit_message` for streaming responses ([PR #5733](https://github.com/NousResearch/hermes-agent/pull/5733)).
 - **v0.6.0:** Multi-workspace OAuth token file support ([PR #3903](https://github.com/NousResearch/hermes-agent/pull/3903)).
 - **v0.5.0:** Tool call progress messages are now sent to the correct Slack thread ([PR #3063](https://github.com/NousResearch/hermes-agent/pull/3063)).
 - **v0.5.0:** Progress thread fallback logic is now scoped to Slack only and no longer fires on other platforms ([PR #3488](https://github.com/NousResearch/hermes-agent/pull/3488)).
