@@ -191,7 +191,7 @@ async def handle(event_type: str, context: dict):
 
 ## Plugin Hooks
 
-Plugin hooks were activated in v0.5.0 (PR [#3542](https://github.com/NousResearch/hermes-agent/pull/3542)). Prior to v0.5.0, only `pre_tool_call` and `post_tool_call` fired. All six hooks now fire in the CLI, gateway, and cron sessions.
+Plugin hooks were activated in v0.5.0 (PR [#3542](https://github.com/NousResearch/hermes-agent/pull/3542)). Prior to v0.5.0, only `pre_tool_call` and `post_tool_call` fired. As of v0.5.0 all six hooks fire in the CLI, gateway, and cron sessions. v0.8.0 added four more hooks: `pre_api_request`, `post_api_request` (per-individual-API-call), `on_session_finalize` (session permanently closed), and `on_session_reset` (new session after reset).
 
 Plugin hooks are registered inside a plugin's `register(ctx)` function. They fire during any Hermes session (CLI, gateway, or cron), not just the gateway.
 
@@ -205,7 +205,7 @@ def register(ctx):
     ctx.register_hook("on_session_end", on_session_end)
 ```
 
-Available plugin hooks and their exact keyword arguments (from `run_agent.py`):
+Available plugin hooks and their exact keyword arguments (from `hermes_cli/plugins.py` `VALID_HOOKS`, v0.8.0):
 
 | Hook | When fires | Keyword arguments |
 |------|------------|-------------------|
@@ -213,8 +213,12 @@ Available plugin hooks and their exact keyword arguments (from `run_agent.py`):
 | `post_tool_call` | After any tool returns | `tool_name`, `args`, `result`, `task_id` |
 | `pre_llm_call` | Once per user turn, before the tool-calling loop | `session_id`, `user_message`, `conversation_history`, `is_first_turn`, `model`, `platform` |
 | `post_llm_call` | Once per user turn, after the tool-calling loop | `session_id`, `user_message`, `assistant_response`, `conversation_history`, `model`, `platform` |
+| `pre_api_request` | Before each individual LLM API request | `session_id`, `message_count`, `tool_count`, `model`, `platform` |
+| `post_api_request` | After each individual LLM API response | `session_id`, `usage`, `model`, `platform` |
 | `on_session_start` | Once when a brand-new session is created | `session_id`, `model`, `platform` |
 | `on_session_end` | At the end of every `run_conversation` call | `session_id`, `completed`, `interrupted`, `model`, `platform` |
+| `on_session_finalize` | Session permanently closed (`/new`, `/reset`, or process exit) | `session_id`, `platform` |
+| `on_session_reset` | New session created after a `/new` or `/reset` | `session_id`, `platform` |
 
 Plugin hook handlers receive keyword arguments. Always use `**kwargs` to stay forward-compatible:
 
@@ -284,14 +288,18 @@ For gateway hooks:
 6. `session:reset` — fires when the user runs `/new` or `/reset`
 7. `command:*` — fires for every slash command with command name and args
 
-For plugin hooks (fully active since v0.5.0):
+For plugin hooks (fully active since v0.5.0; `pre_api_request`, `post_api_request`, `on_session_finalize`, `on_session_reset` added in v0.8.0):
 
 1. `on_session_start` — fires once when a new session is first created
 2. `pre_llm_call` — fires once per user turn, before the tool-calling loop
-3. `pre_tool_call` — fires just before each tool execution inside the loop
-4. `post_tool_call` — fires just after each tool returns inside the loop
-5. `post_llm_call` — fires once per user turn, after the loop completes
-6. `on_session_end` — fires at the end of every `run_conversation` call
+3. `pre_api_request` — fires before each individual LLM API request within a turn
+4. `pre_tool_call` — fires just before each tool execution inside the loop
+5. `post_tool_call` — fires just after each tool returns inside the loop
+6. `post_api_request` — fires after each individual LLM API response
+7. `post_llm_call` — fires once per user turn, after the loop completes
+8. `on_session_end` — fires at the end of every `run_conversation` call
+9. `on_session_finalize` — fires when a session is permanently closed (`/new`, `/reset`, or process exit)
+10. `on_session_reset` — fires when a new session is created after a reset
 
 ## Error Handling
 

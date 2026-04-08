@@ -76,6 +76,12 @@ mcp_servers:
       resources: true   # Register list_resources/read_resource utilities
       prompts: true     # Register list_prompts/get_prompt utilities
 
+    auth: oauth         # Enable OAuth 2.1 PKCE (HTTP servers only)
+    oauth:              # Optional pre-registered client (overrides DCR)
+      client_id: "..."
+      client_secret: "..."   # confidential client only
+      scope: "read write"    # overrides server-advertised scope
+
     sampling:           # Optional: server-initiated LLM requests
       enabled: true     # Default: true
       model: "..."      # Override model for sampling calls
@@ -100,6 +106,8 @@ mcp_servers:
 | `timeout` | number | both | Per-tool-call timeout in seconds |
 | `connect_timeout` | number | both | Initial connection timeout in seconds |
 | `tools` | mapping | both | Tool filtering and utility policy |
+| `auth` | string | HTTP | Set to `oauth` to enable OAuth 2.1 PKCE authentication |
+| `oauth` | mapping | HTTP | Optional pre-registered client credentials for servers that do not support Dynamic Client Registration |
 
 ### Tools policy keys
 
@@ -268,6 +276,58 @@ This architecture is required by `anyio`: cancel-scope cleanup must happen in th
 Tool call coroutines are scheduled onto the background loop via `asyncio.run_coroutine_threadsafe()` and blocked on from the caller thread. The lock `_lock` protects the `_servers` dict and the loop/thread references from concurrent access.
 
 On shutdown, each server Task is signalled to exit its `async with` block. All servers are shut down in parallel via `asyncio.gather`.
+
+## OAuth 2.1 Authentication (v0.8.0)
+
+For HTTP MCP servers that require OAuth, add `auth: oauth` to the server entry:
+
+```yaml
+mcp_servers:
+  sentry:
+    url: "https://mcp.sentry.dev/mcp"
+    auth: oauth
+```
+
+When Hermes connects to this server, it runs a full OAuth 2.1 PKCE flow:
+
+1. Discovers the authorization server metadata from the MCP server's well-known endpoint
+2. Attempts Dynamic Client Registration (DCR) to obtain a client ID automatically
+3. Opens the browser to the authorization URL with a PKCE challenge
+4. Starts a local callback server to receive the authorization code
+5. Exchanges the code for access and refresh tokens using the PKCE verifier
+6. Persists tokens to `~/.hermes/mcp-tokens/<server>.json` (permissions: `0o600`)
+7. Reuses cached tokens on subsequent connections; refreshes automatically
+8. Re-authorizes only when refresh fails
+
+For servers that do not support DCR (such as Slack), supply pre-registered credentials:
+
+```yaml
+mcp_servers:
+  slack:
+    url: "https://mcp.slack.com/sse"
+    auth: oauth
+    oauth:
+      client_id: "..."
+      client_secret: "..."    # confidential client
+      scope: "channels:read chat:write"
+```
+
+Non-interactive environments (gateway, cron) detect when no cached tokens are present and log a warning rather than blocking on a browser prompt. Run an interactive `hermes mcp add` or `hermes chat` session first to authorize, then the gateway can reuse the cached tokens.
+
+## Excluding MCP Servers Per Platform (`no_mcp` sentinel) (v0.8.0)
+
+By default, all enabled MCP servers are injected into every platform. To exclude all MCP servers from a specific platform, add `no_mcp` to its `platform_toolsets` list:
+
+```yaml
+platform_toolsets:
+  api_server:
+    - terminal
+    - file
+    - web
+    - no_mcp    # exclude all MCP servers from this platform
+```
+
+The `no_mcp` value is a sentinel — it is filtered out of the actual toolset list and does not appear as a toolset name. Other platforms are unaffected. This is useful for the API server platform to avoid inflating token usage with full MCP tool schemas.
 
 ## Security Model
 
@@ -487,6 +547,13 @@ MCP client config (e.g. `claude_desktop_config.json`):
 - **MCP Server Mode** (PR #3795) — `hermes mcp serve` now exposes the full 10-tool conversation bridge surface. See [MCP Server Mode (v0.6.0)](#mcp-server-mode-v060) below.
 - **Dynamic tool discovery** (PR #3812) — when Hermes is acting as an MCP client, it responds to `notifications/tools/list_changed` events and picks up new tools from connected servers without reconnecting.
 - **Non-deprecated HTTP transport** (PR #3646) — Hermes' MCP client switched from `sse_client` to `streamable_http_client` for HTTP connections to external MCP servers.
+
+### v0.8.0 (PR #5420, #5305, #5979)
+
+- **Full OAuth 2.1 PKCE client** (PR #5420) — `tools/mcp_oauth.py` implements a complete OAuth 2.1 PKCE flow using the MCP SDK's `OAuthClientProvider`. Includes metadata discovery, Dynamic Client Registration (DCR), PKCE code exchange, token refresh, and step-up re-auth on `403 insufficient_scope`. Tokens are persisted to `~/.hermes/mcp-tokens/<server>.json` with `0o600` permissions and reused automatically across sessions. Pre-registered client credentials (`oauth.client_id` / `oauth.client_secret`) are supported for servers that do not allow DCR (e.g. Slack). Non-interactive environments (gateway, cron) detect when cached tokens are absent and warn rather than hanging on a browser prompt.
+- **OSV malware scanning** (PR #5305) — before spawning an MCP stdio server via `npx` or `uvx`, Hermes queries the OSV API to check the package for known malware advisories (MAL-* IDs). Only confirmed malware is blocked; regular CVEs are ignored. The check is fail-open: network errors, timeouts, and unrecognized package managers allow the launch to proceed. Runs in parallel with other MCP server startup (no serial delay).
+- **`no_mcp` sentinel** (PR #5979) — add `no_mcp` to a platform's `platform_toolsets` list to exclude all MCP servers from that platform. Useful for the API server platform to avoid inflating token usage with full MCP schemas. Other platforms are unaffected.
+- **`structuredContent` preservation** (PR #5979) — MCP tool call results now correctly read the camelCase `structuredContent` attribute from `CallToolResult`. When present, the structured payload is returned as the result (preferred over the plain-text `content` field). This was previously a silent no-op due to an attribute name mismatch.
 
 ## Quickstart
 

@@ -209,7 +209,7 @@ mcp_my_api_list_items_v2
 
 Keep this in mind when writing `include` / `exclude` filters -- use the original MCP tool name (with hyphens/dots), not the sanitized version.
 
-## OAuth 2.1 authentication
+## OAuth 2.1 authentication (v0.8.0)
 
 For HTTP servers that require OAuth, set `auth: oauth` on the server entry:
 
@@ -220,9 +220,38 @@ mcp_servers:
     auth: oauth
 ```
 
+For servers that do not support Dynamic Client Registration (DCR), supply pre-registered credentials via the optional `oauth` block:
+
+```yaml
+mcp_servers:
+  slack:
+    url: "https://mcp.slack.com/sse"
+    auth: oauth
+    oauth:
+      client_id: "your-client-id"
+      client_secret: "your-client-secret"   # confidential client only
+      scope: "channels:read chat:write"      # overrides server-advertised scope
+```
+
 Behavior:
-- Hermes uses the MCP SDK's OAuth 2.1 PKCE flow (metadata discovery, dynamic client registration, token exchange, and refresh)
+- Hermes uses `tools/mcp_oauth.py` — a full OAuth 2.1 PKCE adapter over the MCP SDK's `OAuthClientProvider`
+- Flow: metadata discovery → DCR (or pre-registered client) → PKCE code exchange → token storage
 - On first connect, a browser window opens for authorization
-- Tokens are persisted to `~/.hermes/mcp-tokens/<server>.json` and reused across sessions
-- Token refresh is automatic; re-authorization only happens when refresh fails
+- Tokens are persisted to `~/.hermes/mcp-tokens/<server>.json` (permissions: `0o600`) and reused across sessions
+- Token refresh is automatic; step-up re-authorization triggers on `403 insufficient_scope`
+- Non-interactive environments (gateway, cron) log a warning when cached tokens are absent rather than hanging on a browser prompt
 - Only applies to HTTP/StreamableHTTP transport (`url`-based servers)
+
+## `no_mcp` sentinel (v0.8.0)
+
+To exclude all MCP servers from a specific platform's toolset, add `no_mcp` to its `platform_toolsets` list:
+
+```yaml
+platform_toolsets:
+  api_server:
+    - terminal
+    - file
+    - no_mcp   # exclude all MCP servers from this platform
+```
+
+`no_mcp` is a sentinel — it is filtered out and does not appear as an actual toolset. Other platforms are unaffected. Useful for platforms where MCP tool schemas inflate token usage without providing value.

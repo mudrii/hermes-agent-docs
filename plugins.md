@@ -280,9 +280,13 @@ def register(ctx):
     ctx.register_hook("on_session_end", on_session_end)
     ctx.register_hook("pre_llm_call", before_llm)
     ctx.register_hook("post_llm_call", after_llm)
+    ctx.register_hook("pre_api_request", before_api_call)
+    ctx.register_hook("post_api_request", after_api_call)
+    ctx.register_hook("on_session_finalize", on_session_finalize)
+    ctx.register_hook("on_session_reset", on_session_reset)
 ```
 
-Available hooks in plugins:
+Available hooks in plugins (`VALID_HOOKS` as of v0.8.0):
 
 | Hook | When | Arguments |
 |------|------|-----------|
@@ -290,10 +294,14 @@ Available hooks in plugins:
 | `post_tool_call` | After any tool returns | `tool_name`, `args`, `result`, `task_id` |
 | `pre_llm_call` | Before each LLM API call per turn | `session_id`, `user_message`, `conversation_history`, `is_first_turn`, `model`, `platform` |
 | `post_llm_call` | After the turn's tool-calling loop completes | `session_id`, `user_message`, `assistant_response`, `conversation_history`, `model`, `platform` |
+| `pre_api_request` | Before each individual LLM API request | `session_id`, `message_count`, `tool_count`, `model`, `platform` |
+| `post_api_request` | After each individual LLM API response | `session_id`, `usage`, `model`, `platform` |
 | `on_session_start` | New session created (not on continuation) | `session_id`, `model`, `platform` |
 | `on_session_end` | End of every `run_conversation` call | `session_id`, `completed`, `interrupted`, `model`, `platform` |
+| `on_session_finalize` | Session permanently closed (`/new`, `/reset`, or process exit) | `session_id`, `platform` |
+| `on_session_reset` | New session created after a reset | `session_id`, `platform` |
 
-The `pre_llm_call` and `post_llm_call` hooks fire once per user turn (not once per internal API call). `pre_llm_call` can optionally return a dict with a `"context"` key whose string value is appended to the ephemeral system prompt for that turn only — it is not persisted to the session DB or prompt cache. All four hooks were activated in v0.5.0 (PR [#3542](https://github.com/NousResearch/hermes-agent/pull/3542)).
+The `pre_llm_call` and `post_llm_call` hooks fire once per user turn. `pre_api_request` and `post_api_request` fire on every individual API call within a turn (useful for per-request tracing). `pre_llm_call` can optionally return a dict with a `"context"` key whose string value is appended to the user message for that turn only — it is not persisted to the session DB or prompt cache. All four session/LLM hooks were activated in v0.5.0 (PR [#3542](https://github.com/NousResearch/hermes-agent/pull/3542)). The API-level hooks and session lifecycle hooks (`on_session_finalize`, `on_session_reset`) were added in v0.8.0.
 
 ## Plugin Lifecycle Hooks (v0.5.0)
 
@@ -514,6 +522,44 @@ def register(ctx):
 ```
 
 **Use cases:** timer alerts, background job completions, webhook receivers, messaging bridge adapters, IoT sensor events.
+
+## CLI Subcommand Registration (v0.8.0)
+
+Plugins can register their own `hermes <command>` subcommands without modifying `main.py`. Use `ctx.register_cli_command()` inside `register()`:
+
+```python
+def _setup_my_subparser(subparser):
+    subparser.add_argument("action", choices=["status", "sync"])
+    subparser.set_defaults(func=_handle_my_command)
+
+def _handle_my_command(args):
+    if args.action == "status":
+        print("My plugin status: OK")
+
+def register(ctx):
+    ctx.register_cli_command(
+        name="my-plugin",
+        help="Manage my-plugin",
+        setup_fn=_setup_my_subparser,
+    )
+```
+
+After the plugin loads, `hermes my-plugin status` works as a first-class CLI subcommand. The `setup_fn` receives an argparse subparser and can add nested sub-subparsers, arguments, and defaults.
+
+## Prompting for Required Env Vars During Install (v0.8.0)
+
+When `requires_env` entries in `plugin.yaml` include a description, Hermes prompts the user for any missing values during `hermes plugins install`:
+
+```yaml
+name: my-plugin
+requires_env:
+  - MY_API_KEY
+  - name: MY_WEBHOOK_URL
+    description: "Webhook endpoint for delivery"
+    required: true
+```
+
+Simple string entries are checked for presence. Dict entries with `required: true` block installation if the variable is absent and the user does not supply a value at the prompt. Values entered at the prompt are written to `~/.hermes/.env`.
 
 ## Memory Provider Plugins (Released in v0.7.0)
 

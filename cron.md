@@ -271,6 +271,7 @@ Jobs are stored in `~/.hermes/cron/jobs.json` as a JSON object with a `jobs` arr
   "last_run_at": null,
   "last_status": null,
   "last_error": null,
+  "last_delivery_error": null,
   "deliver": "origin",
   "origin": {"platform": "telegram", "chat_id": "123456"}
 }
@@ -332,3 +333,10 @@ See [api-server.md](api-server.md#cron-jobs-rest-api) for the full endpoint refe
 - **Prevent recurring job re-fire on gateway crash/restart loop** (PR #3396) — For recurring cron jobs (interval and cron-expression schedules), `next_run_at` is now advanced to the next future occurrence _before_ the job executes. If the gateway crashes mid-run, the job will not re-fire immediately on restart. One-shot jobs are left unchanged so they can retry on restart.
 - **Mark cron session as ended after job completes** (PR #2998) — Cron job sessions are now properly closed in the session database after execution.
 - **Auto-repair `jobs.json` with invalid control characters** (PR #3537) — If `jobs.json` contains bare control characters (from a crash or corruption), the scheduler automatically repairs and rewrites the file on the next load.
+
+### v0.8.0
+
+- **Inactivity-based cron timeout** (PR #5440) — The cron agent timeout was changed from a wall-clock limit to an inactivity-based limit. A cron job that is actively making tool calls runs indefinitely; only a job that has been truly idle (no tool call activity) for longer than `HERMES_CRON_TIMEOUT` seconds (default: 600) is killed. This means long-running tasks — model downloads, extended web research, large code generation — complete naturally without being killed mid-work.
+- **Delivery failure tracking** (PR #6042) — Job status now separately tracks delivery failures. When the agent produces output successfully but the platform delivery fails (platform down, invalid chat ID, etc.), `last_delivery_error` is set in the job record and `last_status` reflects the agent outcome (`ok`), not the delivery outcome. Delivery failures are cleared on the next successful delivery.
+- **MEDIA tag extraction before delivery** (PR #5921) — `MEDIA:` tags in cron agent output are extracted before the message is sent. Media files are delivered as native platform attachments; the delivery text has the tags stripped.
+- **Cron path traversal hardening** (PR #5147) — Job IDs and output paths are validated and normalized to prevent crafted job IDs from escaping the cron output directory.

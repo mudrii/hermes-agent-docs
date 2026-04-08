@@ -426,3 +426,12 @@ No changes to the ACP adapter in v0.4.0.
 
 - **Plugin lifecycle hooks activated** (PR #3542) — `pre_llm_call`, `post_llm_call`, `on_session_start`, and `on_session_end` hooks now fire in the ACP agent loop, enabling plugin authors to hook into ACP sessions.
 - **Fix plugin toolsets invisible in standalone processes** (PR #3457) — Plugin-registered toolsets are now visible in `hermes tools` and in the ACP server process.
+
+### v0.7.0
+
+- **Client-provided MCP servers** — ACP editor integrations can attach MCP server definitions to the ACP session. Hermes ingests those client-provided servers and merges their tools into the active ACP tool surface. Session-scoped; additive to `config.yaml` MCP servers.
+
+### v0.8.0
+
+- **Aggregate ACP improvements** (PR #5292) — auth compatibility fixes, protocol fixes, command advertisements, delegation support, and SSE event handling.
+- **Plugin session lifecycle hooks** (PR #6129) — `on_session_finalize` and `on_session_reset` now fire in ACP sessions.

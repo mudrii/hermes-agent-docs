@@ -43,6 +43,25 @@ The scheduler:
 
 In gateway mode, cron ticking is integrated into the long-running gateway loop with a 60-second tick interval.
 
+## Inactivity-Based Timeout (v0.8.0)
+
+Prior to v0.8.0, cron jobs were killed after a fixed wall-clock duration regardless of whether the agent was actively working. As of v0.8.0 (PR #5440), the timeout is inactivity-based:
+
+- The scheduler polls the running agent every few seconds.
+- If the agent has made at least one tool call since the last poll, the inactivity counter resets.
+- Only when the agent is truly idle (no tool call activity) for longer than `HERMES_CRON_TIMEOUT` seconds (default: 600) is it killed.
+- Set `HERMES_CRON_TIMEOUT=0` to disable the timeout entirely.
+
+This allows long-running but actively working tasks to complete naturally.
+
+## Delivery Failure Tracking (v0.8.0)
+
+As of v0.8.0 (PR #6042), `mark_job_run()` accepts a `delivery_error` parameter separate from the agent `error`. Jobs can succeed at the agent level (output was produced) while failing at the delivery level (platform down, invalid chat ID). The `last_delivery_error` field in the job record stores the delivery failure reason and is cleared on the next successful delivery.
+
+## MEDIA Tag Extraction Before Delivery (v0.8.0)
+
+Before cron delivery is sent to a platform, `MEDIA:` tags in the agent's output are extracted via `BasePlatformAdapter.extract_media()`. Media files are forwarded as native platform attachments; the text portion has the tags stripped. This avoids raw `MEDIA:` tag strings appearing in delivered messages.
+
 ## Skill-Backed Jobs
 
 A cron job may attach multiple skills. At runtime, Hermes loads those skills in order and then appends the job prompt as the task instruction. This gives scheduled jobs reusable guidance without requiring the user to paste full skill bodies into the cron prompt.

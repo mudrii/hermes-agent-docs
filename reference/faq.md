@@ -111,7 +111,7 @@ If it still doesn't work, verify: `which hermes` or `ls ~/.local/bin/hermes`. Th
 
 #### Python version too old
 
-Hermes requires Python 3.11 or newer.
+Hermes requires Python 3.11 or newer (`requires-python = ">=3.11"` in `pyproject.toml`).
 
 ```bash
 python3 --version

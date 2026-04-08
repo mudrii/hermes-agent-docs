@@ -17,7 +17,7 @@ The security model has six layers:
 
 Each layer is independent. Enabling container isolation does not disable the other layers unless explicitly configured (the approval check is skipped when running in a container because the container is itself the security boundary).
 
-Released v0.7.0 extends the existing layers with stronger secret-exfiltration checks in browser and tool surfaces, broader protected credential directories, and secret redaction for `execute_code` sandbox output.
+Released v0.7.0 extends the existing layers with stronger secret-exfiltration checks in browser and tool surfaces, broader protected credential directories, and secret redaction for `execute_code` sandbox output. Released v0.8.0 adds consolidated SSRF protections, timing attack mitigations, tar traversal prevention, credential leakage guards, cron path traversal hardening, cross-session isolation, terminal workdir sanitization across all backends, and MCP package malware scanning.
 
 ---
 
@@ -732,6 +732,38 @@ See [configuration.md](configuration.md) for the full config.yaml reference.
 
 ---
 
+## v0.8.0 Security Hardening
+
+The following security improvements shipped in v0.8.0 (v2026.4.8):
+
+### Consolidated Security Hardening (PR #5944)
+
+A single PR consolidated multiple SSRF, timing, and traversal fixes across the codebase:
+
+- **SSRF consolidation** — SSRF protections are now applied uniformly across all URL-fetching paths, not just `browser_navigate` and `vision_tools`.
+- **Timing attack mitigations** — constant-time comparisons used where timing-sensitive checks were previously variable.
+- **Tar traversal prevention** — archives unpacked during self-update and skill install are now checked for path traversal entries (e.g. `../`) before extraction.
+- **Credential leakage guards** — additional scrubbing applied to error messages and log lines that might contain credential-like patterns.
+
+### Cross-Session Isolation and Cron Path Traversal (PR #5613)
+
+- **Cross-session isolation** — session state is scoped more tightly to prevent one session from reading another's in-progress state under concurrent gateway load.
+- **Cron path traversal hardening** — cron job IDs and output paths are validated and normalized before use in filesystem operations, blocking crafted job IDs from escaping the cron output directory.
+
+### Terminal Workdir Sanitization (PR #5629)
+
+The `workdir` parameter to the terminal tool is now sanitized before being passed to any backend (local, Docker, SSH, Modal, Daytona). This prevents injected path components from redirecting terminal operations to unintended directories.
+
+### MCP Package OSV Malware Scanning (PR #5305)
+
+Before spawning a stdio MCP server via `npx` or `uvx`, Hermes queries the OSV (Open Source Vulnerabilities) API to check whether the package has known malware advisories (MAL-* IDs). Regular CVEs are not blocked — only confirmed malware triggers a block. The check is fail-open: network errors, timeouts, and unrecognized package formats allow the launch to proceed. See [mcp.md](mcp.md) for configuration details.
+
+### Approval Session Escalation Prevention (PR #5280)
+
+`allow-once` approval grants are now strictly session-scoped and cannot be escalated to permanent `allow-always` state by a subsequent crafted approval request. Cron delivery platform names are validated against a known platform list to prevent environment variable enumeration via crafted delivery targets.
+
+---
+
 ## Contributing Security-Sensitive Code
 
 When writing code that touches security boundaries:
@@ -758,7 +790,13 @@ Existing protections to be aware of:
 | PII redaction | `agent/redact.py` masks 20+ secret patterns in all log output |
 | Memory content scanning | `tools/memory_tool.py` blocks injection/exfiltration in memory entries |
 | Supply chain hardening | Pinned deps, `uv.lock` with hashes, litellm removed, CI PR scanning (v0.5.0, [#2796](https://github.com/NousResearch/hermes-agent/pull/2796)–[#3073](https://github.com/NousResearch/hermes-agent/pull/3073)) |
-| SSRF protection | `browser_navigate`, `vision_tools`, `web_tools` block internal network requests (v0.4.0–v0.5.0) |
+| SSRF protection | `browser_navigate`, `vision_tools`, `web_tools` block internal network requests; consolidated across all URL-fetching paths (v0.4.0–v0.8.0) |
 | Subagent toolset restriction | Subagents inherit only the parent's enabled toolset (v0.5.0, [#3269](https://github.com/NousResearch/hermes-agent/pull/3269)) |
+| Timing attack mitigations | Constant-time comparisons for timing-sensitive checks (v0.8.0, [#5944](https://github.com/NousResearch/hermes-agent/pull/5944)) |
+| Tar traversal prevention | Path traversal entries in archives blocked before extraction (v0.8.0, [#5944](https://github.com/NousResearch/hermes-agent/pull/5944)) |
+| Cron path traversal hardening | Cron job IDs and output paths normalized and validated (v0.8.0, [#5613](https://github.com/NousResearch/hermes-agent/pull/5613)) |
+| Cross-session isolation | Session state scoped to prevent cross-session reads under concurrent load (v0.8.0, [#5613](https://github.com/NousResearch/hermes-agent/pull/5613)) |
+| Terminal workdir sanitization | `workdir` parameter sanitized across all terminal backends (v0.8.0, [#5629](https://github.com/NousResearch/hermes-agent/pull/5629)) |
+| MCP OSV malware scanning | stdio MCP packages scanned via OSV API before spawn; fail-open (v0.8.0, [#5305](https://github.com/NousResearch/hermes-agent/pull/5305)) |
 
 If your PR affects security, note it explicitly in the PR description.
