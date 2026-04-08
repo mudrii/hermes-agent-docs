@@ -143,6 +143,58 @@ tool_emojis:
 # banner_hero: "[dim]hero art here[/]"
 ```
 
+## Hermes Mod — Visual Skin Editor
+
+[Hermes Mod](https://github.com/cocktailpeanut/hermes-mod) is a community-built web UI for creating and managing skins visually. Instead of writing YAML by hand, you get a point-and-click editor with live preview.
+
+Added to the official docs in v0.8.0 ([#6095](https://github.com/NousResearch/hermes-agent/pull/6095)).
+
+**What it does:**
+
+- Lists all built-in and custom skins
+- Opens any skin into a visual editor with all Hermes skin fields (colors, spinner, branding, tool prefix, tool emojis)
+- Generates `banner_logo` text art from a text prompt
+- Converts uploaded images (PNG, JPG, GIF, WEBP) into `banner_hero` ASCII art with multiple render styles (braille, ASCII ramp, blocks, dots)
+- Saves directly to `~/.hermes/skins/`
+- Activates a skin by updating `~/.hermes/config.yaml`
+- Shows the generated YAML and a live preview
+- Respects `HERMES_HOME`, so it works with named profiles
+
+### Install
+
+**Option 1 — Pinokio (1-click):**
+
+Find it on [pinokio.computer](https://pinokio.computer) and install with one click.
+
+**Option 2 — npx (quickest from terminal):**
+
+```bash
+npx -y hermes-mod
+```
+
+**Option 3 — Manual:**
+
+```bash
+git clone https://github.com/cocktailpeanut/hermes-mod.git
+cd hermes-mod/app
+npm install
+npm start
+```
+
+### Usage
+
+1. Start the app (via Pinokio or terminal).
+2. Open **Skin Studio**.
+3. Choose a built-in or custom skin to edit.
+4. Generate a logo from text and/or upload an image for hero art. Pick a render style and width.
+5. Edit colors, spinner, branding, and other fields.
+6. Click **Save** to write the skin YAML to `~/.hermes/skins/`.
+7. Click **Activate** to set it as the current skin (updates `display.skin` in `config.yaml`).
+
+## Skin-Aware Banner (v0.8.0)
+
+The CLI banner now renders correctly when a custom skin is active. Previously the banner could display with incorrect colors or layout when a non-default skin was loaded at startup. This is fixed in v0.8.0 ([#5974](https://github.com/NousResearch/hermes-agent/pull/5974)).
+
 ## Operational Notes
 
 - Unknown skins fall back to `default` automatically with no error

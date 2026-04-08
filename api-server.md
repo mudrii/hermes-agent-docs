@@ -4,11 +4,6 @@ The API server exposes Hermes Agent as an OpenAI-compatible HTTP endpoint. Any f
 
 Your agent handles requests with its full toolset (terminal, file operations, web search, memory, skills) and returns the final response. Tool calls execute invisibly server-side.
 
-Released v0.7.0 adds two important continuity features:
-
-- real-time tool-progress messages in streaming responses
-- optional chat-completions continuity via the `X-Hermes-Session-Id` header
-
 ## Quick Start
 
 ### 1. Enable the API server
@@ -46,7 +41,7 @@ curl http://localhost:8642/v1/chat/completions \
 
 ### POST /v1/chat/completions
 
-Standard OpenAI Chat Completions format. By default this is stateless — the full conversation is included in each request via the `messages` array. In released v0.7.0, clients can opt into server-side continuity by sending and reusing an `X-Hermes-Session-Id` header.
+Standard OpenAI Chat Completions format. By default this is stateless — the full conversation is included in each request via the `messages` array. Clients can opt into server-side continuity by sending and reusing an `X-Hermes-Session-Id` header.
 
 **Request:**
 
@@ -78,7 +73,7 @@ Standard OpenAI Chat Completions format. By default this is stateless — the fu
 }
 ```
 
-**Streaming** (`"stream": true`): Returns Server-Sent Events (SSE) with token-by-token response chunks. In released v0.7.0 the SSE stream also includes Hermes tool-progress updates so Open WebUI-style frontends can see activity while the agent is working. When streaming is disabled in config, the full response is sent as a single SSE chunk.
+**Streaming** (`"stream": true`): Returns Server-Sent Events (SSE) with token-by-token response chunks. The SSE stream includes Hermes tool-progress updates so Open WebUI-style frontends can see activity while the agent is working. When streaming is disabled in config, the full response is sent as a single SSE chunk.
 
 #### Session continuity with `X-Hermes-Session-Id`
 
@@ -354,6 +349,12 @@ curl http://localhost:8642/v1/chat/completions \
 - Request body size limits, field whitelists, and CORS origin protection
 - SQLite-backed response persistence for `previous_response_id` chaining
 - Idempotency-Key support on both endpoints (PR #2903)
+
+### v0.8.0
+
+- **Conversation history preserved on `/v1/runs` multi-message input** — When `/v1/runs` receives an OpenAI-style array of messages, all messages except the last user turn are extracted as `conversation_history`. Previously only the last message was kept, silently discarding earlier turns.
+- **Session boundary hooks** — Plugins can now subscribe to `on_session_finalize` (fires on exit/before `/new`) and `on_session_reset` (fires after `/new`) via `ctx.register_hook()`. These hooks are also covered by the gateway test suite ([#6129](https://github.com/NousResearch/hermes-agent/pull/6129)).
+- **API server streaming fix + `conversation_history` in request body** — Streaming reliability improved; `conversation_history` can now be passed explicitly in the request body ([#5977](https://github.com/NousResearch/hermes-agent/pull/5977)).
 
 ### v0.5.0 (PR #3427, #3530, #3537, #3304)
 

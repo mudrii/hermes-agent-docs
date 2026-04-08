@@ -23,7 +23,7 @@ The `/browser` slash command provides an interactive browser workflow from the C
 5. Call `browser_vision` for screenshot-based visual analysis when the accessibility tree is insufficient
 6. Call `browser_close` when done to release the session
 
-The underlying mechanism uses the `agent-browser` CLI (a Node.js wrapper around Chromium) in local mode, or CDP (Chrome DevTools Protocol) when connected via `/browser connect`. In v0.7.0, setting `CAMOFOX_URL` routes the same tool surface through the local Camofox REST backend instead. The accessibility tree representation uses ref IDs (`@e1`, `@e2`, ...) for element addressing. Cloud backends (Browserbase, Browser Use) are selected via `browser.cloud_provider` in config.yaml and bypass the local browser path entirely.
+The underlying mechanism uses the `agent-browser` CLI (a Node.js wrapper around Chromium) in local mode, or CDP (Chrome DevTools Protocol) when connected via `/browser connect`. Setting `CAMOFOX_URL` routes the same tool surface through the local Camofox REST backend instead. The accessibility tree representation uses ref IDs (`@e1`, `@e2`, ...) for element addressing. Cloud backends (Browserbase, Browser Use, Firecrawl) are selected via `browser.cloud_provider` in config.yaml and bypass the local browser path entirely.
 
 ---
 
@@ -33,6 +33,7 @@ The underlying mechanism uses the `agent-browser` CLI (a Node.js wrapper around 
 |---------|--------------|----------|
 | **Browserbase cloud** | Set `browser.cloud_provider: browserbase` in config.yaml + `BROWSERBASE_API_KEY` | Managed cloud browsers with anti-bot, CAPTCHA solving, residential proxies |
 | **Browser Use cloud** | Set `browser.cloud_provider: browser-use` in config.yaml + `BROWSER_USE_API_KEY` | Alternative cloud browser provider |
+| **Firecrawl cloud** | Set `browser.cloud_provider: firecrawl` in config.yaml + `FIRECRAWL_API_KEY` | Cloud browser via Firecrawl's CDP (v0.8.0) |
 | **Camofox local** | Set `CAMOFOX_URL=http://localhost:9377` | Local anti-detection browsing with persistent sessions and VNC debugging |
 | **Local Chrome via CDP** | Run `/browser connect` in CLI or set `BROWSER_CDP_URL` env var | Attach to your own Chrome instance; free, real-time |
 | **Local Chromium** | Install `agent-browser` CLI (default when no cloud provider is configured) | Local Chromium driven by `agent-browser`; no credentials required |
@@ -108,7 +109,29 @@ BROWSER_USE_API_KEY=***
 
 Get your API key at [browser-use.com](https://browser-use.com).
 
-### Camofox local mode (v0.7.0)
+### Firecrawl cloud mode (v0.8.0)
+
+1. Set the cloud provider in config:
+
+```yaml
+# ~/.hermes/config.yaml
+browser:
+  cloud_provider: firecrawl
+```
+
+2. Add credentials to `~/.hermes/.env`:
+
+```bash
+FIRECRAWL_API_KEY=***
+# Optional: session TTL in seconds (default: 300)
+FIRECRAWL_BROWSER_TTL=300
+```
+
+Get credentials at [firecrawl.dev](https://firecrawl.dev).
+
+All browser tools route through Firecrawl's cloud browser via CDP when this provider is active.
+
+### Camofox local mode
 
 Set `CAMOFOX_URL` in `~/.hermes/.env`:
 
@@ -116,7 +139,7 @@ Set `CAMOFOX_URL` in `~/.hermes/.env`:
 CAMOFOX_URL=http://localhost:9377
 ```
 
-Hermes then routes `browser_navigate`, `browser_snapshot`, `browser_click`, `browser_type`, `browser_vision`, and related browser tools through the Camofox REST service. The released integration supports:
+Hermes then routes `browser_navigate`, `browser_snapshot`, `browser_click`, `browser_type`, `browser_vision`, and related browser tools through the Camofox REST service. The integration supports:
 
 - persistent browser sessions keyed to the current task
 - optional managed persistence via `browser.camofox.managed_persistence`
@@ -206,7 +229,7 @@ browser:
     managed_persistence: false
 ```
 
-`browser.allow_private_urls` only affects remote or cloud browser paths. Released v0.7.0 skips the private-URL SSRF block for local backends such as Camofox, local Chromium, and direct CDP-attached browsers.
+`browser.allow_private_urls` only affects remote or cloud browser paths. Local backends (Camofox, local Chromium, and direct CDP-attached browsers) are not subject to the private-URL SSRF block.
 
 ## Available Tools
 
@@ -291,7 +314,7 @@ Check the browser console for any JavaScript errors
 
 ### browser_close
 
-Close the browser session and release resources. Call this when done to free up cloud session quota.
+Close the browser session and release resources. This tool schema is still exposed for compatibility, but in v0.8.0 the underlying function was removed — cleanup happens automatically via inactivity-based auto-cleanup and the per-session reaper. You do not need to call `browser_close` explicitly.
 
 ## Practical Examples
 
@@ -364,6 +387,16 @@ If paid features aren't available on your plan, Hermes automatically falls back 
 - Browser automation involves real HTTP requests; web services may log interactions
 - Session recording stores video files locally in `~/.hermes/browser_recordings/`; clean these up if they contain sensitive information
 
+## v0.8.0 Changes
+
+| Change | PR | Release |
+|--------|-----|---------|
+| Firecrawl cloud browser provider | [#5628](https://github.com/NousResearch/hermes-agent/pull/5628) | v0.8.0 |
+| `agent-browser` paths with spaces preserved correctly | [#6077](https://github.com/NousResearch/hermes-agent/pull/6077) | v0.8.0 |
+| `browser_close` function removed — auto-cleanup handles it | [#5792](https://github.com/NousResearch/hermes-agent/pull/5792) | v0.8.0 |
+| Browser Use set as default managed cloud provider | [#5750](https://github.com/NousResearch/hermes-agent/pull/5750) | v0.8.0 |
+| JS evaluation via `browser_console` `expression` parameter | [#5303](https://github.com/NousResearch/hermes-agent/pull/5303) | v0.8.0 |
+
 ## v0.4.0 and v0.5.0 Changes
 
 | Change | PR | Release |
@@ -383,6 +416,6 @@ If paid features aren't available on your plan, Hermes automatically falls back 
 - **Text-based interaction** — relies on accessibility tree, not pixel coordinates
 - **Snapshot size** — large pages may be truncated or LLM-summarized at 8000 characters
 - **Session timeout** — cloud sessions expire based on your provider's plan settings
-- **Cost** — cloud sessions consume provider credits; use `browser_close` when done. Use `/browser connect` for free local browsing.
+- **Cost** — cloud sessions consume provider credits. Auto-cleanup handles session teardown; use `/browser connect` for free local browsing.
 - **No file downloads** — cannot download files from the browser
 - **SSRF protection** — `browser_navigate` blocks requests to RFC-1918 addresses and localhost (added v0.5.0, [#3058](https://github.com/NousResearch/hermes-agent/pull/3058))

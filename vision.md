@@ -2,7 +2,7 @@
 
 Hermes Agent supports **multimodal vision** -- you can paste images from your clipboard directly into the CLI, send images via messaging platforms, or point the agent at image URLs for analysis.
 
-Vision capabilities have been present since v0.2.0. Image paste in CLI was added in v0.3.0. Vision support across messaging platforms (Telegram, Discord, Matrix) was expanded in v0.4.0.
+Vision capabilities have been present since v0.2.0. Image paste in CLI was added in v0.3.0. Vision support across messaging platforms (Telegram, Discord, Matrix) was expanded in v0.4.0. Native Windows image paste was added in v0.8.0.
 
 ## Two Vision Surfaces
 
@@ -42,6 +42,7 @@ Images are saved to `~/.hermes/images/` as PNG files with timestamped filenames.
 | Environment | `/paste` | Ctrl+V text+image | Alt+V |
 |---|:---:|:---:|:---:|
 | macOS Terminal / iTerm2 | Yes | Yes | Yes |
+| Windows (native) | Yes | Yes | No |
 | Linux X11 desktop | Yes | Yes | Yes |
 | Linux Wayland desktop | Yes | Yes | Yes |
 | WSL2 (Windows Terminal) | Yes | Yes | Yes |
@@ -56,6 +57,8 @@ Images are saved to `~/.hermes/images/` as PNG files with timestamped filenames.
 **Linux (X11)** -- Install `xclip`: `sudo apt install xclip`
 
 **Linux (Wayland)** -- Install `wl-clipboard`: `sudo apt install wl-clipboard`
+
+**Windows (native)** -- No extra setup required. Hermes uses PowerShell via .NET `System.Windows.Forms.Clipboard`. Tries `powershell` (Windows PowerShell 5.1) first, then `pwsh` (PowerShell 7+). Added in v0.8.0.
 
 **WSL2** -- No extra setup required. Hermes detects WSL2 automatically and uses `powershell.exe` to access the Windows clipboard.
 
@@ -95,6 +98,21 @@ auxiliary:
 ```
 
 The download timeout for fetching images is separate from the LLM API call timeout. It can also be set via the `HERMES_VISION_DOWNLOAD_TIMEOUT` environment variable.
+
+### Vision Auto-Detection (v0.8.0)
+
+In v0.8.0, the vision auto-detection chain was simplified. The resolution order is now:
+
+1. **OpenRouter** — if `OPENROUTER_API_KEY` is set
+2. **Nous Portal** — if authenticated via `~/.hermes/auth.json`
+3. **Active provider** — the user's configured main chat provider (DeepSeek, Google AI Studio, Alibaba, named custom endpoints, etc.)
+4. Stop
+
+Previously the chain included five fixed backends (OpenRouter, Nous, Codex, Anthropic, custom). The new chain is shorter and more predictable, and uses `resolve_provider_client()` for step 3, which handles all provider types including named custom providers.
+
+### Supported Providers for Vision
+
+Any provider reachable through the active provider resolution works for vision tasks. Explicitly supported as known-good vision backends in auto mode: OpenRouter and Nous Portal. Google AI Studio (Gemini), added in v0.8.0 as a first-class provider, works as the active provider fallback.
 
 ### Platform Delivery
 

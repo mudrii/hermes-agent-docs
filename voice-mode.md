@@ -239,10 +239,11 @@ stt:
   provider: "local"                  # "local" (free) | "local_command" | "groq" | "openai"
   local:
     model: "base"                    # tiny, base, small, medium, large-v3
+    language: ""                     # Force language code (e.g. "en", "es", "fr"); empty = auto-detect
 
 # Text-to-Speech
 tts:
-  provider: "edge"                 # "edge" (free) | "elevenlabs" | "openai" | "neutts"
+  provider: "edge"                 # "edge" (free) | "elevenlabs" | "openai" | "minimax" | "neutts"
   edge:
     voice: "en-US-AriaNeural"      # 322 voices, 74 languages
   elevenlabs:
@@ -252,6 +253,12 @@ tts:
   openai:
     model: "gpt-4o-mini-tts"
     voice: "alloy"                 # alloy, echo, fable, onyx, nova, shimmer
+  minimax:
+    model: "speech-2.8-hd"        # speech-2.8-hd (default) or speech-2.8-turbo
+    voice_id: "English_Graceful_Lady"
+    speed: 1
+    vol: 1
+    pitch: 0
   neutts:
     ref_audio: ''
     ref_text: ''
@@ -274,7 +281,7 @@ STT_OPENAI_MODEL=whisper-1
 # Custom local STT command template (optional, for local_command provider)
 # Uses {input_path}, {output_dir}, {model}, {language} placeholders
 HERMES_LOCAL_STT_COMMAND=
-HERMES_LOCAL_STT_LANGUAGE=en        # Language for local STT (default: en)
+HERMES_LOCAL_STT_LANGUAGE=en        # Fallback language for local STT (prefer stt.local.language in config.yaml)
 
 # Text-to-Speech providers (Edge TTS and NeuTTS need no key)
 ELEVENLABS_API_KEY=***             # ElevenLabs (premium quality)
@@ -313,9 +320,10 @@ If `faster-whisper` is installed, voice mode works with zero API keys for STT. T
 | **Edge TTS** | Good | Free | ~1s | No |
 | **ElevenLabs** | Excellent | Paid | ~2s | Yes |
 | **OpenAI TTS** | Good | Paid | ~1.5s | Yes |
+| **MiniMax TTS** | High | Paid | ~1.5s | Yes (`MINIMAX_API_KEY`) |
 | **NeuTTS** | Good | Free | Depends on CPU/GPU | No |
 
-Edge TTS default voice is `en-US-AriaNeural` (322 voices, 74 languages available). NeuTTS is a local on-device provider run via subprocess from `tools/neutts_synth.py` using the `neuphonic/neutts-air-q4-gguf` model by default. In v0.4.0 NeuTTS was promoted from an optional skill to a first-class built-in TTS provider with a setup flow ([#1657](https://github.com/NousResearch/hermes-agent/pull/1657), [#1664](https://github.com/NousResearch/hermes-agent/pull/1664)). The `neutts` provider is now available in `tts.provider` without installing a separate skill.
+Edge TTS default voice is `en-US-AriaNeural` (322 voices, 74 languages available). NeuTTS is a local on-device provider run via subprocess from `tools/neutts_synth.py` using the `neuphonic/neutts-air-q4-gguf` model by default. In v0.4.0 NeuTTS was promoted from an optional skill to a first-class built-in TTS provider with a setup flow ([#1657](https://github.com/NousResearch/hermes-agent/pull/1657), [#1664](https://github.com/NousResearch/hermes-agent/pull/1664)). The `neutts` provider is now available in `tts.provider` without installing a separate skill. In v0.8.0, MiniMax TTS was added as a fifth provider with voice cloning support ([#4963](https://github.com/NousResearch/hermes-agent/pull/4963)).
 
 For **streaming TTS** in CLI voice mode (sentence-by-sentence), ElevenLabs uses the `eleven_flash_v2_5` model by default (faster than `eleven_multilingual_v2`). This can be overridden via `tts.elevenlabs.streaming_model_id` in config.yaml. Streaming TTS outputs PCM audio at 24kHz and plays through sounddevice. If sounddevice is unavailable, it falls back to a temporary WAV file played through system audio players.
 
@@ -337,6 +345,11 @@ Text is automatically cleaned before TTS: markdown formatting, code blocks, URLs
 
 - STT: local (install `faster-whisper`)
 - TTS: Edge TTS (no key required)
+
+## v0.8.0 Changes
+
+- **MiniMax TTS provider** -- MiniMax (speech-2.8-hd model) added as a fifth TTS provider with voice cloning support. Requires `MINIMAX_API_KEY` ([#4963](https://github.com/NousResearch/hermes-agent/pull/4963)).
+- **STT language moved to config.yaml** -- `stt.local.language` can now be set in `config.yaml` (empty = auto-detect). The `HERMES_LOCAL_STT_LANGUAGE` env var still works as a fallback for backward compatibility. Both local faster-whisper and `local_command` STT paths read config.yaml first.
 
 ## v0.4.0 Changes
 

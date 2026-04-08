@@ -1,8 +1,8 @@
 # Text-to-Speech
 
-Hermes Agent supports text-to-speech output across all platforms with four providers: Edge TTS (free, default), ElevenLabs (premium), OpenAI TTS, and NeuTTS (local, free).
+Hermes Agent supports text-to-speech output across all platforms with five providers: Edge TTS (free, default), ElevenLabs (premium), OpenAI TTS, NeuTTS (local, free), and MiniMax TTS (high-quality with voice cloning).
 
-TTS has been available since v0.2.0. NeuTTS was promoted from an optional skill to a first-class built-in provider in v0.4.0 ([PR #1657](https://github.com/NousResearch/hermes-agent/pull/1657), [#1664](https://github.com/NousResearch/hermes-agent/pull/1664)). OpenAI TTS `base_url` support was added in v0.4.0 ([PR #2064](https://github.com/NousResearch/hermes-agent/pull/2064)).
+TTS has been available since v0.2.0. NeuTTS was promoted from an optional skill to a first-class built-in provider in v0.4.0 ([PR #1657](https://github.com/NousResearch/hermes-agent/pull/1657), [#1664](https://github.com/NousResearch/hermes-agent/pull/1664)). OpenAI TTS `base_url` support was added in v0.4.0 ([PR #2064](https://github.com/NousResearch/hermes-agent/pull/2064)). MiniMax TTS (speech-2.8-hd) was added in v0.8.0 ([PR #4963](https://github.com/NousResearch/hermes-agent/pull/4963)).
 
 Implemented in `tools/tts_tool.py`.
 
@@ -13,6 +13,7 @@ Implemented in `tools/tts_tool.py`.
 | **Edge TTS** (default) | Good | Free | None needed | Microsoft Edge neural voices, 322 voices, 74 languages |
 | **ElevenLabs** | Excellent | Paid | `ELEVENLABS_API_KEY` | Premium quality, streaming support |
 | **OpenAI TTS** | Good | Paid | `VOICE_TOOLS_OPENAI_KEY` | Falls back to `OPENAI_API_KEY` |
+| **MiniMax TTS** | High | Paid | `MINIMAX_API_KEY` | speech-2.8-hd model, voice cloning support (v0.8.0) |
 | **NeuTTS** | Good | Free | None needed | Local on-device, requires `espeak-ng` |
 
 ## Platform Delivery
@@ -31,7 +32,7 @@ The `text_to_speech` tool returns a `MEDIA:` path that the platform delivers as 
 ```yaml
 # In ~/.hermes/config.yaml
 tts:
-  provider: "edge"              # "edge" | "elevenlabs" | "openai" | "neutts"
+  provider: "edge"              # "edge" | "elevenlabs" | "openai" | "minimax" | "neutts"
   edge:
     voice: "en-US-AriaNeural"   # 322 voices, 74 languages
   elevenlabs:
@@ -42,6 +43,13 @@ tts:
     model: "gpt-4o-mini-tts"
     voice: "alloy"              # alloy, echo, fable, onyx, nova, shimmer
     base_url: "https://api.openai.com/v1"  # Override for compatible endpoints
+  minimax:
+    model: "speech-2.8-hd"     # speech-2.8-hd (default) or speech-2.8-turbo
+    voice_id: "English_Graceful_Lady"
+    speed: 1
+    vol: 1
+    pitch: 0
+    base_url: "https://api.minimax.io/v1/t2a_v2"
   neutts:
     ref_audio: ''
     ref_text: ''
@@ -55,6 +63,7 @@ Telegram voice bubbles require Opus/OGG audio format:
 
 - **OpenAI and ElevenLabs** produce Opus natively -- no extra setup
 - **Edge TTS** (default) outputs MP3 and needs **ffmpeg** to convert
+- **MiniMax TTS** outputs MP3 and needs **ffmpeg** to convert for Telegram voice bubbles
 - **NeuTTS** outputs WAV and also needs **ffmpeg** to convert for Telegram voice bubbles
 
 ```bash
@@ -86,6 +95,14 @@ For streaming TTS in CLI voice mode (sentence-by-sentence playback), ElevenLabs 
 Requires `VOICE_TOOLS_OPENAI_KEY` (falls back to `OPENAI_API_KEY`). Available voices: alloy, echo, fable, onyx, nova, shimmer.
 
 v0.4.0 added `base_url` support, enabling use with self-hosted or proxy TTS endpoints.
+
+### MiniMax TTS
+
+High-quality cloud TTS with voice cloning support. Added in v0.8.0 ([PR #4963](https://github.com/NousResearch/hermes-agent/pull/4963)). Requires `MINIMAX_API_KEY` in `~/.hermes/.env`.
+
+Get an API key at [platform.minimax.io](https://platform.minimax.io/).
+
+MiniMax uses the T2A v2 HTTP API with hex-encoded audio decoding. Supports both standard (`speech-2.8-hd`) and fast (`speech-2.8-turbo`) model variants. Voice parameters (speed, volume, pitch) are configurable via `config.yaml`.
 
 ### NeuTTS
 
@@ -151,3 +168,7 @@ If your configured provider isn't available, Hermes automatically falls back:
 ## Text Cleaning
 
 Text is automatically cleaned before TTS: markdown formatting, code blocks, URLs, and `<think>...</think>` blocks are stripped. Maximum text length per TTS call is 4000 characters.
+
+## v0.8.0 Changes
+
+- **MiniMax TTS provider** -- MiniMax (speech-2.8-hd model) added as a fifth TTS provider with voice cloning support. Requires `MINIMAX_API_KEY`. Configure via `tts.provider: "minimax"` in `config.yaml` ([#4963](https://github.com/NousResearch/hermes-agent/pull/4963)).
