@@ -1,6 +1,6 @@
 # Architecture
 
-This page is the authoritative map of Hermes Agent internals, reviewed against the released v0.7.0 surface (`v2026.4.3`). The project is organized around a shared agent core that serves multiple platform frontends, a centralized provider router, a SQLite session store, and a set of loosely-coupled optional subsystems.
+This page is the authoritative map of Hermes Agent internals, reviewed against the released v0.8.0 surface (`v2026.4.8`). The project is organized around a shared agent core that serves multiple platform frontends, a centralized provider router, a SQLite session store, and a set of loosely-coupled optional subsystems.
 
 ---
 
@@ -729,6 +729,52 @@ Uses `zoneinfo.ZoneInfo` for IANA timezone names. Invalid timezone values log a 
 `InsightsEngine` analyzes historical session data from the SQLite state database to produce usage insights: token consumption, cost estimates, tool usage patterns, activity trends, model/platform breakdowns, and session metrics.
 
 Usage: `InsightsEngine(db).generate(days=30)` returns a report dict; `format_terminal(report)` renders it for the CLI.
+
+---
+
+## New in v0.8.0
+
+### Centralized Logging
+
+`hermes_logging.py` provides a single `setup_logging()` entry point called by both the CLI and gateway at startup. It creates two `RotatingFileHandler` log files under `~/.hermes/logs/`:
+
+- `agent.log` -- INFO and above (main activity log)
+- `errors.log` -- WARNING and above (quick triage)
+
+Both files pass through `RedactingFormatter` so secrets are never written to disk. Console output is suppressed in quiet mode for the `tools`, `run_agent`, `trajectory_compressor`, `cron`, and `hermes_cli` namespaces -- file handlers still capture everything.
+
+The `hermes logs` command (`hermes_cli/logs.py`) provides tailing, filtering, and follow mode for all log files. See [logging.md](./logging.md).
+
+### Config Structure Validation at Startup
+
+`hermes_cli/config.py` now calls `print_config_warnings()` early in the CLI and gateway init path (PR [#5426](https://github.com/NousResearch/hermes-agent/pull/5426)). It runs `validate_config_structure()` which checks for:
+
+- `custom_providers` given as a dict instead of a YAML list
+- `fallback_model` missing `provider` or `model` fields
+- Root-level keys that look like they should be nested under `model:` or `custom_providers`
+- `fallback_model` accidentally nested inside `custom_providers`
+
+Detected issues print to stderr with actionable hints before the agent loop starts, rather than producing cryptic "Unknown provider" errors later.
+
+### Reasoning Effort Config Consolidation
+
+`HERMES_REASONING_EFFORT` environment variable was removed. Set `agent.reasoning_effort` in `config.yaml` or use `/reasoning [level]` at runtime.
+
+### Jittered Retry Backoff
+
+API retries use jittered exponential backoff (`agent/retry_utils.py`) instead of fixed delays. Multiple concurrent gateway sessions no longer all retry at the same instant after a rate-limit event.
+
+### Smart Thinking Block Signature Management
+
+`agent/anthropic_adapter.py` applies a three-rule strategy when building Anthropic API messages: strip thinking blocks from all assistant messages except the last, downgrade unsigned thinking blocks to plain text, and strip `cache_control` from all thinking blocks. This prevents HTTP 400 "Invalid signature in thinking block" errors caused by context compression, session truncation, or message merging.
+
+### Thinking-Only Prefill Continuation
+
+When a model returns structured reasoning but no text, the agent appends the incomplete assistant message and retries (up to 2 times) rather than treating it as an error. Reasoning-only responses that exhaust retries are set to `"(empty)"` instead of burning through the retry loop.
+
+### Self-Optimized GPT/Codex Tool-Use Guidance
+
+`OPENAI_MODEL_EXECUTION_GUIDANCE` in `agent/prompt_builder.py` -- injected for GPT, Codex, Gemini, Gemma, and Grok models -- addresses 5 agent failure modes diagnosed through automated benchmarking: early stopping, hallucination instead of tool use, skipping prerequisites, not verifying results, and asking unnecessary clarifying questions.
 
 ---
 

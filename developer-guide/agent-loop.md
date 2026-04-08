@@ -132,6 +132,37 @@ Budget pressure hints are injected into tool results at two thresholds:
 
 Fallback model support allows the agent to switch providers or models when the primary route fails.
 
+## API Retry: Jittered Backoff (v0.8.0)
+
+**New in v0.8.0** (PR [#6048](https://github.com/NousResearch/hermes-agent/pull/6048)): API retries use jittered exponential backoff instead of fixed delays. The implementation lives in `agent/retry_utils.py`.
+
+```python
+jittered_backoff(attempt, base_delay=2.0, max_delay=60.0)
+```
+
+- Formula: `min(base * 2^(attempt-1), max_delay) + uniform_jitter`
+- Jitter range: `[0, 0.5 * computed_delay]` by default
+- The jitter seed mixes `time.time_ns()` with a monotonic counter so concurrent sessions (multiple gateway turns) produce decorrelated delays, preventing thundering-herd retry spikes against a rate-limited provider
+- Rate-limit (429) retries use `base_delay=2.0, max_delay=60.0`; extended backoff paths use `base_delay=5.0, max_delay=120.0`
+
+## Smart Thinking Block Signature Management (v0.8.0)
+
+**New in v0.8.0** (PR [#6112](https://github.com/NousResearch/hermes-agent/pull/6112)): Anthropic signs thinking blocks against the full turn content. Any upstream mutation -- context compression, session truncation, orphan stripping, message merging -- invalidates the signature and causes HTTP 400 errors.
+
+The Anthropic adapter (`agent/anthropic_adapter.py`) applies a two-rule strategy when building API messages:
+
+1. **Strip thinking/redacted_thinking from all assistant messages except the last one.** Only the current tool-use chain needs live thinking signatures. All prior turns have their thinking blocks removed.
+2. **Downgrade unsigned thinking blocks to plain text.** If a thinking block has no `signature` field, it cannot be validated by Anthropic and will be rejected -- it is converted to a `{"type": "text", "text": ...}` block instead to preserve the reasoning content.
+3. **Strip `cache_control` from all thinking/redacted_thinking blocks** in every message -- cache markers interfere with signature validation.
+
+## Accepting Reasoning-Only Responses (v0.8.0)
+
+**New in v0.8.0** (PR [#5278](https://github.com/NousResearch/hermes-agent/pull/5278)): When a model returns structured reasoning (via API fields) but no visible text content, the agent no longer retries indefinitely. Instead:
+
+1. **Thinking-only prefill continuation**: if the response has `reasoning`, `reasoning_content`, or `reasoning_details` fields but no text, the agent appends the assistant message as-is (marked with `_thinking_prefill = True`) and continues to the next API call. The model sees its own reasoning on the next turn and typically produces the text portion. This is retried up to 2 times (`_thinking_prefill_retries < 2`).
+
+2. **Fallback to `"(empty)"`**: if prefill retries are exhausted or there is no structured reasoning at all, the assistant message content is set to the string `"(empty)"` and the turn ends. This prevents an infinite retry loop that burns through the iteration budget.
+
 ## System Prompt Caching Strategy
 
 The system prompt is built once on the first `run_conversation()` call and reused for all subsequent turns in the session. This is critical for Anthropic prefix cache hits -- a stable system prompt prefix means the provider can serve cached tokens instead of reprocessing.

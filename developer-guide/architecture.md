@@ -1,6 +1,6 @@
 # Architecture
 
-This page is the top-level map of Hermes Agent internals, reviewed against the released v0.7.0 surface (`v2026.4.3`). The project is organized around a shared agent core that serves multiple platform frontends, a centralized provider router, a SQLite session store, and a set of loosely-coupled optional subsystems.
+This page is the top-level map of Hermes Agent internals, reviewed against the released v0.8.0 surface (`v2026.4.8`). The project is organized around a shared agent core that serves multiple platform frontends, a centralized provider router, a SQLite session store, and a set of loosely-coupled optional subsystems.
 
 ## High-Level Structure
 
@@ -133,6 +133,10 @@ Cron jobs are implemented as first-class agent tasks stored in `~/.hermes/cron/j
 
 Hermes ships a full environment framework for evaluation, RL integration, and SFT data generation. Trajectories are saved as JSONL in ShareGPT-compatible format. See [Trajectory Format](./trajectory-format.md).
 
+### Centralized Logging (v0.8.0)
+
+Structured log files under `~/.hermes/logs/` (`agent.log` INFO+, `errors.log` WARNING+). Initialized via `hermes_logging.setup_logging()` in `AIAgent.__init__()` and in CLI/gateway startup. All output passes through `RedactingFormatter` to prevent secrets from reaching disk. See [Logging](../logging.md).
+
 ## Design Themes
 
 Several cross-cutting design themes appear throughout the codebase:
@@ -155,6 +159,7 @@ Several cross-cutting design themes appear throughout the codebase:
 7. [Gateway Internals](./gateway-internals.md)
 8. [Context Compression](./context-compression.md)
 9. [Trajectory Format](./trajectory-format.md)
+10. [Logging](../logging.md)
 
 ## Source Files Reference
 
@@ -177,5 +182,6 @@ Several cross-cutting design themes appear throughout the codebase:
 | `agent/smart_model_routing.py` | Optional cheap model routing |
 | `agent/anthropic_adapter.py` | Native Anthropic API translation |
 | `agent/trajectory.py` | Trajectory save utilities |
+| `hermes_logging.py` | Centralized logging setup (`setup_logging()`, `setup_verbose_logging()`) |
 | `gateway/` | Platform adapters and session routing |
 | `cron/` | Scheduled job storage and scheduler |

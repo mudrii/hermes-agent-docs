@@ -45,7 +45,7 @@ curl -fsSL https://raw.githubusercontent.com/NousResearch/hermes-agent/main/scri
 
 ### Windows (PowerShell)
 
-The repository ships a PowerShell installer, but the released v0.6.0 README still says native Windows is not supported and recommends WSL2. Treat the PowerShell path as a best-effort repo-local installer rather than the primary supported release path.
+The repository ships a PowerShell installer. Native Windows support is a best-effort path; WSL2 is recommended for production use.
 
 ```powershell
 irm https://raw.githubusercontent.com/NousResearch/hermes-agent/main/scripts/install.ps1 | iex

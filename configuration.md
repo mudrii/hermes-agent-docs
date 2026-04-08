@@ -104,6 +104,8 @@ agent:
   tool_use_enforcement: "auto"  # v0.5.0 (PR #3551). See below.
 ```
 
+**`reasoning_effort`** (v0.8.0): Configurable through `config.yaml` only. The `HERMES_REASONING_EFFORT` environment variable was removed in v0.8.0 — set this in `config.yaml` or change it at runtime with `/reasoning [level]`.
+
 **`tool_use_enforcement`** (v0.5.0 — PR #3551): Injects system-prompt guidance that tells the model to actually call tools instead of describing intended actions. Fixes GPT model reliability.
 
 | Value | Behavior |
@@ -586,6 +588,21 @@ command_allowlist:
   - "docker build *"
   - "npm publish"
 ```
+
+---
+
+### Logging
+
+Centralized logging was introduced in v0.8.0 (PR [#5430](https://github.com/NousResearch/hermes-agent/pull/5430)). Log files are written to `~/.hermes/logs/` and rotate automatically. Optional config overrides:
+
+```yaml
+logging:
+  level: "INFO"           # Minimum level for agent.log. Default: INFO.
+  max_size_mb: 5          # Max size per log file before rotation (MB). Default: 5.
+  backup_count: 3         # Rotated backup files to keep. Default: 3.
+```
+
+These settings are optional. Without them, the defaults above apply. See [logging.md](./logging.md) for full details on log files, the `hermes logs` command, and quiet/verbose modes.
 
 ---
 
@@ -1099,6 +1116,7 @@ All variables go in `~/.hermes/.env` or the shell. Use `hermes config set VAR va
 | `HERMES_HUMAN_DELAY_MIN_MS` | Custom delay range minimum (ms). Default: `800`. |
 | `HERMES_HUMAN_DELAY_MAX_MS` | Custom delay range maximum (ms). Default: `2500`. |
 | `HERMES_QUIET` | Suppress non-essential output. Values: `true`/`false`. |
+| ~~`HERMES_REASONING_EFFORT`~~ | **Removed in v0.8.0.** Set `agent.reasoning_effort` in `config.yaml` instead. |
 | `HERMES_API_TIMEOUT` | LLM API call timeout in seconds. Default: `900`. |
 | `HERMES_EXEC_ASK` | Enable execution approval prompts in gateway mode. Values: `true`/`false`. |
 | `HERMES_BACKGROUND_NOTIFICATIONS` | Background process notification mode in gateway: `all` (default), `result`, `error`, `off`. |

@@ -139,6 +139,22 @@ Skills are filtered through multiple condition gates before inclusion in the ski
 - **Deprecated marking**: skills with `deprecated: true` in frontmatter are excluded from the index
 - **Disabled list**: skills listed in the user's `disabled_skills` config are excluded
 
+## Self-Optimized GPT/Codex Tool-Use Guidance (v0.8.0)
+
+**New in v0.8.0** (PR [#6120](https://github.com/NousResearch/hermes-agent/pull/6120), [#5414](https://github.com/NousResearch/hermes-agent/pull/5414)): Hermes automatically injects structured execution guidance for GPT and Codex models (and now also `gemini`, `gemma`, and `grok` names). The constant `OPENAI_MODEL_EXECUTION_GUIDANCE` in `agent/prompt_builder.py` addresses 5 failure modes the agent self-diagnosed through automated behavioral benchmarking:
+
+1. **Tool persistence** (`<tool_persistence>`) -- models abandoning work on partial results or stopping before verification
+2. **Mandatory tool use** (`<mandatory_tool_use>`) -- models hallucinating answers to arithmetic, system state, or file content instead of calling tools
+3. **Act-don't-ask** (`<act_dont_ask>`) -- models asking clarifying questions when an obvious default interpretation exists
+4. **Prerequisite checks** (`<prerequisite_checks>`) -- models skipping prerequisite discovery/lookup before acting
+5. **Verification** (`<verification>`) -- models declaring "done" without confirming correctness and grounding
+
+The set of models this fires for is controlled by the `TOOL_USE_ENFORCEMENT_MODELS` tuple: `("gpt", "codex", "gemini", "gemma", "grok")`. This list was expanded in v0.8.0 from the earlier `("gpt", "codex")` set.
+
+## Thinking-Only Prefill Continuation (v0.8.0)
+
+**New in v0.8.0** (PR [#5931](https://github.com/NousResearch/hermes-agent/pull/5931)): When a model returns structured reasoning (via `reasoning`, `reasoning_content`, or `reasoning_details` API fields) but no visible text content, the system prompt layer is not mutated. Instead, the agent appends the incomplete assistant message (tagged with `_thinking_prefill = True`) to the conversation and makes another API call. The model sees its own reasoning on the next turn and typically produces the text portion. This "thinking-only prefill continuation" is retried up to 2 times before falling back to an `"(empty)"` response terminal. The `_thinking_prefill` marker is stripped from messages before they are sent to the API.
+
 ## Tool-Use Enforcement Details
 
 The `agent.tool_use_enforcement` config controls injection of `TOOL_USE_ENFORCEMENT_GUIDANCE` into the system prompt:
