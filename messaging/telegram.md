@@ -275,7 +275,7 @@ The adapter guards against duplicate message delivery that can occur when a send
 
 ### Interactive Model Picker (v0.8.0)
 
-The `/model` command displays a **paginated inline keyboard** for model selection. Use the Next/Prev navigation buttons to browse all available models. Selecting a model switches immediately without restarting the session ([PR #5742](https://github.com/NousResearch/hermes-agent/pull/5742), [#3bc2fe80](https://github.com/NousResearch/hermes-agent/pull/5742)).
+The `/model` command displays a **paginated inline keyboard** for model selection. Use the Next/Prev navigation buttons to browse all available models. Selecting a model switches immediately without restarting the session ([PR #5742](https://github.com/NousResearch/hermes-agent/pull/5742)).
 
 ---
 
