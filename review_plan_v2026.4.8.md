@@ -28,7 +28,7 @@ The public docs site is current-branch documentation, not release-pinned documen
 
 ### 1) Release control
 
-- Fetch source and docs repos from `origin/main`
+- Fetch latest remote state (to identify unreleased `origin/main` commits to exclude from normative documentation)
 - Confirm the latest published release tag, metadata, and commit IDs
 - Measure `v2026.4.3..v2026.4.8` delta to scope the work
 - Identify unreleased `origin/main` commits to exclude

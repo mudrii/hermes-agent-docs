@@ -63,7 +63,7 @@ RELEASE_v0.2.0.md … RELEASE_v0.8.0.md
 
 ## 4) Highest-impact directories by file change count (v2026.4.3..v2026.4.8)
 
-| Change count | Directory |
+| Files changed | Directory |
 |---|---|
 | 202 | `tests/` |
 | 66 | `website/` |
@@ -162,7 +162,7 @@ The `tests/` directory leads by a wide margin (202 files), reflecting the 209 me
 ### What was already strong
 
 - Wide surface-area coverage across install, configuration, providers, gateway, API server, memory, security, tools, skills, and all messaging platforms
-- Prior release-bounded audit artifacts for `v2026.3.12`, `v2026.3.17`, `v2026.3.30`, `v2026.4.3`, `v2026.4.7`, and `v2026.4.8` (this pass) lines
+- Prior release-bounded audit artifacts for `v2026.3.12`, `v2026.3.17`, `v2026.3.30`, `v2026.4.3`, `v2026.4.7`, and `v2026.4.8` (this pass)
 
 ### What needed updating
 
