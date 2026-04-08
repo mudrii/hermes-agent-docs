@@ -62,14 +62,9 @@ Older fixed totals in previous docs passes went stale quickly as the tool surfac
 | `ha_list_entities` | List Home Assistant entities. Optionally filter by domain (light, switch, climate, sensor, binary_sensor, cover, fan, etc.) or by area name. | -- |
 | `ha_list_services` | List available Home Assistant services (actions) for device control. Shows what actions can be performed on each device type and what parameters they accept. | -- |
 
-## `honcho` toolset
+## `honcho` toolset (removed in v0.8.0)
 
-| Tool | Description | Requires environment |
-|------|-------------|----------------------|
-| `honcho_conclude` | Write a conclusion about the user back to Honcho's memory. Conclusions are persistent facts that build the user's profile -- preferences, corrections, clarifications, project context, or anything the user tells you that should be remembered. | -- |
-| `honcho_context` | Ask Honcho a natural language question and get a synthesized answer. Uses Honcho's LLM (dialectic reasoning) -- higher cost than honcho_profile or honcho_search. | -- |
-| `honcho_profile` | Retrieve the user's peer card from Honcho -- a curated list of key facts about them (name, role, preferences, communication style, patterns). Fast, no LLM reasoning, minimal cost. | -- |
-| `honcho_search` | Semantic search over Honcho's stored context about the user. Returns raw excerpts ranked by relevance to your query -- no LLM synthesis. Cheaper and faster than honcho_context. | -- |
+The standalone `honcho` toolset and its four tools (`honcho_conclude`, `honcho_context`, `honcho_profile`, `honcho_search`) were removed in v0.8.0. Honcho is now a memory provider plugin rather than a toolset. Memory access through Honcho is injected by `MemoryManager` at session start rather than via the toolset system. See [honcho.md](../honcho.md) or [memory.md](../memory.md) for configuration details.
 
 ## `image_gen` toolset
 
