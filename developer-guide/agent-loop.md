@@ -137,7 +137,7 @@ Fallback model support allows the agent to switch providers or models when the p
 **New in v0.8.0** (PR [#6048](https://github.com/NousResearch/hermes-agent/pull/6048)): API retries use jittered exponential backoff instead of fixed delays. The implementation lives in `agent/retry_utils.py`.
 
 ```python
-jittered_backoff(attempt, base_delay=2.0, max_delay=60.0)
+jittered_backoff(attempt, base_delay=5.0, max_delay=120.0)
 ```
 
 - Formula: `min(base * 2^(attempt-1), max_delay) + uniform_jitter`

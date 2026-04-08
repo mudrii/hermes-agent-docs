@@ -119,7 +119,7 @@ All log output is processed by `RedactingFormatter` from `agent/redact.py`. This
 
 ## Logging in Gateway Mode
 
-The gateway calls `setup_logging(mode="gateway")` early in its startup path. This is the same `setup_logging()` call used by the CLI. In gateway mode, the console handlers are not attached (no TTY), so all output goes to `agent.log` and `errors.log` only. Check `journalctl -u hermes-agent` for systemd service output.
+The gateway calls `setup_logging(mode="gateway")` early in its startup path. This is the same `setup_logging()` call used by the CLI. `setup_logging()` attaches only file handlers (`RotatingFileHandler`) regardless of caller — it never adds a `StreamHandler` for any code path. Console output is only enabled when `setup_verbose_logging()` is called, which happens when the CLI receives `--verbose` / `-v`. Gateway mode never calls `setup_verbose_logging()`, so all output goes to `agent.log` and `errors.log` only. Check `journalctl -u hermes-agent` for systemd service output.
 
 ---
 

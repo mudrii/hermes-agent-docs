@@ -95,7 +95,7 @@ hermes gateway restart
 To roll back to a specific release tag:
 
 ```bash
-git checkout v0.8.0
+git checkout v2026.4.3
 git submodule update --init --recursive
 uv pip install -e ".[all]"
 ```
