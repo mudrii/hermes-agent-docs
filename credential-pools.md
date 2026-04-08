@@ -6,12 +6,20 @@ Added in v0.5.0 and significantly expanded in v0.7.0. Implemented in `agent/cred
 
 This is different from [fallback providers](./fallback-providers.md), which switch to a *different* provider entirely. Credential pools are same-provider rotation; fallback providers are cross-provider failover. Pools are tried first -- if all pool keys are exhausted, *then* the fallback provider activates.
 
-Released v0.7.0 adds four important behaviors on top of the original pool rotation:
+v0.7.0 added four behaviors on top of the original pool rotation:
 
 - `least_used` strategy for same-provider load spreading
 - pool state survives smart-routing fallback transitions
 - provider reset windows are honored during pooled failover
 - after a fallback provider is used, Hermes restores the primary runtime on the next turn when recovery succeeds
+
+v0.8.0 adds:
+
+- OAuth token sync between credential pool and credentials file ([PR #4981](https://github.com/NousResearch/hermes-agent/pull/4981))
+- Codex pool entry synced from `~/.codex/auth.json` when all pool credentials are exhausted ([PR #5610](https://github.com/NousResearch/hermes-agent/pull/5610))
+- Codex OAuth credential pool disconnect and expired token import fixed ([PR #5681](https://github.com/NousResearch/hermes-agent/pull/5681))
+- Credential pool shared with subagents via per-task leasing ([PR #5978](https://github.com/NousResearch/hermes-agent/pull/5978))
+- Auxiliary client retries with next pool provider on 402 billing error ([PR #5599](https://github.com/NousResearch/hermes-agent/pull/5599))
 
 ## How It Works
 
@@ -131,7 +139,7 @@ The pool handles different errors differently:
 
 The `has_retried_429` flag resets on every successful API call, so a single transient 429 doesn't trigger rotation.
 
-Released v0.7.0 also preserves pool metadata when Hermes temporarily switches to a fallback provider. When the primary provider becomes usable again, later turns can restore that primary runtime instead of staying pinned to the fallback indefinitely.
+v0.7.0 also preserves pool metadata when Hermes temporarily switches to a fallback provider. When the primary provider becomes usable again, later turns can restore that primary runtime instead of staying pinned to the fallback indefinitely.
 
 ### Cooldown Persistence
 

@@ -76,6 +76,8 @@ Updated indexes and changelog:
 - `README.md` — rebuilt index including new files
 - `changelog.md` — v0.8.0 entry added at top
 
+Note: `source_validation_matrix_v2026.4.8.md` is not produced in this pass. The subsystem-to-docs coverage map in `repo_review_v2026.4.8.md` section 7 serves the same role for this release cycle.
+
 ## Exit criteria
 
 - Release-facing claims are backed by released code at `v2026.4.8`, `RELEASE_v0.8.0.md`, or both

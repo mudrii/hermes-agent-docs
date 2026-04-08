@@ -103,6 +103,18 @@ python -m hermes_cli.main chat -q "Say hello" --provider your-provider --model y
 
 Update quickstart, configuration, and environment variables reference docs.
 
+## Google AI Studio as a Reference Implementation
+
+Google AI Studio (`gemini`) is a good reference for Path A (OpenAI-compatible provider):
+
+- Uses Google's OpenAI-compatible endpoint (`/v1beta/openai`) — no adapter needed
+- Two env var aliases for the API key: `GOOGLE_API_KEY` (primary) and `GEMINI_API_KEY`
+- Context lengths resolved via models.dev by provider ID `"gemini"` — the `generativelanguage.googleapis.com` base URL is mapped to `"gemini"` in `_URL_TO_PROVIDER` in `agent/model_metadata.py`, enabling automatic context length detection for any Gemini model
+- Provider aliases cover three common names: `google`, `google-gemini`, `google-ai-studio`
+- Gemma open models (e.g. `gemma-4-31b-it`) appear in the same catalog since they are served through AI Studio
+
+The key insight: by adding a URL-to-provider mapping in `model_metadata.py`, any provider using a recognizable base URL automatically benefits from models.dev context length lookups, even for custom endpoints pointing at that provider.
+
 ## Common Pitfalls
 
 1. **Adding auth but not model parsing** -- credentials resolve but `/model` and `provider:model` inputs fail

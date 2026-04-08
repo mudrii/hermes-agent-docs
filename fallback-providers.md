@@ -8,7 +8,7 @@ Hermes Agent has three layers of resilience that keep your sessions running when
 
 Credential pools handle same-provider rotation (e.g., multiple OpenRouter keys). This page covers cross-provider fallback. Both are optional and work independently.
 
-Primary model fallback was introduced in v0.3.0. The ordered fallback provider chain was added in v0.6.0 ([PR #3813](https://github.com/NousResearch/hermes-agent/pull/3813)).
+Primary model fallback was introduced in v0.3.0. The ordered fallback provider chain was added in v0.6.0 ([PR #3813](https://github.com/NousResearch/hermes-agent/pull/3813)). In v0.8.0 the auxiliary auto-detection chain was simplified and vision fallback now tries the main provider first before OpenRouter and Nous Portal ([PR #6041](https://github.com/NousResearch/hermes-agent/pull/6041)).
 
 ---
 
@@ -90,7 +90,7 @@ There are no environment variables for `fallback_model` -- it is configured excl
 
 ---
 
-## Fallback Provider Chain (v0.6.0)
+## Fallback Provider Chain
 
 Added in v0.6.0 ([PR #3813](https://github.com/NousResearch/hermes-agent/pull/3813), closes [#1734](https://github.com/NousResearch/hermes-agent/issues/1734)).
 
@@ -169,11 +169,10 @@ OpenRouter -> Nous Portal -> Custom endpoint -> Codex OAuth ->
 API-key providers (z.ai, Kimi, MiniMax, Hugging Face, Anthropic) -> give up
 ```
 
-**For vision tasks:**
+**For vision tasks (v0.8.0):**
 
 ```text
-Main provider (if vision-capable) -> OpenRouter -> Nous Portal ->
-Codex OAuth -> Anthropic -> Custom endpoint -> give up
+OpenRouter -> Nous Portal -> active main provider -> give up
 ```
 
 If the resolved provider fails at call time, Hermes also has an internal retry: if the provider is not OpenRouter and no explicit `base_url` is set, it tries OpenRouter as a last-resort fallback.

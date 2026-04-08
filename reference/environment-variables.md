@@ -19,16 +19,19 @@ All variables go in `~/.hermes/.env`. You can also set them with `hermes config 
 | `COPILOT_CLI_PATH` | Alias for `HERMES_COPILOT_ACP_COMMAND` |
 | `HERMES_COPILOT_ACP_ARGS` | Override Copilot ACP arguments (default: `--acp --stdio`) |
 | `COPILOT_ACP_BASE_URL` | Override Copilot ACP base URL |
+| `GOOGLE_API_KEY` | Google AI Studio API key for Gemini models |
+| `GEMINI_API_KEY` | Alias for `GOOGLE_API_KEY` |
+| `GEMINI_BASE_URL` | Override Google AI Studio base URL (default: `https://generativelanguage.googleapis.com/v1beta/openai`) |
 | `GLM_API_KEY` | z.ai / ZhipuAI GLM API key |
 | `ZAI_API_KEY` | Alias for `GLM_API_KEY` |
 | `Z_AI_API_KEY` | Alias for `GLM_API_KEY` |
-| `GLM_BASE_URL` | Override z.ai base URL (default: `https://api.z.ai/api/paas/v4`) |
+| `GLM_BASE_URL` | Override z.ai base URL (default: `https://api.z.ai/api/paas/v4`; auto-detected via probe on first setup) |
 | `KIMI_API_KEY` | Kimi / Moonshot AI API key |
 | `KIMI_BASE_URL` | Override Kimi base URL (default: `https://api.moonshot.ai/v1`) |
 | `MINIMAX_API_KEY` | MiniMax API key -- global endpoint |
-| `MINIMAX_BASE_URL` | Override MiniMax base URL (default: `https://api.minimax.io/v1`) |
+| `MINIMAX_BASE_URL` | Override MiniMax base URL (default: `https://api.minimax.io/anthropic`) |
 | `MINIMAX_CN_API_KEY` | MiniMax API key -- China endpoint |
-| `MINIMAX_CN_BASE_URL` | Override MiniMax China base URL (default: `https://api.minimaxi.com/v1`) |
+| `MINIMAX_CN_BASE_URL` | Override MiniMax China base URL (default: `https://api.minimaxi.com/anthropic`) |
 | `KILOCODE_API_KEY` | Kilo Code API key |
 | `KILOCODE_BASE_URL` | Override Kilo Code base URL (default: `https://api.kilo.ai/api/gateway`) |
 | `HF_TOKEN` | Hugging Face token for Inference Providers |

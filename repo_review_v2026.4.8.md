@@ -79,7 +79,7 @@ RELEASE_v0.2.0.md … RELEASE_v0.8.0.md
 | 2 | `nix/` |
 | 2 | `cron/` |
 
-The `tests/` directory leads by a wide margin (202 files), reflecting the 209 merged PRs and 82 resolved issues that included comprehensive test coverage. `tools/` (47 files) and `hermes_cli/` (30 files) reflect the major feature additions: process registry / notify_on_complete, centralized logging, live model switching, and CLI improvements. `gateway/` (20 files) reflects inactivity-based timeouts, approval buttons, and Matrix Tier 1.
+The `tests/` directory leads by a wide margin (202 files), reflecting the 209 merged PRs and 82 resolved issues that included comprehensive test coverage (per `RELEASE_v0.8.0.md` release summary). `tools/` (47 files) and `hermes_cli/` (30 files) reflect the major feature additions: process registry / notify_on_complete, centralized logging, live model switching, and CLI improvements. `gateway/` (20 files) reflects inactivity-based timeouts, approval buttons, and Matrix Tier 1.
 
 ## 5) Source-tree inventory by subsystem
 
@@ -162,7 +162,7 @@ The `tests/` directory leads by a wide margin (202 files), reflecting the 209 me
 ### What was already strong
 
 - Wide surface-area coverage across install, configuration, providers, gateway, API server, memory, security, tools, skills, and all messaging platforms
-- Prior release-bounded audit artifacts for `v2026.3.12`, `v2026.3.17`, `v2026.3.30`, `v2026.4.3`, and `v2026.4.7` lines
+- Prior release-bounded audit artifacts for `v2026.3.12`, `v2026.3.17`, `v2026.3.30`, `v2026.4.3`, `v2026.4.7`, and `v2026.4.8` (this pass) lines
 
 ### What needed updating
 

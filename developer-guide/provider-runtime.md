@@ -30,6 +30,7 @@ Current provider families include:
 - Nous Portal
 - OpenAI Codex
 - Anthropic (native)
+- Google AI Studio (`gemini`) -- added v0.8.0
 - Z.AI
 - Kimi / Moonshot
 - MiniMax
@@ -120,3 +121,49 @@ Hermes supports a configured fallback model/provider pair, allowing runtime fail
 ## Model Metadata
 
 `agent/model_metadata.py` handles context length resolution, token estimation, and pricing extraction. It strips provider prefixes from model names (while preserving Ollama-style `model:tag` colons), caches context lengths, and provides rough token estimation functions used for pre-flight compression checks.
+
+### models.dev Integration (v0.8.0)
+
+`agent/models_dev.py` integrates the [models.dev](https://models.dev) registry as the primary source for provider and model metadata. The registry covers 4000+ models across 109+ providers and is fetched at most once per hour (background refresh), with a bundled offline snapshot for airgapped installs.
+
+The `_infer_provider_from_url()` function in `model_metadata.py` maps well-known base URLs to models.dev provider IDs. This enables automatic context length resolution for any built-in or custom provider whose base URL is recognized:
+
+```python
+# _URL_TO_PROVIDER (partial)
+"generativelanguage.googleapis.com": "gemini",
+"inference-api.nousresearch.com": "nous",
+"api.minimax": "minimax",
+"openrouter.ai": "openrouter",
+```
+
+When adding a new provider, adding an entry to `_URL_TO_PROVIDER` is the recommended way to enable models.dev context length lookups for that provider's base URL.
+
+### `/model` Command and Live Switching
+
+The `/model` command pipeline is implemented in `hermes_cli/model_switch.py` (`switch_model()`) and shared between the CLI and all gateway platforms. It handles:
+
+- `--provider` flag for explicit provider switching
+- `--global` flag to persist the switch to `config.yaml`
+- Alias resolution against the live models.dev catalog
+- Aggregator-aware resolution: stays on OpenRouter or Nous Portal when the requested model is available there
+- Cross-provider fallback when the model is not available on the current aggregator
+- Model name normalization per provider (via `hermes_cli/model_normalize.py`)
+
+The gateway handler in `gateway/run.py` (`_handle_model_command()`) adds platform-specific interactive pickers on Telegram and Discord when no model name is given, falling back to a text list on other platforms.
+
+Model switches made with `/model` (without `--global`) persist for the session in `_session_model_overrides` and are **not** written to `config.yaml`. The agent receives a system note about the switch so it can update its self-identification.
+
+Default auxiliary models per provider (used by `agent/auxiliary_client.py`):
+
+| Provider | Default Auxiliary Model |
+|----------|----------------------|
+| OpenRouter | `google/gemini-3-flash-preview` |
+| Nous Portal (paid) | `google/gemini-3-flash-preview` |
+| Nous Portal (free tier) | `xiaomi/mimo-v2-pro` (text), `xiaomi/mimo-v2-omni` (vision) |
+| Anthropic | `claude-haiku-4-5-20251001` |
+| Google AI Studio | `gemini-3-flash-preview` |
+| Z.AI | `glm-4.5-flash` |
+| Kimi/Moonshot | `kimi-k2-turbo-preview` |
+| MiniMax | `MiniMax-M2.7-highspeed` (rewritten to `/v1` endpoint) |
+| AI Gateway | `google/gemini-3-flash` |
+| Codex | `gpt-5.2-codex` |

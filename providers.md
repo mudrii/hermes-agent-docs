@@ -16,8 +16,9 @@ All providers are registered in `PROVIDER_REGISTRY` in `hermes_cli/auth.py`. The
 | `copilot` | GitHub Copilot | API key (GitHub token) | `https://api.githubcopilot.com` |
 | `copilot-acp` | GitHub Copilot ACP | External process | `acp://copilot` |
 | `anthropic` | Anthropic | API key / Claude Code OAuth | `https://api.anthropic.com` |
+| `gemini` | Google AI Studio | API key | `https://generativelanguage.googleapis.com/v1beta/openai` |
 | `ai-gateway` | Vercel AI Gateway | API key | `https://ai-gateway.vercel.sh/v1` |
-| `zai` | Z.AI / ZhipuAI GLM | API key | `https://api.z.ai/api/paas/v4` |
+| `zai` | Z.AI / ZhipuAI GLM | API key | `https://api.z.ai/api/paas/v4` (auto-detected via probe) |
 | `kimi-coding` | Kimi / Moonshot AI | API key | `https://api.moonshot.ai/v1` (or `https://api.kimi.com/coding/v1` for `sk-kimi-` keys) |
 | `minimax` | MiniMax (global) | API key | `https://api.minimax.io/anthropic` |
 | `minimax-cn` | MiniMax (China) | API key | `https://api.minimaxi.com/anthropic` |
@@ -48,6 +49,7 @@ The following aliases are recognized in `--provider`, `/model provider:model`, a
 | `kilo`, `kilo-code`, `kilo-gateway` | `kilocode` |
 | `dashscope`, `aliyun`, `qwen`, `alibaba-cloud` | `alibaba` |
 | `hf`, `hf-inference`, `hugging-face` | `huggingface` |
+| `google`, `google-gemini`, `google-ai-studio` | `gemini` |
 
 ---
 
@@ -107,6 +109,14 @@ openai/gpt-5.4-nano
 
 **Key scoping:** `OPENROUTER_API_KEY` is only sent to `openrouter.ai` endpoints. It is never forwarded to custom or other provider endpoints.
 
+**v0.8.0:** Stale OAuth credentials stored for other providers no longer block OpenRouter users during auto-detection. ([PR #5746](https://github.com/NousResearch/hermes-agent/pull/5746))
+
+**v0.8.0 — Pricing display:** The `/model` command and model picker show live per-model pricing (input/output/cache $/Mtok) fetched from the OpenRouter `/models` endpoint. ([PR #5416](https://github.com/NousResearch/hermes-agent/pull/5416))
+
+**xAI (Grok) notes when accessed directly (not via OpenRouter):**
+- **Prompt caching (v0.8.0):** When the base URL contains `x.ai`, Hermes sends an `x-grok-conv-id` header set to the session ID on every request, routing requests to the same server for maximum cache hit rate. ([PR #5604](https://github.com/NousResearch/hermes-agent/pull/5604))
+- **Tool-use enforcement (v0.8.0):** `grok` models are included in `TOOL_USE_ENFORCEMENT_MODELS`, ensuring the tool-calling guidance prompt is injected for direct xAI usage. ([PR #5595](https://github.com/NousResearch/hermes-agent/pull/5595))
+
 ---
 
 ### Nous Portal
@@ -145,6 +155,10 @@ deepseek-v3.2
 
 The Nous Portal now supports 400+ models (v0.5.0). **v0.5.0:** Portal model slugs are aligned with OpenRouter naming conventions ([PR #3253](https://github.com/NousResearch/hermes-agent/pull/3253)).
 
+**v0.8.0 — Free-tier model gating and pricing display:** Nous Portal now detects free-tier accounts and restricts model selection to genuinely free models. On a free account, auxiliary tasks use `xiaomi/mimo-v2-pro` for text and `xiaomi/mimo-v2-omni` for vision instead of the standard `google/gemini-3-flash-preview`. The model picker shows live pricing (input/output $/Mtok) for all Portal models. Free-tier detection is cached for 3 minutes. ([PR #5880](https://github.com/NousResearch/hermes-agent/pull/5880), [#6018](https://github.com/NousResearch/hermes-agent/pull/6018))
+
+**v0.8.0 — `HERMES_PORTAL_BASE_URL` respected during login:** The portal URL override is now honored during the OAuth device code login flow, not just at inference time. ([PR #5745](https://github.com/NousResearch/hermes-agent/pull/5745))
+
 ---
 
 ### OpenAI Codex
@@ -167,6 +181,8 @@ gpt-5.1-codex-mini
 ```
 
 Forward-compatibility: when the live API returns `gpt-5.2-codex` or `gpt-5.3-codex`, Hermes also surfaces `gpt-5.3-codex-spark` and `gpt-5.4` as synthetic entries.
+
+**v0.8.0 — Credential pool fixes:** Fixed a disconnect between the OAuth credential pool and the credentials file that prevented some users from authenticating. Expired token import from `~/.codex/auth.json` is rejected rather than stored. When all pool credentials are exhausted, Hermes now syncs a fresh entry from `~/.codex/auth.json` if present. ([PR #5681](https://github.com/NousResearch/hermes-agent/pull/5681), [#5610](https://github.com/NousResearch/hermes-agent/pull/5610))
 
 ---
 
@@ -329,6 +345,51 @@ model:
 
 ---
 
+### Google AI Studio (Gemini)
+
+Native Google AI Studio provider added in v0.8.0 ([PR #5577](https://github.com/NousResearch/hermes-agent/pull/5577)). Uses Google's OpenAI-compatible endpoint, so no separate adapter is needed.
+
+```bash
+hermes chat --provider gemini --model gemini-3.1-pro-preview
+```
+
+**Setup:**
+
+```bash
+hermes config set GOOGLE_API_KEY AIza...
+# or
+hermes config set GEMINI_API_KEY AIza...
+```
+
+**Key environment variables:**
+
+| Variable | Description |
+|----------|-------------|
+| `GOOGLE_API_KEY` | Google AI Studio API key (primary) |
+| `GEMINI_API_KEY` | Alias for `GOOGLE_API_KEY` |
+| `GEMINI_BASE_URL` | Override base URL. Default: `https://generativelanguage.googleapis.com/v1beta/openai`. |
+
+**Aliases:** `google`, `google-gemini`, `google-ai-studio` all map to `gemini`.
+
+**models.dev integration:** Context lengths for all Gemini models are resolved automatically from the models.dev registry. Hermes infers the `gemini` provider from the `generativelanguage.googleapis.com` base URL, so live context length data is available for any model served through AI Studio including models not in the static catalog.
+
+**Static model catalog:**
+
+```
+gemini-3.1-pro-preview
+gemini-3-flash-preview
+gemini-3.1-flash-lite-preview
+gemini-2.5-pro
+gemini-2.5-flash
+gemini-2.5-flash-lite
+gemma-4-31b-it          (Gemma open models, also served via AI Studio)
+gemma-4-26b-it
+```
+
+**API mode:** `chat_completions` (Google's OpenAI-compatible endpoint, no special adapter required).
+
+---
+
 ### Vercel AI Gateway
 
 ```bash
@@ -395,6 +456,8 @@ hermes chat --provider zai --model glm-5
 
 **Static model catalog:** `glm-5`, `glm-5-turbo` (added v0.5.0, [PR #3095](https://github.com/NousResearch/hermes-agent/pull/3095)), `glm-4.7`, `glm-4.5`, `glm-4.5-flash`
 
+**v0.8.0:** The endpoint probe result is now cached in `~/.hermes/auth.json`. Subsequent starts use the cached endpoint without reprobing, reducing startup latency. The cache respects any explicit `GLM_BASE_URL` override. ([PR #5763](https://github.com/NousResearch/hermes-agent/pull/5763))
+
 ---
 
 ### Kimi / Moonshot AI
@@ -440,7 +503,23 @@ hermes chat --provider minimax-cn --model MiniMax-M2.7
 | `MINIMAX_CN_API_KEY` | MiniMax API key -- China endpoint |
 | `MINIMAX_CN_BASE_URL` | Override. Default: `https://api.minimaxi.com/anthropic`. |
 
-**Static model catalog:** `MiniMax-M2.7`, `MiniMax-M2.7-highspeed`, `MiniMax-M2.5`, `MiniMax-M2.5-highspeed`, `MiniMax-M2.1`
+**Static model catalog (v0.8.0):**
+
+```
+MiniMax-M2.7
+MiniMax-M2.5
+MiniMax-M1
+MiniMax-M1-40k
+MiniMax-M1-80k
+MiniMax-M1-128k
+MiniMax-M1-256k
+```
+
+**Context lengths (v0.8.0):** MiniMax-M1 variants have a 1M token context window. MiniMax-M2.5 and MiniMax-M2.7 have a ~1M (1,048,576) token context window.
+
+**v0.8.0:** Context lengths, model catalog, thinking guard, auxiliary model selection, and config base_url handling were all corrected. The auxiliary client now correctly rewrites the `/anthropic` base URL to `/v1` when calling chat completions. ([PR #6082](https://github.com/NousResearch/hermes-agent/pull/6082))
+
+**v0.8.0 — MiniMax TTS provider:** MiniMax is now also available as a TTS provider using model `speech-2.8-hd`. Configure via the `tts:` section in `config.yaml` with `provider: minimax`. Requires `MINIMAX_API_KEY`. ([PR #4963](https://github.com/NousResearch/hermes-agent/pull/4963))
 
 **v0.5.0:** The automatic `/v1` → `/anthropic` URL correction that MiniMax endpoints require can now be disabled by setting `MINIMAX_SKIP_PATH_REWRITE=true` ([PR #3553](https://github.com/NousResearch/hermes-agent/pull/3553)).
 
@@ -753,7 +832,7 @@ Auxiliary tasks each have their own independent provider resolution chain. All t
 
 ---
 
-## Fallback Provider Chain (v0.6.0)
+## Fallback Provider Chain
 
 Added in v0.6.0 (PR [#3813](https://github.com/NousResearch/hermes-agent/pull/3813), closes [#1734](https://github.com/NousResearch/hermes-agent/issues/1734)).
 
