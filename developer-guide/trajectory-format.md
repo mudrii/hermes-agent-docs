@@ -144,3 +144,7 @@ agent:
 Or via the `--save-trajectories` flag. When the agent initializes with `save_trajectories=True`, the `_save_trajectory()` method is called at the end of each conversation turn.
 
 The batch runner always saves trajectories. Samples with zero reasoning across all turns are automatically discarded to avoid polluting training data with non-reasoning examples.
+
+## Version History
+
+**v0.8.0 (v2026.4.8):** The source reference for `run_agent.py` was updated to use function name search (`_save_trajectory`) rather than stale line numbers. No format changes to trajectory entries.

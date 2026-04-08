@@ -279,8 +279,6 @@ The memory files remain on disk. Re-enabling memory loads them again in the next
 
 ---
 
----
-
 ## Supermemory Provider (v0.8.0)
 
 Supermemory is a new memory provider plugin added in v0.8.0 ([#5737](https://github.com/NousResearch/hermes-agent/pull/5737), [#5933](https://github.com/NousResearch/hermes-agent/pull/5933)). It uses the [Supermemory](https://supermemory.ai) API for semantic long-term memory with profile recall, semantic search, explicit memory tools, and automatic session-end conversation ingest.

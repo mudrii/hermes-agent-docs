@@ -4,6 +4,8 @@ Hermes Agent automatically snapshots your working directory before making file c
 
 The checkpoint system is powered by an internal **Checkpoint Manager** that maintains a separate shadow git repository under `~/.hermes/checkpoints/`. Your real project `.git` is never touched.
 
+> **v0.8.0 (v2026.4.8):** No checkpoint-related changes. See [memory.md](memory.md) for the memory system updates in this release.
+
 ## Quick Reference
 
 | Command | Description |

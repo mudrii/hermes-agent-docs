@@ -83,7 +83,10 @@ The `on_session_finalize` and `on_session_reset` hooks enable memory providers t
 ```python
 def initialize(self, session_id: str, **kwargs) -> None:
     user_id = kwargs.get("user_id")  # set for gateway sessions; None for CLI
+    hermes_home = kwargs.get("hermes_home")  # path to the active profile directory
 ```
+
+`hermes_home` points to the profile's data directory (e.g., `~/.hermes/` for the default profile) and can be used to scope config files or storage to the active profile.
 
 The `thread_gateway_user_id` is threaded through the memory manager initialization path so all providers receive the correct user identity even in shared-thread sessions (see [memory.md](../memory.md) for shared thread session details).
 
