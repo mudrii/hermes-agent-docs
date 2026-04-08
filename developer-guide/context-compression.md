@@ -162,7 +162,11 @@ Compression activates when `len(messages) > protect_first_n + protect_last_n + 1
 
 ## Summary Generation
 
-`_generate_summary()` truncates each turn to 2000 characters (1000 head + 500 tail), appends tool call names, and sends the formatted content to `call_llm(task="compression", temperature=0.3, max_tokens=summary_target_tokens * 2)`. If the auxiliary model fails, it falls back to the user's main model. If all models fail, the middle turns are dropped without a summary.
+`_generate_summary()` truncates each turn to 2000 characters (1000 head + 500 tail), appends tool call names, and sends the formatted content to `call_llm(task="compression", max_tokens=summary_target_tokens * 2)`. If the auxiliary model fails, it falls back to the user's main model. If all models fail, the middle turns are dropped without a summary.
+
+### Summary Failure Cooldown
+
+When summary generation fails (no provider available or an exception is raised), the compressor sets a cooldown of 10 minutes (`_SUMMARY_FAILURE_COOLDOWN_SECONDS = 600`). During the cooldown period, `_generate_summary()` returns `None` immediately without attempting another API call, and the compressor falls back to dropping middle turns without a summary. This prevents repeated failed summary attempts from adding latency to every compression pass after a provider outage.
 
 ### Summary Role Selection
 

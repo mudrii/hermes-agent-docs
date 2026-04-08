@@ -329,6 +329,10 @@ Uses ManagedServer for exact token IDs + logprobs via `/generate`. A client-side
 | `tool_call_parser` | `str` | `"hermes"` | Parser for Phase 2 raw output |
 | `extra_body` | `Dict` | `None` | Extra params for OpenAI API |
 | `eval_handling` | `Enum` | `STOP_TRAIN` | `STOP_TRAIN`, `LIMIT_TRAIN`, `NONE` |
+| `default_result_size_chars` | `int` | `100000` | Default per-tool char threshold for persisting large tool results to sandbox (`/tmp/hermes-results/`). Results exceeding this are replaced with an inline preview. Per-tool registry values take precedence unless overridden via `tool_result_overrides`. |
+| `turn_budget_chars` | `int` | `200000` | Aggregate char budget across all tool results in a single assistant turn. When the total exceeds this limit, the largest results are persisted to disk first. |
+| `preview_size_chars` | `int` | `1500` | Size (chars) of the inline snippet shown after a tool result is persisted to disk. |
+| `tool_result_overrides` | `Dict[str, int]` | `None` | Per-tool char threshold overrides. Keys are tool names, values are char thresholds. Overrides both the default and registry per-tool values. Example: `{"terminal": 10000, "search_files": 5000}`. Note: `read_file` is pinned to infinity and cannot be overridden. |
 
 ### YAML Configuration
 

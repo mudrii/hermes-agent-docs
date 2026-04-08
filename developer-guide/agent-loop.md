@@ -149,7 +149,7 @@ jittered_backoff(attempt, base_delay=2.0, max_delay=60.0)
 
 **New in v0.8.0** (PR [#6112](https://github.com/NousResearch/hermes-agent/pull/6112)): Anthropic signs thinking blocks against the full turn content. Any upstream mutation -- context compression, session truncation, orphan stripping, message merging -- invalidates the signature and causes HTTP 400 errors.
 
-The Anthropic adapter (`agent/anthropic_adapter.py`) applies a two-rule strategy when building API messages:
+The Anthropic adapter (`agent/anthropic_adapter.py`) applies a three-rule strategy when building API messages:
 
 1. **Strip thinking/redacted_thinking from all assistant messages except the last one.** Only the current tool-use chain needs live thinking signatures. All prior turns have their thinking blocks removed.
 2. **Downgrade unsigned thinking blocks to plain text.** If a thinking block has no `signature` field, it cannot be validated by Anthropic and will be rejected -- it is converted to a `{"type": "text", "text": ...}` block instead to preserve the reasoning content.
