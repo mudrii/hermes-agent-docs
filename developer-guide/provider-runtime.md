@@ -146,7 +146,7 @@ The `/model` command pipeline is implemented in `hermes_cli/model_switch.py` (`s
 - `--global` flag to persist the switch to `config.yaml`
 - Alias resolution against the live models.dev catalog
 - Aggregator-aware resolution: stays on OpenRouter or Nous Portal when the requested model is available there
-- Cross-provider fallback when the model is not available on the current aggregator
+- Cross-provider fallback when the model is not available on OpenRouter or Nous Portal
 - Model name normalization per provider (via `hermes_cli/model_normalize.py`)
 
 The gateway handler in `gateway/run.py` (`_handle_model_command()`) adds platform-specific interactive pickers on Telegram and Discord when no model name is given, falling back to a text list on other platforms.
