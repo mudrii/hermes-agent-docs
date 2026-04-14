@@ -1,22 +1,22 @@
-# Text-to-Speech
 
-Hermes Agent supports text-to-speech output across all platforms with five providers: Edge TTS (free, default), ElevenLabs (premium), OpenAI TTS, NeuTTS (local, free), and MiniMax TTS (high-quality with voice cloning).
+# Voice & TTS
 
-TTS has been available since v0.2.0. NeuTTS was promoted from an optional skill to a first-class built-in provider in v0.4.0 ([PR #1657](https://github.com/NousResearch/hermes-agent/pull/1657), [#1664](https://github.com/NousResearch/hermes-agent/pull/1664)). OpenAI TTS `base_url` support was added in v0.4.0 ([PR #2064](https://github.com/NousResearch/hermes-agent/pull/2064)). MiniMax TTS (speech-2.8-hd) was added in v0.8.0 ([PR #4963](https://github.com/NousResearch/hermes-agent/pull/4963)).
+Hermes Agent supports both text-to-speech output and voice message transcription across all messaging platforms.
 
-Implemented in `tools/tts_tool.py`.
+## Text-to-Speech
 
-## Providers
+Convert text to speech with six providers:
 
-| Provider | Quality | Cost | API Key | Notes |
-|----------|---------|------|---------|-------|
-| **Edge TTS** (default) | Good | Free | None needed | Microsoft Edge neural voices, 322 voices, 74 languages |
-| **ElevenLabs** | Excellent | Paid | `ELEVENLABS_API_KEY` | Premium quality, streaming support |
-| **OpenAI TTS** | Good | Paid | `VOICE_TOOLS_OPENAI_KEY` | Falls back to `OPENAI_API_KEY` |
-| **MiniMax TTS** | High | Paid | `MINIMAX_API_KEY` | speech-2.8-hd model, voice cloning support (v0.8.0) |
-| **NeuTTS** | Good | Free | None needed | Local on-device, requires `espeak-ng` |
+| Provider | Quality | Cost | API Key |
+|----------|---------|------|---------|
+| **Edge TTS** (default) | Good | Free | None needed |
+| **ElevenLabs** | Excellent | Paid | `ELEVENLABS_API_KEY` |
+| **OpenAI TTS** | Good | Paid | `VOICE_TOOLS_OPENAI_KEY` |
+| **MiniMax TTS** | Excellent | Paid | `MINIMAX_API_KEY` |
+| **Mistral (Voxtral TTS)** | Excellent | Paid | `MISTRAL_API_KEY` |
+| **NeuTTS** | Good | Free | None needed |
 
-## Platform Delivery
+### Platform Delivery
 
 | Platform | Delivery | Format |
 |----------|----------|--------|
@@ -25,31 +25,33 @@ Implemented in `tools/tts_tool.py`.
 | WhatsApp | Audio file attachment | MP3 |
 | CLI | Saved to `~/.hermes/audio_cache/` | MP3 |
 
-The `text_to_speech` tool returns a `MEDIA:` path that the platform delivers as a voice message. On Telegram it plays as a voice bubble; on Discord/WhatsApp as an audio attachment; in CLI mode, saves to `~/voice-memos/`.
-
-## Configuration
+### Configuration
 
 ```yaml
 # In ~/.hermes/config.yaml
 tts:
-  provider: "edge"              # "edge" | "elevenlabs" | "openai" | "minimax" | "neutts"
+  provider: "edge"              # "edge" | "elevenlabs" | "openai" | "minimax" | "mistral" | "neutts"
+  speed: 1.0                    # Global speed multiplier (provider-specific settings override this)
   edge:
     voice: "en-US-AriaNeural"   # 322 voices, 74 languages
+    speed: 1.0                  # Converted to rate percentage (+/-%)
   elevenlabs:
     voice_id: "pNInz6obpgDQGcFmaJgB"  # Adam
     model_id: "eleven_multilingual_v2"
-    streaming_model_id: "eleven_flash_v2_5"  # Used for real-time streaming
   openai:
     model: "gpt-4o-mini-tts"
     voice: "alloy"              # alloy, echo, fable, onyx, nova, shimmer
-    base_url: "https://api.openai.com/v1"  # Override for compatible endpoints
-  minimax:                       # Not pre-populated in the default config — add this block manually to override the defaults shown in the comments
-    model: "speech-2.8-hd"     # speech-2.8-hd (default) or speech-2.8-turbo
-    voice_id: "English_Graceful_Lady"
-    speed: 1
-    vol: 1
-    pitch: 0
-    base_url: "https://api.minimax.io/v1/t2a_v2"
+    base_url: "https://api.openai.com/v1"  # Override for OpenAI-compatible TTS endpoints
+    speed: 1.0                  # 0.25 - 4.0
+  minimax:
+    model: "speech-2.8-hd"     # speech-2.8-hd (default), speech-2.8-turbo
+    voice_id: "English_Graceful_Lady"  # See https://platform.minimax.io/faq/system-voice-id
+    speed: 1                    # 0.5 - 2.0
+    vol: 1                      # 0 - 10
+    pitch: 0                    # -12 - 12
+  mistral:
+    model: "voxtral-mini-tts-2603"
+    voice_id: "c69964a6-ab8b-4f8a-9465-ec0925096ec8"  # Paul - Neutral (default)
   neutts:
     ref_audio: ''
     ref_text: ''
@@ -57,96 +59,65 @@ tts:
     device: cpu
 ```
 
-## Telegram Voice Bubbles and ffmpeg
+**Speed control**: The global `tts.speed` value applies to all providers by default. Each provider can override it with its own `speed` setting (e.g., `tts.openai.speed: 1.5`). Provider-specific speed takes precedence over the global value. Default is `1.0` (normal speed).
+
+### Telegram Voice Bubbles & ffmpeg
 
 Telegram voice bubbles require Opus/OGG audio format:
 
-- **OpenAI and ElevenLabs** produce Opus natively -- no extra setup
-- **Edge TTS** (default) outputs MP3 and needs **ffmpeg** to convert
+- **OpenAI, ElevenLabs, and Mistral** produce Opus natively — no extra setup
+- **Edge TTS** (default) outputs MP3 and needs **ffmpeg** to convert:
 - **MiniMax TTS** outputs MP3 and needs **ffmpeg** to convert for Telegram voice bubbles
 - **NeuTTS** outputs WAV and also needs **ffmpeg** to convert for Telegram voice bubbles
 
 ```bash
+# Ubuntu/Debian
+sudo apt install ffmpeg
+
 # macOS
 brew install ffmpeg
 
-# Ubuntu/Debian
-sudo apt install ffmpeg
+# Fedora
+sudo dnf install ffmpeg
 ```
 
-Without ffmpeg, Edge TTS and NeuTTS audio are sent as regular audio files (playable, but shown as a rectangular player instead of a voice bubble).
+Without ffmpeg, Edge TTS, MiniMax TTS, and NeuTTS audio are sent as regular audio files (playable, but shown as a rectangular player instead of a voice bubble).
 
-## Provider Details
-
-### Edge TTS
-
-Default provider. Uses Microsoft Edge's neural TTS API. Free, no API key required. Supports 322 voices across 74 languages. Default voice: `en-US-AriaNeural`.
-
-Providers are imported lazily -- Edge TTS is only imported when actually used to avoid crashing in headless environments (SSH, Docker, WSL, no PortAudio).
-
-### ElevenLabs
-
-Premium quality TTS. Requires `ELEVENLABS_API_KEY` in `~/.hermes/.env`.
-
-For streaming TTS in CLI voice mode (sentence-by-sentence playback), ElevenLabs uses the `eleven_flash_v2_5` model by default (faster than `eleven_multilingual_v2`). This can be overridden via `tts.elevenlabs.streaming_model_id` in config.yaml. Streaming TTS outputs PCM audio at 24kHz.
-
-### OpenAI TTS
-
-Requires `VOICE_TOOLS_OPENAI_KEY` (falls back to `OPENAI_API_KEY`). Available voices: alloy, echo, fable, onyx, nova, shimmer.
-
-v0.4.0 added `base_url` support, enabling use with self-hosted or proxy TTS endpoints.
-
-### MiniMax TTS
-
-High-quality cloud TTS with voice cloning support. Added in v0.8.0 ([PR #4963](https://github.com/NousResearch/hermes-agent/pull/4963)). Requires `MINIMAX_API_KEY` in `~/.hermes/.env`.
-
-Get an API key at [platform.minimax.io](https://platform.minimax.io/).
-
-MiniMax uses the T2A v2 HTTP API with hex-encoded audio decoding. Supports both standard (`speech-2.8-hd`) and fast (`speech-2.8-turbo`) model variants. Voice parameters (speed, volume, pitch) are configurable via `config.yaml`.
-
-### NeuTTS
-
-Local on-device TTS via `neutts_cli`. Free, no API key required.
-
-**Setup:**
-
-```bash
-python -m pip install -U neutts[all]
-
-# System dependency
-# macOS
-brew install espeak-ng
-
-# Ubuntu/Debian
-sudo apt install espeak-ng
-```
-
-NeuTTS runs as a subprocess from `tools/neutts_synth.py` using the `neuphonic/neutts-air-q4-gguf` model by default. Configurable `ref_audio` and `ref_text` for voice cloning.
+:::tip
+If you want voice bubbles without installing ffmpeg, switch to the OpenAI, ElevenLabs, or Mistral provider.
+:::
 
 ## Voice Message Transcription (STT)
 
-Voice messages sent on Telegram, Discord, WhatsApp, Slack, or Signal are automatically transcribed and injected as text into the conversation.
+Voice messages sent on Telegram, Discord, WhatsApp, Slack, or Signal are automatically transcribed and injected as text into the conversation. The agent sees the transcript as normal text.
 
 | Provider | Quality | Cost | API Key |
-|----------|---------|------|---------|
+|----------|---------|------|---------| 
 | **Local Whisper** (default) | Good | Free | None needed |
-| **Groq Whisper API** | Good-Best | Free tier | `GROQ_API_KEY` |
-| **OpenAI Whisper API** | Good-Best | Paid | `VOICE_TOOLS_OPENAI_KEY` or `OPENAI_API_KEY` |
+| **Groq Whisper API** | Good–Best | Free tier | `GROQ_API_KEY` |
+| **OpenAI Whisper API** | Good–Best | Paid | `VOICE_TOOLS_OPENAI_KEY` or `OPENAI_API_KEY` |
 
-### STT Configuration
+:::info Zero Config
+Local transcription works out of the box when `faster-whisper` is installed. If that's unavailable, Hermes can also use a local `whisper` CLI from common install locations (like `/opt/homebrew/bin`) or a custom command via `HERMES_LOCAL_STT_COMMAND`.
+:::
+
+### Configuration
 
 ```yaml
+# In ~/.hermes/config.yaml
 stt:
-  provider: "local"           # "local" | "groq" | "openai"
+  provider: "local"           # "local" | "groq" | "openai" | "mistral"
   local:
     model: "base"             # tiny, base, small, medium, large-v3
   openai:
     model: "whisper-1"        # whisper-1, gpt-4o-mini-transcribe, gpt-4o-transcribe
+  mistral:
+    model: "voxtral-mini-latest"  # voxtral-mini-latest, voxtral-mini-2602
 ```
 
-Local transcription works out of the box when `faster-whisper` is installed. If that's unavailable, Hermes can also use a local `whisper` CLI or a custom command via `HERMES_LOCAL_STT_COMMAND`.
+### Provider Details
 
-### Local Whisper Model Sizes
+**Local (faster-whisper)** — Runs Whisper locally via [faster-whisper](https://github.com/SYSTRAN/faster-whisper). Uses CPU by default, GPU if available. Model sizes:
 
 | Model | Size | Speed | Quality |
 |-------|------|-------|---------|
@@ -156,19 +127,19 @@ Local transcription works out of the box when `faster-whisper` is installed. If 
 | `medium` | ~1.5 GB | Slower | Great |
 | `large-v3` | ~3 GB | Slowest | Best |
 
-### STT Fallback Behavior
+**Groq API** — Requires `GROQ_API_KEY`. Good cloud fallback when you want a free hosted STT option.
+
+**OpenAI API** — Accepts `VOICE_TOOLS_OPENAI_KEY` first and falls back to `OPENAI_API_KEY`. Supports `whisper-1`, `gpt-4o-mini-transcribe`, and `gpt-4o-transcribe`.
+
+**Mistral API (Voxtral Transcribe)** — Requires `MISTRAL_API_KEY`. Uses Mistral's [Voxtral Transcribe](https://docs.mistral.ai/capabilities/audio/speech_to_text/) models. Supports 13 languages, speaker diarization, and word-level timestamps. Install with `pip install hermes-agent[mistral]`.
+
+**Custom local CLI fallback** — Set `HERMES_LOCAL_STT_COMMAND` if you want Hermes to call a local transcription command directly. The command template supports `{input_path}`, `{output_dir}`, `{language}`, and `{model}` placeholders.
+
+### Fallback Behavior
 
 If your configured provider isn't available, Hermes automatically falls back:
-
-- **Local faster-whisper unavailable** -- tries a local `whisper` CLI or `HERMES_LOCAL_STT_COMMAND` before cloud providers
-- **Groq key not set** -- falls back to local transcription, then OpenAI
-- **OpenAI key not set** -- falls back to local transcription, then Groq
-- **Nothing available** -- voice messages pass through with a note to the user
-
-## Text Cleaning
-
-Text is automatically cleaned before TTS: markdown formatting, code blocks, URLs, and `<think>...</think>` blocks are stripped. Maximum text length per TTS call is 4000 characters.
-
-## v0.8.0 Changes
-
-- **MiniMax TTS provider** -- MiniMax (speech-2.8-hd model) added as a fifth TTS provider with voice cloning support. Requires `MINIMAX_API_KEY`. Configure via `tts.provider: "minimax"` in `config.yaml` ([#4963](https://github.com/NousResearch/hermes-agent/pull/4963)).
+- **Local faster-whisper unavailable** → Tries a local `whisper` CLI or `HERMES_LOCAL_STT_COMMAND` before cloud providers
+- **Groq key not set** → Falls back to local transcription, then OpenAI
+- **OpenAI key not set** → Falls back to local transcription, then Groq
+- **Mistral key/SDK not set** → Skipped in auto-detect; falls through to next available provider
+- **Nothing available** → Voice messages pass through with an accurate note to the user

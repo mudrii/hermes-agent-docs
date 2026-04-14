@@ -4,7 +4,7 @@
 
 Hermes Agent is an autonomous AI agent with a built-in learning loop. It creates skills from experience, improves them during use, searches its own past conversations for context, and builds a deepening model of who you are across sessions. It runs on a $5 VPS, a GPU cluster, or serverless infrastructure -- not tied to your laptop.
 
-Current version: **v0.8.0 (v2026.4.8)** -- released April 8, 2026.
+Current version: **v0.9.0 (v2026.4.13)** -- released April 13, 2026.
 
 ---
 
@@ -403,12 +403,10 @@ Hermes has two entry points: start the terminal UI with `hermes`, or run the gat
 
 | Document | Contents |
 |----------|----------|
-| [documentation_integrity_findings_v2026.4.8.md](documentation_integrity_findings_v2026.4.8.md) | Integrity findings and corrections applied in the v0.8.0 docs pass |
-| [review_plan_v2026.4.7.md](review_plan_v2026.4.7.md) | Release-bounded review plan for the April 7, 2026 audit rerun |
-| [repo_review_v2026.4.7.md](repo_review_v2026.4.7.md) | Detailed source-tree and documentation review mapped by subsystem |
-| [release_evaluation_v2026.4.7.md](release_evaluation_v2026.4.7.md) | Release validation, diff sizing, and unreleased-main exclusions |
-| [documentation_integrity_findings_v2026.4.7.md](documentation_integrity_findings_v2026.4.7.md) | Integrity findings and corrections applied in the v0.7.0 docs pass |
-| [source_validation_matrix_v2026.4.7.md](source_validation_matrix_v2026.4.7.md) | Claim-to-source matrix with local and online validation links |
+| [review_plan_v2026.4.13.md](review_plan_v2026.4.13.md) | Release-bounded review plan for the April 13, 2026 audit |
+| [release_evaluation_v2026.4.13.md](release_evaluation_v2026.4.13.md) | Release validation, diff sizing, and unreleased-main exclusions |
+| [repo_review_v2026.4.13.md](repo_review_v2026.4.13.md) | Source-tree review mapped by subsystem |
+| [source_validation_matrix_v2026.4.13.md](source_validation_matrix_v2026.4.13.md) | Claim-to-source matrix with local and online validation links |
 
 ### Contributing
 

@@ -1,10 +1,11 @@
-# SMS (Twilio)
+
+# SMS Setup (Twilio)
 
 Hermes connects to SMS through the [Twilio](https://www.twilio.com/) API. People text your Twilio phone number and get AI responses back — same conversational experience as Telegram or Discord, but over standard text messages.
 
-The SMS gateway shares credentials with the optional telephony skill. If you have already set up Twilio for voice calls or one-off SMS, the gateway works with the same `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, and `TWILIO_PHONE_NUMBER`.
-
-This document covers v0.2.0 through v0.8.0 (v2026.4.8). No SMS-specific changes were made after v0.5.0.
+:::info Shared Credentials
+The SMS gateway shares credentials with the optional [telephony skill](/docs/reference/skills-catalog). If you've already set up Twilio for voice calls or one-off SMS, the gateway works with the same `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, and `TWILIO_PHONE_NUMBER`.
+:::
 
 ---
 
@@ -14,8 +15,6 @@ This document covers v0.2.0 through v0.8.0 (v2026.4.8). No SMS-specific changes 
 - **A Twilio phone number** with SMS capability
 - **A publicly accessible server** — Twilio sends webhooks to your server when SMS arrives
 - **aiohttp** — `pip install 'hermes-agent[sms]'`
-
-Unlike most other Hermes platforms, SMS requires a publicly accessible URL. The webhook port defaults to `8080`. You can use a tunnel service (cloudflared, ngrok) when running locally.
 
 ---
 
@@ -29,7 +28,7 @@ Unlike most other Hermes platforms, SMS requires a publicly accessible URL. The 
 
 ## Step 2: Configure Hermes
 
-### Option A: Interactive Setup (Recommended)
+### Interactive setup (recommended)
 
 ```bash
 hermes gateway setup
@@ -37,7 +36,7 @@ hermes gateway setup
 
 Select **SMS (Twilio)** from the platform list. The wizard will prompt for your credentials.
 
-### Option B: Manual Setup
+### Manual setup
 
 Add to `~/.hermes/.env`:
 
@@ -49,9 +48,8 @@ TWILIO_PHONE_NUMBER=+15551234567
 # Security: restrict to specific phone numbers (recommended)
 SMS_ALLOWED_USERS=+15559876543,+15551112222
 
-# Optional
+# Optional: set a home channel for cron job delivery
 SMS_HOME_CHANNEL=+15559876543
-SMS_WEBHOOK_PORT=8080    # Default: 8080
 ```
 
 ---
@@ -66,7 +64,8 @@ Twilio needs to know where to send incoming messages. In the [Twilio Console](ht
    - **Webhook**: `https://your-server:8080/webhooks/twilio`
    - **HTTP Method**: `POST`
 
-If you are running Hermes locally, use a tunnel to expose the webhook:
+:::tip Exposing Your Webhook
+If you're running Hermes locally, use a tunnel to expose the webhook:
 
 ```bash
 # Using cloudflared
@@ -76,100 +75,123 @@ cloudflared tunnel --url http://localhost:8080
 ngrok http 8080
 ```
 
-Set the resulting public URL as your Twilio webhook. Update the URL in Twilio Console whenever the tunnel URL changes.
+Set the resulting public URL as your Twilio webhook.
+:::
+
+**Set `SMS_WEBHOOK_URL` to the same URL you configured in Twilio.** This is required for Twilio signature validation — the adapter will refuse to start without it:
+
+```bash
+# Must match the webhook URL in your Twilio Console
+SMS_WEBHOOK_URL=https://your-server:8080/webhooks/twilio
+```
+
+The webhook port defaults to `8080`. Override with:
+
+```bash
+SMS_WEBHOOK_PORT=3000
+```
 
 ---
 
 ## Step 4: Start the Gateway
 
 ```bash
-hermes gateway              # Foreground
-hermes gateway install      # Install as a user service
-sudo hermes gateway install --system   # Linux only: system service
+hermes gateway
 ```
 
 You should see:
 
 ```
-[sms] Twilio webhook server listening on port 8080, from: +1555***4567
+[sms] Twilio webhook server listening on 0.0.0.0:8080, from: +1555***4567
 ```
+
+If you see `Refusing to start: SMS_WEBHOOK_URL is required`, set `SMS_WEBHOOK_URL` to the public URL configured in your Twilio Console (see Step 3).
 
 Text your Twilio number — Hermes will respond via SMS.
 
 ---
 
-## Environment Variables Reference
+## Environment Variables
 
-| Variable | Required | Default | Description |
-|----------|----------|---------|-------------|
-| `TWILIO_ACCOUNT_SID` | Yes | — | Twilio Account SID (starts with `AC`) |
-| `TWILIO_AUTH_TOKEN` | Yes | — | Twilio Auth Token |
-| `TWILIO_PHONE_NUMBER` | Yes | — | Your Twilio phone number (E.164 format) |
-| `SMS_WEBHOOK_PORT` | No | `8080` | Webhook listener port |
-| `SMS_ALLOWED_USERS` | No | — | Comma-separated E.164 phone numbers allowed to chat |
-| `SMS_ALLOW_ALL_USERS` | No | `false` | Allow anyone to chat (not recommended) |
-| `SMS_HOME_CHANNEL` | No | — | Phone number for cron job / notification delivery |
-| `SMS_HOME_CHANNEL_NAME` | No | `Home` | Display name for the home channel |
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `TWILIO_ACCOUNT_SID` | Yes | Twilio Account SID (starts with `AC`) |
+| `TWILIO_AUTH_TOKEN` | Yes | Twilio Auth Token (also used for webhook signature validation) |
+| `TWILIO_PHONE_NUMBER` | Yes | Your Twilio phone number (E.164 format) |
+| `SMS_WEBHOOK_URL` | Yes | Public URL for Twilio signature validation — must match the webhook URL in your Twilio Console |
+| `SMS_WEBHOOK_PORT` | No | Webhook listener port (default: `8080`) |
+| `SMS_WEBHOOK_HOST` | No | Webhook bind address (default: `0.0.0.0`) |
+| `SMS_INSECURE_NO_SIGNATURE` | No | Set to `true` to disable signature validation (local dev only — **not for production**) |
+| `SMS_ALLOWED_USERS` | No | Comma-separated E.164 phone numbers allowed to chat |
+| `SMS_ALLOW_ALL_USERS` | No | Set to `true` to allow anyone (not recommended) |
+| `SMS_HOME_CHANNEL` | No | Phone number for cron job / notification delivery |
+| `SMS_HOME_CHANNEL_NAME` | No | Display name for the home channel (default: `Home`) |
 
 ---
 
 ## SMS-Specific Behavior
 
-### Plain Text Only
-
-Markdown is automatically stripped since SMS renders it as literal characters. Responses are always delivered as plain text.
-
-### 1600 Character Limit
-
-Longer responses are split across multiple messages at natural boundaries (newlines, then spaces).
-
-### Echo Prevention
-
-Messages from your own Twilio number are ignored to prevent loops.
-
-### Phone Number Redaction
-
-Phone numbers are redacted in logs for privacy (e.g., `+15551234567` → `+155****4567`).
-
----
-
-## Access Control
-
-The gateway denies all users by default. Configure an allowlist:
-
-```bash
-# Recommended: restrict to specific phone numbers
-SMS_ALLOWED_USERS=+15559876543,+15551112222
-
-# Or allow all (NOT recommended for agents with terminal access)
-SMS_ALLOW_ALL_USERS=true
-```
-
----
-
-## Troubleshooting
-
-| Problem | Solution |
-|---------|----------|
-| Messages not arriving | Check your Twilio webhook URL is correct and publicly accessible. Verify `TWILIO_ACCOUNT_SID` and `TWILIO_AUTH_TOKEN` are correct. Check Twilio Console → **Monitor → Logs → Messaging** for delivery errors. Ensure your phone number is in `SMS_ALLOWED_USERS`. |
-| Replies not sending | Check `TWILIO_PHONE_NUMBER` is set correctly (E.164 format with `+`). Verify your Twilio account has SMS-capable numbers. Check Hermes gateway logs for Twilio API errors. |
-| Webhook port conflicts | If port 8080 is already in use, set `SMS_WEBHOOK_PORT=3001` and update the webhook URL in Twilio Console to match. |
-| Tunnel URL changes | If using a tunnel for local development, update the Twilio webhook URL in the Console whenever the public URL changes. Use a stable tunnel URL if possible. |
+- **Plain text only** — Markdown is automatically stripped since SMS renders it as literal characters
+- **1600 character limit** — Longer responses are split across multiple messages at natural boundaries (newlines, then spaces)
+- **Echo prevention** — Messages from your own Twilio number are ignored to prevent loops
+- **Phone number redaction** — Phone numbers are redacted in logs for privacy
 
 ---
 
 ## Security
 
-SMS has no built-in encryption. Do not use SMS for sensitive operations unless you understand the security implications. For sensitive use cases, prefer Signal or Telegram.
+### Webhook signature validation
 
-- Always set `SMS_ALLOWED_USERS` with the phone numbers of authorized users
-- Store Twilio credentials in `~/.hermes/.env` with file permissions `600`
-- Phone numbers are partially redacted in logs, but review your log retention policy
-- The Twilio Auth Token grants full access to your Twilio account — protect it accordingly
+Hermes validates that inbound webhooks genuinely originate from Twilio by verifying the `X-Twilio-Signature` header (HMAC-SHA1). This prevents attackers from injecting forged messages.
+
+**`SMS_WEBHOOK_URL` is required.** Set it to the public URL configured in your Twilio Console. The adapter will refuse to start without it.
+
+For local development without a public URL, you can disable validation:
+
+```bash
+# Local dev only — NOT for production
+SMS_INSECURE_NO_SIGNATURE=true
+```
+
+### User allowlists
+
+**The gateway denies all users by default.** Configure an allowlist:
+
+```bash
+# Recommended: restrict to specific phone numbers
+SMS_ALLOWED_USERS=+15559876543,+15551112222
+
+# Or allow all (NOT recommended for bots with terminal access)
+SMS_ALLOW_ALL_USERS=true
+```
+
+:::warning
+SMS has no built-in encryption. Don't use SMS for sensitive operations unless you understand the security implications. For sensitive use cases, prefer Signal or Telegram.
+:::
 
 ---
 
-## Changelog
+## Troubleshooting
 
-- **v0.4.0:** SMS (Twilio) adapter added ([PR #1688](https://github.com/NousResearch/hermes-agent/pull/1688)).
-- **v0.5.0:** Request timeouts added ([PR #3258](https://github.com/NousResearch/hermes-agent/pull/3258)).
+### Messages not arriving
+
+1. Check your Twilio webhook URL is correct and publicly accessible
+2. Verify `TWILIO_ACCOUNT_SID` and `TWILIO_AUTH_TOKEN` are correct
+3. Check the Twilio Console → **Monitor → Logs → Messaging** for delivery errors
+4. Ensure your phone number is in `SMS_ALLOWED_USERS` (or `SMS_ALLOW_ALL_USERS=true`)
+
+### Replies not sending
+
+1. Check `TWILIO_PHONE_NUMBER` is set correctly (E.164 format with `+`)
+2. Verify your Twilio account has SMS-capable numbers
+3. Check Hermes gateway logs for Twilio API errors
+
+### Webhook port conflicts
+
+If port 8080 is already in use, change it:
+
+```bash
+SMS_WEBHOOK_PORT=3001
+```
+
+Update the webhook URL in Twilio Console to match.

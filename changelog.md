@@ -2,9 +2,39 @@
 
 All notable changes to Hermes Agent are documented here.
 
-**Current stable release: v0.8.0** (v2026.4.8, April 8, 2026)
+**Current stable release: v0.9.0** (v2026.4.13, April 13, 2026)
 
 ---
+
+## v0.9.0 -- April 13, 2026
+
+> The everywhere release — Hermes goes mobile with Termux/Android, adds iMessage and WeChat, ships Fast Mode for OpenAI and Anthropic, introduces background process monitoring, launches a local web dashboard, and delivers the deepest security hardening pass yet across 16 supported platforms.
+
+### Highlights
+
+- **Local Web Dashboard** — browser-based interface for session, settings, skills, cron jobs, and gateway status management without editing config files.
+- **Fast Mode (`/fast`)** — priority processing for supported OpenAI and Anthropic models.
+- **iMessage and WeChat integration** — BlueBubbles (iMessage) and Weixin/WeCom callback support with streaming and media handling.
+- **Termux / Android support** — first-class mobile setup with TUI and voice optimizations.
+- **Background process monitoring (`watch_patterns`)** — real-time pattern notifications on process output.
+- **Pluggable context engine** via `hermes plugins`, with stronger context-management controls.
+- **Provider expansion** — native xAI (Grok), Xiaomi MiMo, and expanded Qwen OAuth flows.
+- **Backup and recovery** — `hermes backup` and `hermes import` for configuration, sessions, skills, and memory.
+- **Debugging improvements** — `/debug` and `hermes debug share` for diagnostics and issue reporting.
+- **Security and reliability hardening** across proxying, file/system boundaries, API auth, and message handling.
+
+### Key delivery areas
+
+- Core agent and architecture: improved context compression behavior, provider routing, and resilient model-switch behavior.
+- Messaging: expanded platform support and improved delivery semantics, including webhook parity and gateway reliability improvements across platforms.
+- CLI and UX: better model picker, per-command UX polish, and startup/runtime diagnostics.
+- Tools and providers: improved tool handling, environment execution, MCP and browser hardening, and provider resilience.
+
+### Contributors
+
+**269 merged PRs** from **24 contributors** across **487 commits**.
+
+**Full Changelog:** [v2026.4.8...v2026.4.13](https://github.com/NousResearch/hermes-agent/compare/v2026.4.8...v2026.4.13)
 
 ## v0.8.0 -- April 8, 2026
 

@@ -1,216 +1,233 @@
+
 # Agent Loop Internals
 
-The core orchestration engine is `AIAgent` in `run_agent.py`. It is the single class used by all entry points -- CLI, gateway, ACP, cron, and batch runner.
+The core orchestration engine is `run_agent.py`'s `AIAgent` class — roughly 10,700 lines that handle everything from prompt assembly to tool dispatch to provider failover.
 
 ## Core Responsibilities
 
 `AIAgent` is responsible for:
 
-- Assembling the effective prompt and tool schemas
-- Selecting the correct provider and API mode
-- Making interruptible model calls (streaming or non-streaming)
-- Executing tool calls (sequentially or concurrently)
-- Maintaining session history in memory and in the `SessionDB`
-- Handling compression, retries, and fallback models
-- Firing platform-specific callbacks during execution
+- Assembling the effective system prompt and tool schemas via `prompt_builder.py`
+- Selecting the correct provider/API mode (chat_completions, codex_responses, anthropic_messages)
+- Making interruptible model calls with cancellation support
+- Executing tool calls (sequentially or concurrently via thread pool)
+- Maintaining conversation history in OpenAI message format
+- Handling compression, retries, and fallback model switching
+- Tracking iteration budgets across parent and child agents
+- Flushing persistent memory before context is lost
 
-## AIAgent Constructor Parameters (Selected)
+## Two Entry Points
 
-| Parameter | Type | Default | Description |
-|-----------|------|---------|-------------|
-| `base_url` | str | `OPENROUTER_BASE_URL` | Base URL for the model API |
-| `api_key` | str | None | API key for authentication |
-| `provider` | str | `"openrouter"` | Provider identifier |
-| `api_mode` | str | auto-detected | `"chat_completions"`, `"codex_responses"`, or `"anthropic_messages"` |
-| `model` | str | `"anthropic/claude-opus-4.6"` | Model name (OpenRouter format) |
-| `max_iterations` | int | 90 | Maximum tool-calling iterations (shared with subagents via `IterationBudget`) |
-| `tool_delay` | float | 1.0 | Delay between tool calls in seconds |
-| `stream_delta_callback` | callable | None | Callback fired with each text token during streaming |
-| `tool_progress_callback` | callable | None | Callback when a tool starts or completes |
-| `thinking_callback` | callable | None | Callback when an extended thinking block is received |
-| `reasoning_callback` | callable | None | Callback when a reasoning step completes |
-| `clarify_callback` | callable | None | Callback when user clarification is requested |
-| `step_callback` | callable | None | Callback at iteration milestones |
-| `platform` | str | None | `"cli"`, `"telegram"`, `"discord"`, etc. |
-| `session_db` | SessionDB | None | SQLite session store |
-| `iteration_budget` | IterationBudget | None | Shared budget across parent + subagents |
-| `fallback_model` | dict | None | Fallback model configuration |
-| `checkpoints_enabled` | bool | False | Enable filesystem checkpoints |
-| `pass_session_id` | bool | False | Include session ID in system prompt |
+```python
+# Simple interface — returns final response string
+response = agent.chat("Fix the bug in main.py")
 
-## Turn Lifecycle
-
-Each call to `run_conversation()` follows this path:
-
+# Full interface — returns dict with messages, metadata, usage stats
+result = agent.run_conversation(
+    user_message="Fix the bug in main.py",
+    system_message=None,           # auto-built if omitted
+    conversation_history=None,      # auto-loaded from session if omitted
+    task_id="task_abc123"
+)
 ```
-run_conversation(user_message, stream_callback=None, ...)
-  -> generate effective task_id
-  -> reset retry counters and iteration budget
-  -> store stream_callback as self._stream_callback
-  -> append current user message to conversation history
-  -> load or build cached system prompt (assembled once, reused across turns)
-  -> maybe preflight-compress (rough token estimate before API call)
-  -> build api_messages from conversation history
-  -> inject ephemeral prompt layers (not persisted to cached system prompt)
-  -> apply prompt caching markers if appropriate (Anthropic / Claude-via-OpenRouter)
-  -> make interruptible API call:
-       if _has_stream_consumers() -> _interruptible_streaming_api_call()
-       else -> _interruptible_api_call()
-  -> parse response:
-      if tool calls -> execute them (sequential or concurrent)
-                    -> append tool results to history
-                    -> loop back to API call
-      if final text -> persist to SessionDB
-                    -> maybe_auto_title() in background thread
-                    -> cleanup
-                    -> return response to caller
-```
+
+`chat()` is a thin wrapper around `run_conversation()` that extracts the `final_response` field from the result dict.
 
 ## API Modes
 
-Hermes supports three API execution modes:
+Hermes supports three API execution modes, resolved from provider selection, explicit args, and base URL heuristics:
 
-| Mode | Used For |
-|------|---------|
-| `chat_completions` | OpenAI-compatible chat endpoints, OpenRouter, most custom endpoints |
-| `codex_responses` | OpenAI Codex / Responses API path |
-| `anthropic_messages` | Native Anthropic Messages API |
+| API mode | Used for | Client type |
+|----------|----------|-------------|
+| `chat_completions` | OpenAI-compatible endpoints (OpenRouter, custom, most providers) | `openai.OpenAI` |
+| `codex_responses` | OpenAI Codex / Responses API | `openai.OpenAI` with Responses format |
+| `anthropic_messages` | Native Anthropic Messages API | `anthropic.Anthropic` via adapter |
 
-The mode is resolved from explicit arguments, provider selection, and base URL heuristics. Detection logic in `AIAgent.__init__`:
+The mode determines how messages are formatted, how tool calls are structured, how responses are parsed, and how caching/streaming works. All three converge on the same internal message format (OpenAI-style `role`/`content`/`tool_calls` dicts) before and after API calls.
 
-- `api_mode="codex_responses"` when provider is `openai-codex` or base URL contains `chatgpt.com/backend-api/codex`
-- `api_mode="anthropic_messages"` when provider is `anthropic`, base URL contains `api.anthropic.com`, or base URL ends in `/anthropic`
-- `api_mode="chat_completions"` for everything else
+**Mode resolution order:**
+1. Explicit `api_mode` constructor arg (highest priority)
+2. Provider-specific detection (e.g., `anthropic` provider → `anthropic_messages`)
+3. Base URL heuristics (e.g., `api.anthropic.com` → `anthropic_messages`)
+4. Default: `chat_completions`
+
+## Turn Lifecycle
+
+Each iteration of the agent loop follows this sequence:
+
+```text
+run_conversation()
+  1. Generate task_id if not provided
+  2. Append user message to conversation history
+  3. Build or reuse cached system prompt (prompt_builder.py)
+  4. Check if preflight compression is needed (>50% context)
+  5. Build API messages from conversation history
+     - chat_completions: OpenAI format as-is
+     - codex_responses: convert to Responses API input items
+     - anthropic_messages: convert via anthropic_adapter.py
+  6. Inject ephemeral prompt layers (budget warnings, context pressure)
+  7. Apply prompt caching markers if on Anthropic
+  8. Make interruptible API call (_api_call_with_interrupt)
+  9. Parse response:
+     - If tool_calls: execute them, append results, loop back to step 5
+     - If text response: persist session, flush memory if needed, return
+```
+
+### Message Format
+
+All messages use OpenAI-compatible format internally:
+
+```python
+{"role": "system", "content": "..."}
+{"role": "user", "content": "..."}
+{"role": "assistant", "content": "...", "tool_calls": [...]}
+{"role": "tool", "tool_call_id": "...", "content": "..."}
+```
+
+Reasoning content (from models that support extended thinking) is stored in `assistant_msg["reasoning"]` and optionally displayed via the `reasoning_callback`.
+
+### Message Alternation Rules
+
+The agent loop enforces strict message role alternation:
+
+- After the system message: `User → Assistant → User → Assistant → ...`
+- During tool calling: `Assistant (with tool_calls) → Tool → Tool → ... → Assistant`
+- **Never** two assistant messages in a row
+- **Never** two user messages in a row
+- **Only** `tool` role can have consecutive entries (parallel tool results)
+
+Providers validate these sequences and will reject malformed histories.
 
 ## Interruptible API Calls
 
-Hermes wraps API requests so they can be interrupted from the CLI or gateway. This handles:
+API requests are wrapped in `_api_call_with_interrupt()` which runs the actual HTTP call in a background thread while monitoring an interrupt event:
 
-- Long LLM calls when the user sends a new message mid-flight
-- Gateway cancellation semantics when a session resets
-- Background system cancellation during shutdown
+```text
+┌──────────────────────┐     ┌──────────────┐
+│  Main thread         │     │  API thread   │
+│  wait on:            │────▶│  HTTP POST    │
+│  - response ready    │     │  to provider  │
+│  - interrupt event   │     └──────────────┘
+│  - timeout           │
+└──────────────────────┘
+```
 
-## Tool Execution Modes
+When interrupted (user sends new message, `/stop` command, or signal):
+- The API thread is abandoned (response discarded)
+- The agent can process the new input or shut down cleanly
+- No partial response is injected into conversation history
 
-Two strategies are used:
+## Tool Execution
 
-- **Sequential execution** -- for single tool calls or interactive tools (e.g. `clarify`)
-- **Concurrent execution** -- for multiple non-interactive tools via `ThreadPoolExecutor` (max `_MAX_TOOL_WORKERS = 8` workers)
+### Sequential vs Concurrent
 
-Concurrent execution is decided by `_should_parallelize_tool_batch()`, which checks:
+When the model returns tool calls:
 
-- Batch has more than 1 tool call
-- No tool is in `_NEVER_PARALLEL_TOOLS` (currently: `{"clarify"}`)
-- Every tool is either in `_PARALLEL_SAFE_TOOLS` (read-only tools like `read_file`, `search_files`, `session_search`, `web_search`, etc.) or is a `_PATH_SCOPED_TOOLS` tool (`read_file`, `write_file`, `patch`) targeting non-overlapping paths
-- All tool call arguments parse as valid JSON dicts
+- **Single tool call** → executed directly in the main thread
+- **Multiple tool calls** → executed concurrently via `ThreadPoolExecutor`
+  - Exception: tools marked as interactive (e.g., `clarify`) force sequential execution
+  - Results are reinserted in the original tool call order regardless of completion order
 
-Message and result ordering is preserved when reinserting tool responses into conversation history.
+### Execution Flow
+
+```text
+for each tool_call in response.tool_calls:
+    1. Resolve handler from tools/registry.py
+    2. Fire pre_tool_call plugin hook
+    3. Check if dangerous command (tools/approval.py)
+       - If dangerous: invoke approval_callback, wait for user
+    4. Execute handler with args + task_id
+    5. Fire post_tool_call plugin hook
+    6. Append {"role": "tool", "content": result} to history
+```
+
+### Agent-Level Tools
+
+Some tools are intercepted by `run_agent.py` *before* reaching `handle_function_call()`:
+
+| Tool | Why intercepted |
+|------|--------------------|
+| `todo` | Reads/writes agent-local task state |
+| `memory` | Writes to persistent memory files with character limits |
+| `session_search` | Queries session history via the agent's session DB |
+| `delegate_task` | Spawns subagent(s) with isolated context |
+
+These tools modify agent state directly and return synthetic tool results without going through the registry.
 
 ## Callback Surfaces
 
-`AIAgent` supports platform-specific callbacks:
+`AIAgent` supports platform-specific callbacks that enable real-time progress in the CLI, gateway, and ACP integrations:
 
-| Callback | Parameter | Purpose |
-|---------|-----------|---------|
-| `tool_progress_callback` | `__init__` | Fires when a tool starts or completes |
-| `thinking_callback` | `__init__` | Fires when an extended thinking block is received |
-| `reasoning_callback` | `__init__` | Fires when a reasoning step completes |
-| `clarify_callback` | `__init__` | Fires when user clarification is requested |
-| `step_callback` | `__init__` | Fires at iteration milestones |
-| `stream_delta_callback` | `__init__` | Fires with each text token during streaming (persistent) |
-| `stream_callback` | `run_conversation()` | Per-call stream callback (stored as `_stream_callback`; used for TTS) |
-
-Both `stream_delta_callback` and `_stream_callback` are fired by `_fire_stream_delta()` for each text token. Either or both can be set independently.
+| Callback | When fired | Used by |
+|----------|-----------|---------|
+| `tool_progress_callback` | Before/after each tool execution | CLI spinner, gateway progress messages |
+| `thinking_callback` | When model starts/stops thinking | CLI "thinking..." indicator |
+| `reasoning_callback` | When model returns reasoning content | CLI reasoning display, gateway reasoning blocks |
+| `clarify_callback` | When `clarify` tool is called | CLI input prompt, gateway interactive message |
+| `step_callback` | After each complete agent turn | Gateway step tracking, ACP progress |
+| `stream_delta_callback` | Each streaming token (when enabled) | CLI streaming display |
+| `tool_gen_callback` | When tool call is parsed from stream | CLI tool preview in spinner |
+| `status_callback` | State changes (thinking, executing, etc.) | ACP status updates |
 
 ## Budget and Fallback Behavior
 
-Hermes tracks a shared iteration budget across parent agents and all subagents it spawns via the `IterationBudget` class. The budget is thread-safe (`threading.Lock`), supports `consume()` (returns False when exhausted), and `refund()` (for `execute_code` turns that should not count).
+### Iteration Budget
 
-Budget pressure hints are injected into tool results at two thresholds:
-- **70% consumed** (`_budget_caution_threshold`) -- nudge to start wrapping up
-- **90% consumed** (`_budget_warning_threshold`) -- urgent, respond now
+The agent tracks iterations via `IterationBudget`:
 
-Fallback model support allows the agent to switch providers or models when the primary route fails.
+- Default: 90 iterations (configurable via `agent.max_turns`)
+- Each agent gets its own budget. Subagents get independent budgets capped at `delegation.max_iterations` (default 50) — total iterations across parent + subagents can exceed the parent's cap
+- At 100%, the agent stops and returns a summary of work done
 
-## API Retry: Jittered Backoff (v0.8.0)
+### Fallback Model
 
-**New in v0.8.0** (PR [#6048](https://github.com/NousResearch/hermes-agent/pull/6048)): API retries use jittered exponential backoff instead of fixed delays. The implementation lives in `agent/retry_utils.py`.
+When the primary model fails (429 rate limit, 5xx server error, 401/403 auth error):
 
-```python
-jittered_backoff(attempt, base_delay=5.0, max_delay=120.0)
-```
+1. Check `fallback_providers` list in config
+2. Try each fallback in order
+3. On success, continue the conversation with the new provider
+4. On 401/403, attempt credential refresh before failing over
 
-- Formula: `min(base * 2^(attempt-1), max_delay) + uniform_jitter`
-- Jitter range: `[0, 0.5 * computed_delay]` by default
-- The jitter seed mixes `time.time_ns()` with a monotonic counter so concurrent sessions (multiple gateway turns) produce decorrelated delays, preventing thundering-herd retry spikes against a rate-limited provider
-- Rate-limit (429) retries use `base_delay=2.0, max_delay=60.0`; extended backoff paths use `base_delay=5.0, max_delay=120.0`
-
-## Smart Thinking Block Signature Management (v0.8.0)
-
-**New in v0.8.0** (PR [#6112](https://github.com/NousResearch/hermes-agent/pull/6112)): Anthropic signs thinking blocks against the full turn content. Any upstream mutation -- context compression, session truncation, orphan stripping, message merging -- invalidates the signature and causes HTTP 400 errors.
-
-The Anthropic adapter (`agent/anthropic_adapter.py`) applies a three-rule strategy when building API messages:
-
-1. **Strip thinking/redacted_thinking from all assistant messages except the last one.** Only the current tool-use chain needs live thinking signatures. All prior turns have their thinking blocks removed.
-2. **Downgrade unsigned thinking blocks to plain text.** If a thinking block has no `signature` field, it cannot be validated by Anthropic and will be rejected -- it is converted to a `{"type": "text", "text": ...}` block instead to preserve the reasoning content.
-3. **Strip `cache_control` from all thinking/redacted_thinking blocks** in every message -- cache markers interfere with signature validation.
-
-## Accepting Reasoning-Only Responses (v0.8.0)
-
-**New in v0.8.0** (PR [#5278](https://github.com/NousResearch/hermes-agent/pull/5278)): When a model returns structured reasoning (via API fields) but no visible text content, the agent no longer retries indefinitely. Instead:
-
-1. **Thinking-only prefill continuation**: if the response has `reasoning`, `reasoning_content`, or `reasoning_details` fields but no text, the agent appends the assistant message as-is (marked with `_thinking_prefill = True`) and continues to the next API call. The model sees its own reasoning on the next turn and typically produces the text portion. This is retried up to 2 times (`_thinking_prefill_retries < 2`).
-
-2. **Fallback to `"(empty)"`**: if prefill retries are exhausted or there is no structured reasoning at all, the assistant message content is set to the string `"(empty)"` and the turn ends. This prevents an infinite retry loop that burns through the iteration budget.
-
-## System Prompt Caching Strategy
-
-The system prompt is built once on the first `run_conversation()` call and reused for all subsequent turns in the session. This is critical for Anthropic prefix cache hits -- a stable system prompt prefix means the provider can serve cached tokens instead of reprocessing.
-
-Key behaviors:
-
-- **First turn**: `_build_system_prompt()` assembles all 10 layers (identity through platform hints) and stores the result in `self._cached_system_prompt`
-- **Subsequent turns**: the cached prompt is reused without reassembly
-- **After context compression**: the cache is invalidated and the prompt is rebuilt, because compression may alter the system message (e.g. appending the compaction note)
-- **Continuing gateway sessions**: when a gateway session is resumed, the stored system prompt is loaded from `SessionDB` (via the `system_prompt` column) rather than rebuilt from scratch. This preserves the exact prompt prefix that Anthropic has already cached, avoiding cache misses from non-deterministic elements like timestamps or changed context files
-
-## Honcho Prefetch Mechanics
-
-When Honcho integration is active, context is injected at two different points depending on the turn:
-
-- **First turn**: Honcho context is baked into the cached system prompt as a static block (layer 3). This content remains stable for the entire session, preserving cache effectiveness
-- **Later turns**: turn-specific context from Honcho is attached at API call time only via `_inject_honcho_turn_context()`. This content is injected into the current-turn user message and is NOT persisted into the cached system prompt
-
-This split ensures that turn N can consume the Honcho prefetch results from turn N-1 without destabilizing the cached system prompt prefix. The static block captures the user's cross-session profile, while the per-turn injection captures recall results specific to the current conversation flow.
-
-## Iteration Budget Semantics
-
-The default `max_iterations` is 90. The `IterationBudget` class manages how many tool-calling iterations the agent can perform.
-
-Key semantics:
-
-- **Independent subagent budgets**: subagents spawned via `delegate_task` receive their own independent `IterationBudget`. They do NOT count against the parent agent's remaining budget
-- **Thread safety**: `IterationBudget` uses a `threading.Lock` internally. `consume()` returns `False` when the budget is exhausted. `refund()` gives back iterations (used for `execute_code` turns that should not count)
-- **Budget pressure warnings**: hints are injected into tool results at two thresholds:
-  - **70% consumed** (`_budget_caution_threshold`): "You have used most of your iteration budget. Start wrapping up."
-  - **90% consumed** (`_budget_warning_threshold`): "You are almost out of iterations. Respond to the user now."
-- **Budget exhaustion**: when `consume()` returns `False`, the agent loop stops making tool calls and returns whatever response it has
+The fallback system also covers auxiliary tasks independently — vision, compression, web extraction, and session search each have their own fallback chain configurable via the `auxiliary.*` config section.
 
 ## Compression and Persistence
 
-Before and during long runs, Hermes may:
+### When Compression Triggers
 
-- Flush memory before context loss
-- Compress middle conversation turns via `ContextCompressor`
-- Split the session lineage into a new session ID after compression
-- Preserve recent context and structural tool-call/result consistency
+- **Preflight** (before API call): If conversation exceeds 50% of model's context window
+- **Gateway auto-compression**: If conversation exceeds 85% (more aggressive, runs between turns)
 
-## Source Files
+### What Happens During Compression
 
-| File | Description |
-|------|-------------|
-| `run_agent.py` | `AIAgent` -- core orchestration loop |
-| `agent/prompt_builder.py` | System prompt assembly |
-| `agent/context_compressor.py` | Runtime context compression |
-| `agent/prompt_caching.py` | Anthropic cache_control markers |
-| `model_tools.py` | Tool discovery, schema building, and dispatch |
+1. Memory is flushed to disk first (preventing data loss)
+2. Middle conversation turns are summarized into a compact summary
+3. The last N messages are preserved intact (`compression.protect_last_n`, default: 20)
+4. Tool call/result message pairs are kept together (never split)
+5. A new session lineage ID is generated (compression creates a "child" session)
+
+### Session Persistence
+
+After each turn:
+- Messages are saved to the session store (SQLite via `hermes_state.py`)
+- Memory changes are flushed to `MEMORY.md` / `USER.md`
+- The session can be resumed later via `/resume` or `hermes chat --resume`
+
+## Key Source Files
+
+| File | Purpose |
+|------|---------|
+| `run_agent.py` | AIAgent class — the complete agent loop (~10,700 lines) |
+| `agent/prompt_builder.py` | System prompt assembly from memory, skills, context files, personality |
+| `agent/context_engine.py` | ContextEngine ABC — pluggable context management |
+| `agent/context_compressor.py` | Default engine — lossy summarization algorithm |
+| `agent/prompt_caching.py` | Anthropic prompt caching markers and cache metrics |
+| `agent/auxiliary_client.py` | Auxiliary LLM client for side tasks (vision, summarization) |
+| `model_tools.py` | Tool schema collection, `handle_function_call()` dispatch |
+
+## Related Docs
+
+- [Provider Runtime Resolution](./provider-runtime.md)
+- [Prompt Assembly](./prompt-assembly.md)
+- [Context Compression & Prompt Caching](./context-compression-and-caching.md)
+- [Tools Runtime](./tools-runtime.md)
+- [Architecture Overview](./architecture.md)

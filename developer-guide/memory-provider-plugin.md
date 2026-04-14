@@ -1,108 +1,253 @@
-# Memory Provider Plugins
 
-Memory provider plugins were introduced in v0.7.0. Hermes exposes an abstract `MemoryProvider` interface plus a `MemoryManager` that always keeps the built-in provider and can attach at most one external provider plugin at a time. v0.8.0 added new session lifecycle hooks, per-user memory scoping, and the Supermemory provider.
+# Building a Memory Provider Plugin
 
-## Released Architecture
+Memory provider plugins give Hermes Agent persistent, cross-session knowledge beyond the built-in MEMORY.md and USER.md. This guide covers how to build one.
 
-Hermes memory is now split into two layers:
+:::tip
+Memory providers are one of two **provider plugin** types. The other is [Context Engine Plugins](/docs/developer-guide/context-engine-plugin), which replace the built-in context compressor. Both follow the same pattern: single-select, config-driven, managed via `hermes plugins`.
+:::
 
-- **Built-in provider** -- local `MEMORY.md` / `USER.md` storage and the existing `memory` tool
-- **External provider plugin** -- an optional plugin selected by `memory.provider` and loaded from `plugins/memory/<name>/`
+## Directory Structure
 
-The built-in provider is always registered first and cannot be removed. The external provider can add context injection, sync behavior, and provider-specific tools.
+Each memory provider lives in `plugins/memory/<name>/`:
 
-## Provider Interface
-
-Released providers implement the `MemoryProvider` ABC in `agent/memory_provider.py`. The manager lifecycle is wired in `run_agent.py` and `agent/memory_manager.py`.
-
-At a high level, a provider can:
-
-- return its provider name
-- expose provider-specific tool schemas
-- initialize per-session state
-- contribute memory/context text to the system prompt
-- handle provider-specific tool invocations
-- flush or sync state on session boundaries
-
-The manager also maintains tool-to-provider routing so provider-specific tools resolve back to the correct memory backend.
-
-## Released Providers
-
-The v0.8.0 source tree ships the following released providers under `plugins/memory/`:
-
-- `honcho`
-- `byterover`
-- `hindsight`
-- `holographic`
-- `mem0`
-- `openviking`
-- `retaindb`
-- `supermemory` *(added in v0.8.0)*
-
-Honcho is the reference plugin and restores full parity with the old dedicated Honcho integration while conforming to the new provider interface.
-
-## Configuration
-
-Select a provider in `~/.hermes/config.yaml`:
-
-```yaml
-memory:
-  provider: honcho
+```
+plugins/memory/my-provider/
+├── __init__.py      # MemoryProvider implementation + register() entry point
+├── plugin.yaml      # Metadata (name, description, hooks)
+└── README.md        # Setup instructions, config reference, tools
 ```
 
-Provider-specific setup is handled by each plugin. Several plugins also write profile-scoped config files under `$HERMES_HOME`.
+## The MemoryProvider ABC
 
-## Operational Model
-
-The built-in memory system stays authoritative for local notes while allowing one provider plugin to extend or replace parts of the recall/write path. In practice:
-
-- the built-in memory provider stays present
-- one external provider may be registered
-- provider-specific tools are exposed only when that provider is active
-- prompt injection and persistence boundaries remain enforced by the main Hermes runtime
-
-## Session Lifecycle Hooks (v0.8.0)
-
-Two new session lifecycle hooks were added in v0.8.0 alongside the existing `on_session_start` and `on_session_end`:
-
-| Hook | When it fires |
-|------|---------------|
-| `on_session_start` | Agent starts a new session |
-| `on_session_end` | Session ends normally |
-| `on_session_finalize` | Session is fully committed and flushed (after `/new`, `/reset`, or session expiry) |
-| `on_session_reset` | User or gateway explicitly resets the session |
-
-Plugins register hooks via `ctx.register_hook(hook_name, callback)`. The complete set of valid hook names is defined in `VALID_HOOKS` in `hermes_cli/plugins.py`. Registering an unknown hook name produces a warning but is not fatal, so forward-compatible plugins do not break.
-
-The `on_session_finalize` and `on_session_reset` hooks enable memory providers to perform cleanup or state transitions at predictable session boundaries. Gateway coverage for both hooks was added in v0.8.0.
-
-## Per-User Memory Scoping (v0.8.0)
-
-`initialize()` now receives a `user_id` keyword argument when called from a gateway session. This allows memory providers to scope storage and retrieval to the specific user who sent the message, enabling correct isolation in multi-user thread conversations.
+Your plugin implements the `MemoryProvider` abstract base class from `agent/memory_provider.py`:
 
 ```python
-def initialize(self, session_id: str, **kwargs) -> None:
-    user_id = kwargs.get("user_id")  # set for gateway sessions; None for CLI
-    hermes_home = kwargs.get("hermes_home")  # path to the active profile directory
+from agent.memory_provider import MemoryProvider
+
+class MyMemoryProvider(MemoryProvider):
+    @property
+    def name(self) -> str:
+        return "my-provider"
+
+    def is_available(self) -> bool:
+        """Check if this provider can activate. NO network calls."""
+        return bool(os.environ.get("MY_API_KEY"))
+
+    def initialize(self, session_id: str, **kwargs) -> None:
+        """Called once at agent startup.
+
+        kwargs always includes:
+          hermes_home (str): Active HERMES_HOME path. Use for storage.
+        """
+        self._api_key = os.environ.get("MY_API_KEY", "")
+        self._session_id = session_id
+
+    # ... implement remaining methods
 ```
 
-`hermes_home` points to the profile's data directory (e.g., `~/.hermes/` for the default profile) and can be used to scope config files or storage to the active profile.
+## Required Methods
 
-The `thread_gateway_user_id` is threaded through the memory manager initialization path so all providers receive the correct user identity even in shared-thread sessions (see [memory.md](../memory.md) for shared thread session details).
+### Core Lifecycle
 
-## CLI Plugin Registration (v0.8.0)
+| Method | When Called | Must Implement? |
+|--------|-----------|-----------------|
+| `name` (property) | Always | **Yes** |
+| `is_available()` | Agent init, before activation | **Yes** — no network calls |
+| `initialize(session_id, **kwargs)` | Agent startup | **Yes** |
+| `get_tool_schemas()` | After init, for tool injection | **Yes** |
+| `handle_tool_call(name, args)` | When agent uses your tools | **Yes** (if you have tools) |
 
-Plugins can now register CLI subcommands via `ctx.register_cli_command()`. This is how the Honcho plugin exposes `hermes honcho ...` — the CLI no longer relies on static command registration hardcoded to the dedicated Honcho integration.
+### Config
+
+| Method | Purpose | Must Implement? |
+|--------|---------|-----------------|
+| `get_config_schema()` | Declare config fields for `hermes memory setup` | **Yes** |
+| `save_config(values, hermes_home)` | Write non-secret config to native location | **Yes** (unless env-var-only) |
+
+### Optional Hooks
+
+| Method | When Called | Use Case |
+|--------|-----------|----------|
+| `system_prompt_block()` | System prompt assembly | Static provider info |
+| `prefetch(query)` | Before each API call | Return recalled context |
+| `queue_prefetch(query)` | After each turn | Pre-warm for next turn |
+| `sync_turn(user, assistant)` | After each completed turn | Persist conversation |
+| `on_session_end(messages)` | Conversation ends | Final extraction/flush |
+| `on_pre_compress(messages)` | Before context compression | Save insights before discard |
+| `on_memory_write(action, target, content)` | Built-in memory writes | Mirror to your backend |
+| `shutdown()` | Process exit | Clean up connections |
+
+## Config Schema
+
+`get_config_schema()` returns a list of field descriptors used by `hermes memory setup`:
+
+```python
+def get_config_schema(self):
+    return [
+        {
+            "key": "api_key",
+            "description": "My Provider API key",
+            "secret": True,           # → written to .env
+            "required": True,
+            "env_var": "MY_API_KEY",   # explicit env var name
+            "url": "https://my-provider.com/keys",  # where to get it
+        },
+        {
+            "key": "region",
+            "description": "Server region",
+            "default": "us-east",
+            "choices": ["us-east", "eu-west", "ap-south"],
+        },
+        {
+            "key": "project",
+            "description": "Project identifier",
+            "default": "hermes",
+        },
+    ]
+```
+
+Fields with `secret: True` and `env_var` go to `.env`. Non-secret fields are passed to `save_config()`.
+
+:::tip Minimal vs Full Schema
+Every field in `get_config_schema()` is prompted during `hermes memory setup`. Providers with many options should keep the schema minimal — only include fields the user **must** configure (API key, required credentials). Document optional settings in a config file reference (e.g. `$HERMES_HOME/myprovider.json`) rather than prompting for them all during setup. This keeps the setup wizard fast while still supporting advanced configuration. See the Supermemory provider for an example — it only prompts for the API key; all other options live in `supermemory.json`.
+:::
+
+## Save Config
+
+```python
+def save_config(self, values: dict, hermes_home: str) -> None:
+    """Write non-secret config to your native location."""
+    import json
+    from pathlib import Path
+    config_path = Path(hermes_home) / "my-provider.json"
+    config_path.write_text(json.dumps(values, indent=2))
+```
+
+For env-var-only providers, leave the default no-op.
+
+## Plugin Entry Point
 
 ```python
 def register(ctx) -> None:
+    """Called by the memory plugin discovery system."""
     ctx.register_memory_provider(MyMemoryProvider())
-    ctx.register_cli_command(
-        name="myplugin",
-        help="Manage MyPlugin settings",
-        setup_fn=my_setup_fn,
-        handler_fn=my_handler_fn,
-    )
 ```
 
-See [memory.md](../memory.md) for the built-in memory model, [honcho.md](../honcho.md) for the reference provider, and [plugins.md](../plugins.md) for the general plugin architecture.
+## plugin.yaml
+
+```yaml
+name: my-provider
+version: 1.0.0
+description: "Short description of what this provider does."
+hooks:
+  - on_session_end    # list hooks you implement
+```
+
+## Threading Contract
+
+**`sync_turn()` MUST be non-blocking.** If your backend has latency (API calls, LLM processing), run the work in a daemon thread:
+
+```python
+def sync_turn(self, user_content, assistant_content):
+    def _sync():
+        try:
+            self._api.ingest(user_content, assistant_content)
+        except Exception as e:
+            logger.warning("Sync failed: %s", e)
+
+    if self._sync_thread and self._sync_thread.is_alive():
+        self._sync_thread.join(timeout=5.0)
+    self._sync_thread = threading.Thread(target=_sync, daemon=True)
+    self._sync_thread.start()
+```
+
+## Profile Isolation
+
+All storage paths **must** use the `hermes_home` kwarg from `initialize()`, not hardcoded `~/.hermes`:
+
+```python
+# CORRECT — profile-scoped
+from hermes_constants import get_hermes_home
+data_dir = get_hermes_home() / "my-provider"
+
+# WRONG — shared across all profiles
+data_dir = Path("~/.hermes/my-provider").expanduser()
+```
+
+## Testing
+
+See `tests/agent/test_memory_plugin_e2e.py` for the complete E2E testing pattern using a real SQLite provider.
+
+```python
+from agent.memory_manager import MemoryManager
+
+mgr = MemoryManager()
+mgr.add_provider(my_provider)
+mgr.initialize_all(session_id="test-1", platform="cli")
+
+# Test tool routing
+result = mgr.handle_tool_call("my_tool", {"action": "add", "content": "test"})
+
+# Test lifecycle
+mgr.sync_all("user msg", "assistant msg")
+mgr.on_session_end([])
+mgr.shutdown_all()
+```
+
+## Adding CLI Commands
+
+Memory provider plugins can register their own CLI subcommand tree (e.g. `hermes my-provider status`, `hermes my-provider config`). This uses a convention-based discovery system — no changes to core files needed.
+
+### How it works
+
+1. Add a `cli.py` file to your plugin directory
+2. Define a `register_cli(subparser)` function that builds the argparse tree
+3. The memory plugin system discovers it at startup via `discover_plugin_cli_commands()`
+4. Your commands appear under `hermes <provider-name> <subcommand>`
+
+**Active-provider gating:** Your CLI commands only appear when your provider is the active `memory.provider` in config. If a user hasn't configured your provider, your commands won't show in `hermes --help`.
+
+### Example
+
+```python
+# plugins/memory/my-provider/cli.py
+
+def my_command(args):
+    """Handler dispatched by argparse."""
+    sub = getattr(args, "my_command", None)
+    if sub == "status":
+        print("Provider is active and connected.")
+    elif sub == "config":
+        print("Showing config...")
+    else:
+        print("Usage: hermes my-provider <status|config>")
+
+def register_cli(subparser) -> None:
+    """Build the hermes my-provider argparse tree.
+
+    Called by discover_plugin_cli_commands() at argparse setup time.
+    """
+    subs = subparser.add_subparsers(dest="my_command")
+    subs.add_parser("status", help="Show provider status")
+    subs.add_parser("config", help="Show provider config")
+    subparser.set_defaults(func=my_command)
+```
+
+### Reference implementation
+
+See `plugins/memory/honcho/cli.py` for a full example with 13 subcommands, cross-profile management (`--target-profile`), and config read/write.
+
+### Directory structure with CLI
+
+```
+plugins/memory/my-provider/
+├── __init__.py      # MemoryProvider implementation + register()
+├── plugin.yaml      # Metadata
+├── cli.py           # register_cli(subparser) — CLI commands
+└── README.md        # Setup instructions
+```
+
+## Single Provider Rule
+
+Only **one** external memory provider can be active at a time. If a user tries to register a second, the MemoryManager rejects it with a warning. This prevents tool schema bloat and conflicting backends.

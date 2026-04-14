@@ -1,6 +1,7 @@
+
 # Batch Processing
 
-Batch processing lets you run the Hermes agent across hundreds or thousands of prompts in parallel, generating structured trajectory data. The primary use case is **training data generation** — producing ShareGPT-format trajectories with tool usage statistics for fine-tuning or evaluation.
+Batch processing lets you run the Hermes agent across hundreds or thousands of prompts in parallel, generating structured trajectory data. This is primarily used for **training data generation** — producing ShareGPT-format trajectories with tool usage statistics that can be used for fine-tuning or evaluation.
 
 ## Overview
 
@@ -14,7 +15,7 @@ python batch_runner.py \
     --dataset_file=data/prompts.jsonl \
     --batch_size=10 \
     --run_name=my_first_run \
-    --model=anthropic/claude-sonnet-4-20250514 \
+    --model=anthropic/claude-sonnet-4.6 \
     --num_workers=4
 
 # Resume an interrupted run
@@ -38,18 +39,9 @@ The input dataset is a JSONL file (one JSON object per line). Each entry must ha
 {"prompt": "Debug this error: TypeError: cannot unpack non-iterable NoneType object"}
 ```
 
-Optional fields:
-
+Entries can optionally include:
 - `image` or `docker_image`: A container image to use for this prompt's sandbox (works with Docker, Modal, and Singularity backends)
 - `cwd`: Working directory override for the task's terminal session
-
-```jsonl
-{"prompt": "Install numpy and compute eigenvalues of a 3x3 matrix", "image": "python:3.11-slim"}
-{"prompt": "Compile this Rust program and run it", "image": "rust:1.75"}
-{"prompt": "Set up a Node.js Express server", "image": "node:20-alpine", "cwd": "/app"}
-```
-
-When a `docker_image` field is present, the batch runner verifies the Docker image is accessible before spending tokens on the agent loop. If the image is not in the local cache, it attempts `docker pull`.
 
 ## Configuration Options
 
@@ -59,7 +51,7 @@ When a `docker_image` field is present, the batch runner verifies the Docker ima
 | `--batch_size` | (required) | Prompts per batch |
 | `--run_name` | (required) | Name for this run (used for output dir and checkpointing) |
 | `--distribution` | `"default"` | Toolset distribution to sample from |
-| `--model` | `anthropic/claude-sonnet-4.6` | Model to use (class default: `claude-opus-4-20250514`) |
+| `--model` | `claude-sonnet-4.6` | Model to use |
 | `--base_url` | `https://openrouter.ai/api/v1` | API base URL |
 | `--api_key` | (env var) | API key for model |
 | `--max_turns` | `10` | Maximum tool-calling iterations per prompt |
@@ -82,7 +74,7 @@ When a `docker_image` field is present, the batch runner verifies the Docker ima
 
 | Parameter | Description |
 |-----------|-------------|
-| `--reasoning_effort` | Effort level: `xhigh`, `high`, `medium`, `low`, `minimal`, `none` |
+| `--reasoning_effort` | Effort level: `none`, `minimal`, `low`, `medium`, `high`, `xhigh` |
 | `--reasoning_disabled` | Completely disable reasoning/thinking tokens |
 
 ### Advanced Options
@@ -97,7 +89,7 @@ When a `docker_image` field is present, the batch runner verifies the Docker ima
 
 Each prompt gets a randomly sampled set of toolsets from a **distribution**. This ensures training data covers diverse tool combinations. Use `--list_distributions` to see all available distributions.
 
-Distributions assign a probability to each individual toolset. The sampler flips each toolset independently, then guarantees that at least one toolset is enabled. This is different from a hand-authored table of prebuilt combinations.
+In the current implementation, distributions assign a probability to **each individual toolset**. The sampler flips each toolset independently, then guarantees that at least one toolset is enabled. This is different from a hand-authored table of prebuilt combinations.
 
 ## Output Format
 
@@ -130,7 +122,7 @@ Each line in `trajectories.jsonl` is a JSON object:
   "metadata": {
     "batch_num": 2,
     "timestamp": "2026-01-15T10:30:00",
-    "model": "anthropic/claude-sonnet-4-20250514"
+    "model": "anthropic/claude-sonnet-4.6"
   },
   "completed": true,
   "partial": false,
@@ -147,77 +139,64 @@ Each line in `trajectories.jsonl` is a JSON object:
 }
 ```
 
-The `conversations` field uses ShareGPT-like format with `from` and `value` fields. Tool stats are normalized to include all possible tools with zero defaults, ensuring consistent schema across entries for HuggingFace datasets compatibility.
+The `conversations` field uses a ShareGPT-like format with `from` and `value` fields. Tool stats are normalized to include all possible tools with zero defaults, ensuring consistent schema across entries for HuggingFace datasets compatibility.
 
 ## Checkpointing
 
 The batch runner has robust checkpointing for fault tolerance:
 
-- **Checkpoint file:** Saved after each batch completes, tracking which prompt indices are done. Incremental writes happen after each batch finishes, so a crash mid-run loses at most one batch.
+- **Checkpoint file:** Saved after each batch completes, tracking which prompt indices are done
 - **Content-based resume:** On `--resume`, the runner scans existing batch files and matches completed prompts by their actual text content (not just indices), enabling recovery even if the dataset order changes
 - **Failed prompts:** Only successfully completed prompts are marked as done — failed prompts will be retried on resume
 - **Batch merging:** On completion, all batch files (including from previous runs) are merged into a single `trajectories.jsonl`
 
 ### How Resume Works
 
-1. Scan all `batch_*.jsonl` files for completed prompts (by content matching on the human turn text)
+1. Scan all `batch_*.jsonl` files for completed prompts (by content matching)
 2. Filter the dataset to exclude already-completed prompts
 3. Re-batch the remaining prompts
 4. Process only the remaining prompts
-5. Merge all batch files (old and new) into final output
+5. Merge all batch files (old + new) into final output
 
 ## Quality Filtering
 
-The batch runner applies automatic quality filtering during the final merge step:
+The batch runner applies automatic quality filtering:
 
-- **No-reasoning filter:** Samples where zero assistant turns contain reasoning (no `<REASONING_SCRATCHPAD>` or native thinking tokens) are discarded. These are logged with a count at the end.
-- **Corrupted entry filter:** Entries with hallucinated tool names (not in the valid tool list derived from `model_tools.TOOL_TO_TOOLSET_MAP`) are filtered out
+- **No-reasoning filter:** Samples where zero assistant turns contain reasoning (no `<REASONING_SCRATCHPAD>` or native thinking tokens) are discarded
+- **Corrupted entry filter:** Entries with hallucinated tool names (not in the valid tool list) are filtered out during the final merge
 - **Reasoning statistics:** Tracks percentage of turns with/without reasoning across the entire run
 
 ## Statistics
 
-After completion, the runner prints comprehensive statistics and saves them to `statistics.json`:
+After completion, the runner prints comprehensive statistics:
 
-- **Tool usage:** Call counts, success/failure rates per tool (sorted by count descending)
-- **Reasoning coverage:** Percentage of assistant turns with and without reasoning
+- **Tool usage:** Call counts, success/failure rates per tool
+- **Reasoning coverage:** Percentage of assistant turns with reasoning
 - **Samples discarded:** Count of samples filtered for lacking reasoning
 - **Duration:** Total processing time
 
-Example statistics output:
-
-```
-Tool Usage Statistics:
-----------------------------------------------------------------------
-Tool Name                 Count      Success    Failure    Success Rate
-----------------------------------------------------------------------
-terminal                  1523       1489       34         97.8%
-read_file                 876        876        0          100.0%
-web_search                234        221        13         94.4%
-
-Reasoning Coverage:
-----------------------------------------------------------------------
-   Total assistant turns:    4821
-   With reasoning:           4756 (98.7%)
-   Without reasoning:        65 (1.3%)
-   Samples discarded (zero reasoning): 12
-```
+Statistics are also saved to `statistics.json` for programmatic analysis.
 
 ## Use Cases
 
 ### Training Data Generation
+
+Generate diverse tool-use trajectories for fine-tuning:
 
 ```bash
 python batch_runner.py \
     --dataset_file=data/coding_prompts.jsonl \
     --batch_size=20 \
     --run_name=coding_v1 \
-    --model=anthropic/claude-sonnet-4-20250514 \
+    --model=anthropic/claude-sonnet-4.6 \
     --num_workers=8 \
     --distribution=default \
     --max_turns=15
 ```
 
 ### Model Evaluation
+
+Evaluate how well a model uses tools across standardized prompts:
 
 ```bash
 python batch_runner.py \
@@ -229,45 +208,14 @@ python batch_runner.py \
     --max_turns=10
 ```
 
-### With Disabled Reasoning
+### Per-Prompt Container Images
 
-```bash
-python batch_runner.py \
-    --dataset_file=data/prompts.jsonl \
-    --batch_size=10 \
-    --run_name=no_reasoning \
-    --reasoning_disabled \
-    --max_tokens=128000
+For benchmarks requiring specific environments, each prompt can specify its own container image:
+
+```jsonl
+{"prompt": "Install numpy and compute eigenvalues of a 3x3 matrix", "image": "python:3.11-slim"}
+{"prompt": "Compile this Rust program and run it", "image": "rust:1.75"}
+{"prompt": "Set up a Node.js Express server", "image": "node:20-alpine", "cwd": "/app"}
 ```
 
-### With Few-Shot Prefill Messages
-
-```bash
-python batch_runner.py \
-    --dataset_file=data/prompts.jsonl \
-    --batch_size=10 \
-    --run_name=my_run \
-    --prefill_messages_file=configs/prefill_opus.json
-```
-
-The prefill messages file must contain a JSON array of `{role, content}` dicts.
-
-## Implementation Details
-
-The `BatchRunner` class initializes with all configuration, loads the dataset, creates batches, and manages checkpoints. Processing is parallelized using Python's `multiprocessing.Pool` with `imap_unordered` for efficient parallel execution. Each batch processes prompts sequentially within a worker process. A `multiprocessing.Lock` protects checkpoint writes from concurrent worker updates.
-
-Context files (`SOUL.md`, `AGENTS.md`) are skipped during batch runs (`skip_context_files=True`) to prevent local project context from contaminating trajectories. Persistent memory is also skipped (`skip_memory=True`).
-
-## What's New
-
-### v0.4.0
-
-No changes to the batch runner in v0.4.0.
-
-### v0.5.0
-
-- **mini-swe-agent dependency removed** (PR #2804) — The `mini_swe_runner.py` script previously delegated Docker and Modal execution to the external `mini-swe-agent` package. Both backends are now inlined directly into Hermes. If you previously installed `mini-swe-agent` as a dependency, it is no longer required.
-
-  The `mini_swe_runner.py` file itself remains in the repository as a standalone SWE runner (compatible with Hermes' trajectory format), but it now uses Hermes' built-in `environments/` backends rather than the removed dependency.
-
-- **Replace swe-rex with native Modal SDK** (PR #3538) — The Modal backend previously used the `swe-rex` library for tunnel management. It now uses the Modal SDK directly (`Sandbox.create.aio` + `exec.aio`), eliminating the tunnel layer and simplifying deployments. No configuration changes are required; the `--env modal` flag in `mini_swe_runner.py` continues to work as before.
+The batch runner verifies Docker images are accessible before running each prompt.

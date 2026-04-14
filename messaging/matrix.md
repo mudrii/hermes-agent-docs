@@ -1,52 +1,33 @@
-# Matrix
 
-Hermes Agent integrates with Matrix, the open, federated messaging protocol. Matrix lets you run your own homeserver or use a public one like matrix.org — either way, you keep control of your communications. The bot connects via the `matrix-nio` Python SDK, processes messages through the Hermes Agent pipeline (including tool use, memory, and reasoning), and responds in real time. It supports text, file attachments, images, audio, video, and optional end-to-end encryption (E2EE).
+# Matrix Setup
+
+Hermes Agent integrates with Matrix, the open, federated messaging protocol. Matrix lets you run your own homeserver or use a public one like matrix.org — either way, you keep control of your communications. The bot connects via the `mautrix` Python SDK, processes messages through the Hermes Agent pipeline (including tool use, memory, and reasoning), and responds in real time. It supports text, file attachments, images, audio, video, and optional end-to-end encryption (E2EE).
 
 Hermes works with any Matrix homeserver — Synapse, Conduit, Dendrite, or matrix.org.
 
-This document covers v0.2.0 through v0.8.0 (v2026.4.8).
-
----
-
-## v0.8.0: Matrix Tier 1
-
-v0.8.0 promotes Matrix to **Tier 1** feature parity alongside Telegram and Discord. The following capabilities were added:
-
-- **Reactions** — the bot sends emoji reactions (👀) when it starts processing a message and updates them when done. Disable with `MATRIX_REACTIONS=false`.
-- **Read receipts** — the bot sends read receipts after processing each message, so users see when their message was acknowledged.
-- **Rich formatting** — full HTML formatting in outbound messages (bold, italic, code blocks, headers, lists, links).
-- **Room management commands** — `/topic`, `/invite`, `/kick`, `/ban` and related room-administration commands are now supported.
-- **`MATRIX_REQUIRE_MENTION`** — when set to `true`, the bot only responds in rooms when explicitly `@mentioned` (or in rooms listed in `MATRIX_FREE_RESPONSE_ROOMS`). Default: `true`.
-- **`MATRIX_AUTO_THREAD`** — when set to `true` (default), the bot automatically creates threads for replies in rooms. Set to `false` to post flat replies.
-- **E2EE cron delivery** — cron jobs can now deliver output to encrypted rooms.
-- **Synapse compatibility** — filesize is now passed to `nio.upload()`, fixing upload failures on Synapse servers that enforce the field.
-- **Encrypted media handling** — the adapter handles `m.image`, `m.audio`, `m.video`, and `m.file` encrypted media events, decrypting them before passing to the agent.
-- **CJK input fixes** — character encoding issues with Chinese, Japanese, and Korean input are resolved.
-- **Stable `MATRIX_DEVICE_ID`** — set `MATRIX_DEVICE_ID` in `.env` to keep a stable E2EE device identity across gateway restarts, avoiding repeated device verification.
-
-([PR #5275](https://github.com/NousResearch/hermes-agent/pull/5275), [#5106](https://github.com/NousResearch/hermes-agent/pull/5106), [#5271](https://github.com/NousResearch/hermes-agent/pull/5271), [#5665](https://github.com/NousResearch/hermes-agent/pull/5665))
-
----
+Before setup, here's the part most people want to know: how Hermes behaves once it's connected.
 
 ## How Hermes Behaves
 
 | Context | Behavior |
 |---------|----------|
-| **DMs** | Hermes responds to every message. No `@mention` needed. Each DM has its own session. |
-| **Rooms** | Hermes responds to all messages in rooms it has joined. Room invites are auto-accepted. |
-| **Threads** | Hermes supports Matrix threads (MSC3440). If you reply in a thread, Hermes keeps the thread context isolated from the main room timeline. |
-| **Shared rooms with multiple users** | By default, Hermes isolates session history per user inside the room. Two people talking in the same room do not share one transcript. |
+| **DMs** | Hermes responds to every message. No `@mention` needed. Each DM has its own session. Set `MATRIX_DM_MENTION_THREADS=true` to start a thread when the bot is `@mentioned` in a DM. |
+| **Rooms** | By default, Hermes requires an `@mention` to respond. Set `MATRIX_REQUIRE_MENTION=false` or add room IDs to `MATRIX_FREE_RESPONSE_ROOMS` for free-response rooms. Room invites are auto-accepted. |
+| **Threads** | Hermes supports Matrix threads (MSC3440). If you reply in a thread, Hermes keeps the thread context isolated from the main room timeline. Threads where the bot has already participated do not require a mention. |
+| **Auto-threading** | By default, Hermes auto-creates a thread for each message it responds to in a room. This keeps conversations isolated. Set `MATRIX_AUTO_THREAD=false` to disable. |
+| **Shared rooms with multiple users** | By default, Hermes isolates session history per user inside the room. Two people talking in the same room do not share one transcript unless you explicitly disable that. |
 
-The bot automatically joins rooms when invited. Just invite the bot's Matrix user to any room and it will join and start responding immediately.
+:::tip
+The bot automatically joins rooms when invited. Just invite the bot's Matrix user to any room and it will join and start responding.
+:::
 
----
-
-## Session Model
+### Session Model in Matrix
 
 By default:
-- Each DM gets its own session
-- Each thread gets its own session namespace
-- Each user in a shared room gets their own session inside that room
+
+- each DM gets its own session
+- each thread gets its own session namespace
+- each user in a shared room gets their own session inside that room
 
 This is controlled by `config.yaml`:
 
@@ -54,52 +35,87 @@ This is controlled by `config.yaml`:
 group_sessions_per_user: true
 ```
 
-Set to `false` only if you explicitly want one shared conversation for the entire room. Shared sessions mean users share context growth and token costs, and one person's in-flight run can interrupt another person's follow-up.
+Set it to `false` only if you explicitly want one shared conversation for the entire room:
 
----
+```yaml
+group_sessions_per_user: false
+```
 
-## Prerequisites
+Shared sessions can be useful for a collaborative room, but they also mean:
 
-- A Matrix account for the bot (see Step 1)
-- `matrix-nio` Python package (`pip install 'matrix-nio[e2e]'` or `pip install 'hermes-agent[matrix]'`)
-- For E2EE: `libolm` system library
+- users share context growth and token costs
+- one person's long tool-heavy task can bloat everyone else's context
+- one person's in-flight run can interrupt another person's follow-up in the same room
 
----
+### Mention and Threading Configuration
+
+You can configure mention and auto-threading behavior via environment variables or `config.yaml`:
+
+```yaml
+matrix:
+  require_mention: true           # Require @mention in rooms (default: true)
+  free_response_rooms:            # Rooms exempt from mention requirement
+    - "!abc123:matrix.org"
+  auto_thread: true               # Auto-create threads for responses (default: true)
+  dm_mention_threads: false       # Create thread when @mentioned in DM (default: false)
+```
+
+Or via environment variables:
+
+```bash
+MATRIX_REQUIRE_MENTION=true
+MATRIX_FREE_RESPONSE_ROOMS=!abc123:matrix.org,!def456:matrix.org
+MATRIX_AUTO_THREAD=true
+MATRIX_DM_MENTION_THREADS=false
+```
+
+:::note
+If you are upgrading from a version that did not have `MATRIX_REQUIRE_MENTION`, the bot previously responded to all messages in rooms. To preserve that behavior, set `MATRIX_REQUIRE_MENTION=false`.
+:::
+
+This guide walks you through the full setup process — from creating your bot account to sending your first message.
 
 ## Step 1: Create a Bot Account
+
+You need a Matrix user account for the bot. There are several ways to do this:
 
 ### Option A: Register on Your Homeserver (Recommended)
 
 If you run your own homeserver (Synapse, Conduit, Dendrite):
+
+1. Use the admin API or registration tool to create a new user:
 
 ```bash
 # Synapse example
 register_new_matrix_user -c /etc/synapse/homeserver.yaml http://localhost:8008
 ```
 
-Choose a username like `hermes` — the full user ID will be `@hermes:your-server.org`.
+2. Choose a username like `hermes` — the full user ID will be `@hermes:your-server.org`.
 
 ### Option B: Use matrix.org or Another Public Homeserver
 
-1. Go to [Element Web](https://app.element.io) and create a new account
-2. Pick a username for your bot (e.g., `hermes-bot`)
+1. Go to [Element Web](https://app.element.io) and create a new account.
+2. Pick a username for your bot (e.g., `hermes-bot`).
 
 ### Option C: Use Your Own Account
 
-You can run Hermes as your own user. This means the bot posts as you — useful for personal assistants.
-
----
+You can also run Hermes as your own user. This means the bot posts as you — useful for personal assistants.
 
 ## Step 2: Get an Access Token
 
-### Option A: Via Element (Recommended)
+Hermes needs an access token to authenticate with the homeserver. You have two options:
 
-1. Log in to [Element](https://app.element.io) with the bot account
-2. Go to **Settings** → **Help & About**
-3. Scroll down and expand **Advanced** — the access token is displayed there
-4. Copy it immediately
+### Option A: Access Token (Recommended)
 
-### Option B: Via the API
+The most reliable way to get a token:
+
+**Via Element:**
+1. Log in to [Element](https://app.element.io) with the bot account.
+2. Go to **Settings** → **Help & About**.
+3. Scroll down and expand **Advanced** — the access token is displayed there.
+4. **Copy it immediately.**
+
+**Via the API:**
 
 ```bash
 curl -X POST https://your-server/_matrix/client/v3/login \
@@ -111,53 +127,66 @@ curl -X POST https://your-server/_matrix/client/v3/login \
   }'
 ```
 
-The response includes an `access_token` field.
+The response includes an `access_token` field — copy it.
 
-### Option C: Password Login
+:::warning[Keep your access token safe]
+The access token gives full access to the bot's Matrix account. Never share it publicly or commit it to Git. If compromised, revoke it by logging out all sessions for that user.
+:::
 
-Instead of an access token, provide the bot's user ID and password. Hermes will log in automatically on startup. Simpler, but the password is stored in your `.env` file.
+### Option B: Password Login
 
-The access token gives full access to the bot's Matrix account. Never share it publicly or commit it to Git.
+Instead of providing an access token, you can give Hermes the bot's user ID and password. Hermes will log in automatically on startup. This is simpler but means the password is stored in your `.env` file.
 
----
+```bash
+MATRIX_USER_ID=@hermes:your-server.org
+MATRIX_PASSWORD=your-password
+```
 
 ## Step 3: Find Your Matrix User ID
 
-Matrix User IDs follow the format `@username:server` (e.g., `@alice:matrix.org`).
+Hermes Agent uses your Matrix User ID to control who can interact with the bot. Matrix User IDs follow the format `@username:server`.
 
 To find yours:
-1. Open [Element](https://app.element.io) or your preferred Matrix client
-2. Click your avatar → **Settings**
-3. Your User ID is displayed at the top of the profile
 
----
+1. Open [Element](https://app.element.io) (or your preferred Matrix client).
+2. Click your avatar → **Settings**.
+3. Your User ID is displayed at the top of the profile (e.g., `@alice:matrix.org`).
 
-## Step 4: Configure Hermes
+:::tip
+Matrix User IDs always start with `@` and contain a `:` followed by the server name. For example: `@alice:matrix.org`, `@bob:your-server.com`.
+:::
+
+## Step 4: Configure Hermes Agent
 
 ### Option A: Interactive Setup (Recommended)
+
+Run the guided setup command:
 
 ```bash
 hermes gateway setup
 ```
 
-Select **Matrix** when prompted, then provide your homeserver URL, access token (or user ID + password), and allowed user IDs.
+Select **Matrix** when prompted, then provide your homeserver URL, access token (or user ID + password), and allowed user IDs when asked.
 
 ### Option B: Manual Configuration
 
-Add to `~/.hermes/.env`:
+Add the following to your `~/.hermes/.env` file:
 
 **Using an access token:**
 
 ```bash
 # Required
 MATRIX_HOMESERVER=https://matrix.example.org
-MATRIX_ACCESS_TOKEN=your-access-token
+MATRIX_ACCESS_TOKEN=***
 
 # Optional: user ID (auto-detected from token if omitted)
 # MATRIX_USER_ID=@hermes:matrix.example.org
 
 # Security: restrict who can interact with the bot
-MATRIX_ALLOWED_USERS=@alice:matrix.example.org,@bob:matrix.example.org
+MATRIX_ALLOWED_USERS=@alice:matrix.example.org
+
+# Multiple allowed users (comma-separated)
+# MATRIX_ALLOWED_USERS=@alice:matrix.example.org,@bob:matrix.example.org
 ```
 
 **Using password login:**
@@ -166,96 +195,51 @@ MATRIX_ALLOWED_USERS=@alice:matrix.example.org,@bob:matrix.example.org
 # Required
 MATRIX_HOMESERVER=https://matrix.example.org
 MATRIX_USER_ID=@hermes:matrix.example.org
-MATRIX_PASSWORD=your-password
+MATRIX_PASSWORD=***
 
 # Security
 MATRIX_ALLOWED_USERS=@alice:matrix.example.org
 ```
 
-### Start the Gateway
-
-```bash
-hermes gateway              # Foreground
-hermes gateway install      # Install as a user service
-sudo hermes gateway install --system   # Linux only: system service
-```
-
-The bot connects to your homeserver and starts syncing within a few seconds.
-
----
-
-## config.yaml Section
+Optional behavior settings in `~/.hermes/config.yaml`:
 
 ```yaml
 group_sessions_per_user: true
-
-unauthorized_dm_behavior: pair    # pair | ignore
-
-# Matrix-specific settings (v0.8.0)
-matrix:
-  require_mention: true      # true (default) | false — require @mention in rooms
-  free_response_rooms:
-    - "!room_id:server"      # rooms exempt from mention requirement
-  auto_thread: true          # true (default) | false — auto-create threads
-  reactions: true            # false to disable processing lifecycle reactions
 ```
 
----
+- `group_sessions_per_user: true` keeps each participant's context isolated inside shared rooms
 
-## Environment Variables Reference
+### Start the Gateway
 
-| Variable | Required | Description |
-|----------|----------|-------------|
-| `MATRIX_HOMESERVER` | Yes | Homeserver URL (e.g., `https://matrix.example.org`) |
-| `MATRIX_ACCESS_TOKEN` | One of these | Access token for the bot account |
-| `MATRIX_PASSWORD` | One of these | Bot account password (used with `MATRIX_USER_ID`) |
-| `MATRIX_USER_ID` | See notes | Bot's Matrix user ID; auto-detected from token if omitted |
-| `MATRIX_ALLOWED_USERS` | Recommended | Comma-separated Matrix user IDs (full `@user:server` format) |
-| `MATRIX_HOME_ROOM` | No | Room ID for cron job delivery |
-| `MATRIX_HOME_ROOM_NAME` | No | Display name for the home room (default: `Home`) |
-| `MATRIX_ENCRYPTION` | No | Set to `true` to enable E2EE |
-| `MATRIX_DEVICE_ID` | No | Stable device ID for E2EE persistence across restarts (v0.8.0) |
-| `MATRIX_REQUIRE_MENTION` | No | `true`/`false` — require `@mention` in rooms (default: `true`) (v0.8.0) |
-| `MATRIX_FREE_RESPONSE_ROOMS` | No | Comma-separated room IDs exempt from mention requirement (v0.8.0) |
-| `MATRIX_AUTO_THREAD` | No | `true`/`false` — auto-create threads for room replies (default: `true`) (v0.8.0) |
-| `MATRIX_REACTIONS` | No | `false` to disable processing lifecycle emoji reactions (v0.8.0) |
-| `MATRIX_ALLOW_ALL_USERS` | No | Allow all users (not recommended) |
-
----
-
-## Home Room
-
-Designate a home room where the bot sends proactive messages (cron job output, reminders, notifications).
-
-**Using the slash command:** Type `/sethome` in any Matrix room where the bot is present.
-
-**Manual configuration:**
+Once configured, start the Matrix gateway:
 
 ```bash
-MATRIX_HOME_ROOM=!abc123def456:matrix.example.org
+hermes gateway
 ```
 
-To find a Room ID: in Element, go to the room → **Settings** → **Advanced** → the **Internal room ID** is shown there (starts with `!`).
+The bot should connect to your homeserver and start syncing within a few seconds. Send it a message — either a DM or in a room it has joined — to test.
 
----
+:::tip
+You can run `hermes gateway` in the background or as a systemd service for persistent operation. See the deployment docs for details.
+:::
 
 ## End-to-End Encryption (E2EE)
 
-Hermes supports Matrix end-to-end encryption for chatting with your bot in encrypted rooms.
+Hermes supports Matrix end-to-end encryption, so you can chat with your bot in encrypted rooms.
 
 ### Requirements
 
-E2EE requires `matrix-nio` with encryption extras and the `libolm` C library:
+E2EE requires the `mautrix` library with encryption extras and the `libolm` C library:
 
 ```bash
-# Install matrix-nio with E2EE support
-pip install 'matrix-nio[e2e]'
+# Install mautrix with E2EE support
+pip install 'mautrix[encryption]'
 
 # Or install with hermes extras
 pip install 'hermes-agent[matrix]'
 ```
 
-Install `libolm` on your system:
+You also need `libolm` installed on your system:
 
 ```bash
 # Debian/Ubuntu
@@ -270,93 +254,216 @@ sudo dnf install libolm-devel
 
 ### Enable E2EE
 
-Add to `~/.hermes/.env`:
+Add to your `~/.hermes/.env`:
 
 ```bash
 MATRIX_ENCRYPTION=true
 ```
 
 When E2EE is enabled, Hermes:
-- Stores encryption keys in `~/.hermes/matrix/store/`
+
+- Stores encryption keys in `~/.hermes/platforms/matrix/store/` (legacy installs: `~/.hermes/matrix/store/`)
 - Uploads device keys on first connection
 - Decrypts incoming messages and encrypts outgoing messages automatically
 - Auto-joins encrypted rooms when invited
 
-**Store directory:** The encryption store is located at `~/.hermes/matrix/store/`. This directory contains the Olm/Megolm session keys, device keys, and room key backups. Back up this directory if you need to migrate the bot to another machine. Do not delete it — the bot loses its encryption keys and you will need to verify the device again in your Matrix client.
+### Cross-Signing Verification (Recommended)
 
-**Sync grace period:** On first startup with E2EE enabled, the adapter performs an **initial sync** that may take several seconds depending on the number of joined rooms. During this grace period, incoming messages are buffered and not processed until the sync completes and all room keys are loaded. This prevents "unable to decrypt" errors on messages that arrive before the key exchange finishes.
+If your Matrix account has cross-signing enabled (the default in Element), set the recovery key so the bot can self-sign its device on startup. Without this, other Matrix clients may refuse to share encryption sessions with the bot after a device key rotation.
 
-If `matrix-nio[e2e]` is not installed or `libolm` is missing, the bot falls back to a plain (unencrypted) client automatically with a warning in the logs.
+```bash
+MATRIX_RECOVERY_KEY=EsT... your recovery key here
+```
 
-### Access-Token Hardening (v0.5.0)
+**Where to find it:** In Element, go to **Settings** → **Security & Privacy** → **Encryption** → your recovery key (also called the "Security Key"). This is the key you were asked to save when you first set up cross-signing.
 
-v0.5.0 hardened E2EE access-token handling ([PR #3562](https://github.com/NousResearch/hermes-agent/pull/3562)). The access token is now validated and rotated defensively on startup to prevent sessions from using stale tokens that cause silent decryption failures. If you run E2EE and see "could not decrypt event" errors after upgrading, re-authenticate by setting a fresh `MATRIX_ACCESS_TOKEN` and restarting the gateway.
+On each startup, if `MATRIX_RECOVERY_KEY` is set, Hermes imports cross-signing keys from the homeserver's secure secret storage and signs the current device. This is idempotent and safe to leave enabled permanently.
 
-**v0.5.0** also added exponential backoff for `SyncError` in the sync loop ([PR #3280](https://github.com/NousResearch/hermes-agent/pull/3280)), preventing tight reconnect loops during homeserver maintenance windows.
+:::warning
+If you delete the `~/.hermes/platforms/matrix/store/` directory, the bot loses its encryption keys. You'll need to verify the device again in your Matrix client. Back up this directory if you want to preserve encrypted sessions.
+:::
 
-### E2EE Decryption Hardening (v0.7.0)
+:::info
+If `mautrix[encryption]` is not installed or `libolm` is missing, the bot falls back to a plain (unencrypted) client automatically. You'll see a warning in the logs.
+:::
 
-Released v0.7.0 hardens Matrix E2EE handling further:
+## Home Room
 
-- missing room keys are requested automatically
-- trusted-device handling is less brittle during recovery
-- buffered events are retried after the required keys arrive
+You can designate a "home room" where the bot sends proactive messages (such as cron job output, reminders, and notifications). There are two ways to set it:
 
-This reduces the number of transient decryption failures in encrypted rooms and improves recovery after reconnects or device-trust changes.
+### Using the Slash Command
 
----
+Type `/sethome` in any Matrix room where the bot is present. That room becomes the home room.
 
-## Message Length and Media Support
+### Manual Configuration
 
-Matrix messages are limited to 4,000 characters (the spec has no hard limit, but clients render poorly above this). Longer responses are split at natural boundaries.
+Add this to your `~/.hermes/.env`:
 
-Hermes can send and receive images, audio, video, and file attachments. Media is uploaded to your homeserver using the Matrix content repository API.
+```bash
+MATRIX_HOME_ROOM=!abc123def456:matrix.example.org
+```
 
----
+:::tip
+To find a Room ID: in Element, go to the room → **Settings** → **Advanced** → the **Internal room ID** is shown there (starts with `!`).
+:::
 
 ## Troubleshooting
 
-| Problem | Solution |
-|---------|----------|
-| Bot not responding to messages | Invite the bot to the room (it auto-joins). Verify your User ID is in `MATRIX_ALLOWED_USERS` using the full `@user:server` format. Restart the gateway. |
-| "Failed to authenticate" / "whoami failed" on startup | Verify `MATRIX_HOMESERVER` includes `https://` with no trailing slash. Validate your token: `curl -H "Authorization: Bearer YOUR_TOKEN" https://your-server/_matrix/client/v3/account/whoami` |
-| "matrix-nio not installed" error | Run `pip install 'matrix-nio[e2e]'` or `pip install 'hermes-agent[matrix]'` |
-| Encryption errors / "could not decrypt event" | Verify `libolm` is installed. Set `MATRIX_ENCRYPTION=true`. In Element, go to the bot's profile → Sessions → verify/trust the bot's device. |
-| Sync issues / bot falls behind | The sync loop automatically retries every 5 seconds on error. Check Hermes logs for sync-related warnings. |
-| Bot is offline | Check `hermes gateway` is running. Look for error messages in terminal output. Common causes: wrong homeserver URL, expired access token, homeserver unreachable. |
-| "User not allowed" / bot ignores you | Add your User ID to `MATRIX_ALLOWED_USERS` in `~/.hermes/.env` and restart. Use the full `@user:server` format. |
+### Bot is not responding to messages
 
----
+**Cause**: The bot hasn't joined the room, or `MATRIX_ALLOWED_USERS` doesn't include your User ID.
+
+**Fix**: Invite the bot to the room — it auto-joins on invite. Verify your User ID is in `MATRIX_ALLOWED_USERS` (use the full `@user:server` format). Restart the gateway.
+
+### "Failed to authenticate" / "whoami failed" on startup
+
+**Cause**: The access token or homeserver URL is incorrect.
+
+**Fix**: Verify `MATRIX_HOMESERVER` points to your homeserver (include `https://`, no trailing slash). Check that `MATRIX_ACCESS_TOKEN` is valid — try it with curl:
+
+```bash
+curl -H "Authorization: Bearer YOUR_TOKEN" \
+  https://your-server/_matrix/client/v3/account/whoami
+```
+
+If this returns your user info, the token is valid. If it returns an error, generate a new token.
+
+### "mautrix not installed" error
+
+**Cause**: The `mautrix` Python package is not installed.
+
+**Fix**: Install it:
+
+```bash
+pip install 'mautrix[encryption]'
+```
+
+Or with Hermes extras:
+
+```bash
+pip install 'hermes-agent[matrix]'
+```
+
+### Encryption errors / "could not decrypt event"
+
+**Cause**: Missing encryption keys, `libolm` not installed, or the bot's device isn't trusted.
+
+**Fix**:
+1. Verify `libolm` is installed on your system (see the E2EE section above).
+2. Make sure `MATRIX_ENCRYPTION=true` is set in your `.env`.
+3. In your Matrix client (Element), go to the bot's profile -> Sessions -> verify/trust the bot's device.
+4. If the bot just joined an encrypted room, it can only decrypt messages sent *after* it joined. Older messages are inaccessible.
+
+### Upgrading from a previous version with E2EE
+
+If you previously used Hermes with `MATRIX_ENCRYPTION=true` and are upgrading to
+a version that uses the new SQLite-based crypto store, the bot's encryption
+identity has changed. Your Matrix client (Element) may cache the old device keys
+and refuse to share encryption sessions with the bot.
+
+**Symptoms**: The bot connects and shows "E2EE enabled" in the logs, but all
+messages show "could not decrypt event" and the bot never responds.
+
+**What's happening**: The old encryption state (from the previous `matrix-nio` or
+serialization-based `mautrix` backend) is incompatible with the new SQLite crypto
+store. The bot creates a fresh encryption identity, but your Matrix client still
+has the old keys cached and won't share the room's encryption session with a
+device whose keys changed. This is a Matrix security feature -- clients treat
+changed identity keys for the same device as suspicious.
+
+**Fix** (one-time migration):
+
+1. **Generate a new access token** to get a fresh device ID. The simplest way:
+
+   ```bash
+   curl -X POST https://your-server/_matrix/client/v3/login \
+     -H "Content-Type: application/json" \
+     -d '{
+       "type": "m.login.password",
+       "identifier": {"type": "m.id.user", "user": "@hermes:your-server.org"},
+       "password": "***",
+       "initial_device_display_name": "Hermes Agent"
+     }'
+   ```
+
+   Copy the new `access_token` and update `MATRIX_ACCESS_TOKEN` in `~/.hermes/.env`.
+
+2. **Delete old encryption state**:
+
+   ```bash
+   rm -f ~/.hermes/platforms/matrix/store/crypto.db
+   rm -f ~/.hermes/platforms/matrix/store/crypto_store.*
+   ```
+
+3. **Set your recovery key** (if you use cross-signing — most Element users do). Add to `~/.hermes/.env`:
+
+   ```bash
+   MATRIX_RECOVERY_KEY=EsT... your recovery key here
+   ```
+
+   This lets the bot self-sign with cross-signing keys on startup, so Element trusts the new device immediately. Without this, Element may see the new device as unverified and refuse to share encryption sessions. Find your recovery key in Element under **Settings** → **Security & Privacy** → **Encryption**.
+
+4. **Force your Matrix client to rotate the encryption session**. In Element,
+   open the DM room with the bot and type `/discardsession`. This forces Element
+   to create a new encryption session and share it with the bot's new device.
+
+5. **Restart the gateway**:
+
+   ```bash
+   hermes gateway run
+   ```
+
+   If `MATRIX_RECOVERY_KEY` is set, you should see `Matrix: cross-signing verified via recovery key` in the logs.
+
+6. **Send a new message**. The bot should decrypt and respond normally.
+
+:::note
+After migration, messages sent *before* the upgrade cannot be decrypted -- the old
+encryption keys are gone. This only affects the transition; new messages work
+normally.
+:::
+
+:::tip
+**New installations are not affected.** This migration is only needed if you had
+a working E2EE setup with a previous version of Hermes and are upgrading.
+
+**Why a new access token?** Each Matrix access token is bound to a specific device
+ID. Reusing the same device ID with new encryption keys causes other Matrix
+clients to distrust the device (they see changed identity keys as a potential
+security breach). A new access token gets a new device ID with no stale key
+history, so other clients trust it immediately.
+:::
+
+### Sync issues / bot falls behind
+
+**Cause**: Long-running tool executions can delay the sync loop, or the homeserver is slow.
+
+**Fix**: The sync loop automatically retries every 5 seconds on error. Check the Hermes logs for sync-related warnings. If the bot consistently falls behind, ensure your homeserver has adequate resources.
+
+### Bot is offline
+
+**Cause**: The Hermes gateway isn't running, or it failed to connect.
+
+**Fix**: Check that `hermes gateway` is running. Look at the terminal output for error messages. Common issues: wrong homeserver URL, expired access token, homeserver unreachable.
+
+### "User not allowed" / Bot ignores you
+
+**Cause**: Your User ID isn't in `MATRIX_ALLOWED_USERS`.
+
+**Fix**: Add your User ID to `MATRIX_ALLOWED_USERS` in `~/.hermes/.env` and restart the gateway. Use the full `@user:server` format.
 
 ## Security
 
-Always set `MATRIX_ALLOWED_USERS` to restrict who can interact with the bot. Without it, the gateway denies all users by default. Only add User IDs of people you trust — authorized users have full access to the agent's capabilities, including tool use and system access.
+:::warning
+Always set `MATRIX_ALLOWED_USERS` to restrict who can interact with the bot. Without it, the gateway denies all users by default as a safety measure. Only add User IDs of people you trust — authorized users have full access to the agent's capabilities, including tool use and system access.
+:::
 
-- Works with federation: users from other servers can be added to `MATRIX_ALLOWED_USERS` using their full `@user:server` IDs
-- Protect `~/.hermes/matrix/store/` — it contains encryption keys
-- Access tokens and passwords are stored in `~/.hermes/.env` — protect this file (`chmod 600`)
+For more information on securing your Hermes Agent deployment, see the [Security Guide](../security.md).
 
----
+## Notes
 
-## v0.6.0 Changes
-
-### Native voice messages via MSC3245 ([PR #3877](https://github.com/NousResearch/hermes-agent/pull/3877))
-
-Hermes now sends TTS audio responses as native Matrix voice messages conforming to [MSC3245](https://github.com/matrix-org/matrix-spec-proposals/pull/3245). In Matrix clients that support MSC3245 (Element Web, Element X, FluffyChat), these messages display as playable voice bubbles with a waveform visualization — rather than generic file attachments.
-
-Clients that do not support MSC3245 fall back gracefully to the standard `m.audio` event type and display the audio as a downloadable file attachment.
-
-No configuration change is required — the adapter automatically uses the MSC3245 format when sending voice messages.
-
----
-
-## Changelog
-
-- **v0.8.0:** Matrix promoted to Tier 1 — reactions, read receipts, rich formatting, room management commands ([PR #5275](https://github.com/NousResearch/hermes-agent/pull/5275)).
-- **v0.8.0:** `MATRIX_REQUIRE_MENTION` and `MATRIX_AUTO_THREAD` config options ([PR #5106](https://github.com/NousResearch/hermes-agent/pull/5106)).
-- **v0.8.0:** E2EE cron delivery, encrypted media handling, Synapse filesize compat ([PR #5271](https://github.com/NousResearch/hermes-agent/pull/5271)).
-- **v0.8.0:** CJK input fixes, stable `MATRIX_DEVICE_ID`, reconnect improvements ([PR #5665](https://github.com/NousResearch/hermes-agent/pull/5665)).
-- **v0.6.0:** Native MSC3245 voice messages with waveform player support ([PR #3877](https://github.com/NousResearch/hermes-agent/pull/3877)).
-- **v0.7.0:** E2EE decryption hardening — request missing keys, auto-trust devices, retry buffered events ([PR #4083](https://github.com/NousResearch/hermes-agent/pull/4083)).
-- **v0.5.0:** Access-token hardening for E2EE — token validated and rotated defensively on startup ([PR #3562](https://github.com/NousResearch/hermes-agent/pull/3562)).
-- **v0.5.0:** Exponential backoff for `SyncError` in sync loop ([PR #3280](https://github.com/NousResearch/hermes-agent/pull/3280)).
+- **Any homeserver**: Works with Synapse, Conduit, Dendrite, matrix.org, or any spec-compliant Matrix homeserver. No specific homeserver software required.
+- **Federation**: If you're on a federated homeserver, the bot can communicate with users from other servers — just add their full `@user:server` IDs to `MATRIX_ALLOWED_USERS`.
+- **Auto-join**: The bot automatically accepts room invites and joins. It starts responding immediately after joining.
+- **Media support**: Hermes can send and receive images, audio, video, and file attachments. Media is uploaded to your homeserver using the Matrix content repository API.
+- **Native voice messages (MSC3245)**: The Matrix adapter automatically tags outgoing voice messages with the `org.matrix.msc3245.voice` flag. This means TTS responses and voice audio are rendered as **native voice bubbles** in Element and other clients that support MSC3245, rather than as generic audio file attachments. Incoming voice messages with the MSC3245 flag are also correctly identified and routed to speech-to-text transcription. No configuration is needed — this works automatically.

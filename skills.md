@@ -1,50 +1,110 @@
-# Skills
 
-Skills are on-demand knowledge documents the agent can load when needed. Hermes ships with **118 skills** (96 built-in + 22 optional) across 22 categories. They follow a **progressive disclosure** pattern to minimize token usage and are compatible with the [agentskills.io](https://agentskills.io/specification) open standard.
+# Skills System
 
-All skills live in **`~/.hermes/skills/`** — a single directory that serves as the source of truth. On fresh install, bundled skills are copied from the repository. Hub-installed and agent-created skills also live here. The agent can modify or delete any skill.
+Skills are on-demand knowledge documents the agent can load when needed. They follow a **progressive disclosure** pattern to minimize token usage and are compatible with the [agentskills.io](https://agentskills.io/specification) open standard.
 
-## Skills vs Tools
+All skills live in **`~/.hermes/skills/`** — the primary directory and source of truth. On fresh install, bundled skills are copied from the repo. Hub-installed and agent-created skills also go here. The agent can modify or delete any skill.
 
-Skills and tools serve different purposes:
+You can also point Hermes at **external skill directories** — additional folders scanned alongside the local one. See [External Skill Directories](#external-skill-directories) below.
 
-| | Skills | Tools |
-|---|---|---|
-| **What they are** | Markdown documents with instructions | Python functions exposed to the AI |
-| **Format** | SKILL.md + optional supporting files | Python handler + JSON schema |
-| **Execution** | Agent reads and follows instructions | Code executes directly |
-| **Extension** | No code changes required | Requires editing Python files |
-| **Best for** | CLI workflows, API guides, shell-based tasks | Binary data, streaming, complex Python logic |
+See also:
 
-Make it a **Skill** when the capability can be expressed as instructions plus shell commands plus existing tools (arXiv search, git workflows, Docker management, PDF processing, email via CLI tools).
+- [Bundled Skills Catalog](/docs/reference/skills-catalog)
+- [Official Optional Skills Catalog](/docs/reference/optional-skills-catalog)
 
-Make it a **Tool** when it requires end-to-end integration with API keys, auth flows, multi-component configuration, custom processing logic that must execute precisely every time, binary data, streaming, or real-time events (browser automation, TTS, vision analysis).
+## Using Skills
 
-## How Skills Are Loaded and Activated
+Every installed skill is automatically available as a slash command:
 
-Skills are discovered at startup by scanning `~/.hermes/skills/` recursively for all `SKILL.md` files. The scan excludes `.git`, `.github`, and `.hub` directories.
+```bash
+# In the CLI or any messaging platform:
+/gif-search funny cats
+/axolotl help me fine-tune Llama 3 on my dataset
+/github-pr-workflow create a PR for the auth refactor
+/plan design a rollout for migrating our auth provider
 
-Skills are never loaded into context automatically in bulk. Instead, the agent uses a four-tier progressive disclosure pattern:
+# Just the skill name loads it and lets the agent ask what you need:
+/excalidraw
+```
 
-| Tier | Call | Returns | Token Budget |
-|------|------|---------|-------------|
-| Tier 0 | System prompt injection | Skill names + one-line descriptions for all visible skills | ~500 tokens |
-| Tier 1 | `skills_list()` | `[{name, description, category}, ...]` for all visible skills | ~3k tokens |
-| Tier 2 | `skill_view(name)` | Full SKILL.md content + metadata | varies per skill |
-| Tier 3 | `skill_view(name, path)` | Specific reference/template/script file within the skill directory | varies per file |
+The bundled `plan` skill is a good example of a skill-backed slash command with custom behavior. Running `/plan [request]` tells Hermes to inspect context if needed, write a markdown implementation plan instead of executing the task, and save the result under `.hermes/plans/` relative to the active workspace/backend working directory.
 
-At Tier 0, the system prompt includes a compact index so the agent knows which skills exist. At Tier 1, the agent gets richer descriptions and categories. Full content is loaded only on demand at Tier 2. Linked files (references, templates, scripts) are loaded individually at Tier 3. This keeps token usage low for sessions that do not need most skills.
+You can also interact with skills through natural conversation:
 
-A skill is filtered out and never shown to the agent if:
-- Its `platforms` field excludes the current OS
-- Its name appears in the `skills.disabled` config list for the active platform
-- It cannot be parsed (YAML errors, encoding errors)
+```bash
+hermes chat --toolsets skills -q "What skills do you have?"
+hermes chat --toolsets skills -q "Show me the axolotl skill"
+```
 
-Skills without any platform or toolset restrictions are always shown.
+## Progressive Disclosure
 
-### Conditional Activation
+Skills use a token-efficient loading pattern:
 
-Skills can automatically show or hide themselves based on which tools or toolsets are available in the current session. This is used for fallback skills — free or local alternatives that only appear when a premium tool is unavailable.
+```
+Level 0: skills_list()           → [{name, description, category}, ...]   (~3k tokens)
+Level 1: skill_view(name)        → Full content + metadata       (varies)
+Level 2: skill_view(name, path)  → Specific reference file       (varies)
+```
+
+The agent only loads the full skill content when it actually needs it.
+
+## SKILL.md Format
+
+```markdown
+---
+name: my-skill
+description: Brief description of what this skill does
+version: 1.0.0
+platforms: [macos, linux]     # Optional — restrict to specific OS platforms
+metadata:
+  hermes:
+    tags: [python, automation]
+    category: devops
+    fallback_for_toolsets: [web]    # Optional — conditional activation (see below)
+    requires_toolsets: [terminal]   # Optional — conditional activation (see below)
+    config:                          # Optional — config.yaml settings
+      - key: my.setting
+        description: "What this controls"
+        default: "value"
+        prompt: "Prompt for setup"
+---
+
+# Skill Title
+
+## When to Use
+Trigger conditions for this skill.
+
+## Procedure
+1. Step one
+2. Step two
+
+## Pitfalls
+- Known failure modes and fixes
+
+## Verification
+How to confirm it worked.
+```
+
+### Platform-Specific Skills
+
+Skills can restrict themselves to specific operating systems using the `platforms` field:
+
+| Value | Matches |
+|-------|---------|
+| `macos` | macOS (Darwin) |
+| `linux` | Linux |
+| `windows` | Windows |
+
+```yaml
+platforms: [macos]            # macOS only (e.g., iMessage, Apple Reminders, FindMy)
+platforms: [macos, linux]     # macOS and Linux
+```
+
+When set, the skill is automatically hidden from the system prompt, `skills_list()`, and slash commands on incompatible platforms. If omitted, the skill loads on all platforms.
+
+### Conditional Activation (Fallback Skills)
+
+Skills can automatically show or hide themselves based on which tools are available in the current session. This is most useful for **fallback skills** — free or local alternatives that should only appear when a premium tool is unavailable.
 
 ```yaml
 metadata:
@@ -57,90 +117,16 @@ metadata:
 
 | Field | Behavior |
 |-------|----------|
-| `fallback_for_toolsets` | Skill is hidden when the listed toolsets are available. Shown when they are missing. |
+| `fallback_for_toolsets` | Skill is **hidden** when the listed toolsets are available. Shown when they're missing. |
 | `fallback_for_tools` | Same, but checks individual tools instead of toolsets. |
-| `requires_toolsets` | Skill is hidden when the listed toolsets are unavailable. Shown when they are present. |
+| `requires_toolsets` | Skill is **hidden** when the listed toolsets are unavailable. Shown when they're present. |
 | `requires_tools` | Same, but checks individual tools. |
 
-Example: The built-in `duckduckgo-search` skill uses `fallback_for_toolsets: [web]`. When `FIRECRAWL_API_KEY` is set, the web toolset is available and the agent uses `web_search` — the DuckDuckGo skill stays hidden. If the API key is missing, the skill automatically appears as a fallback.
+**Example:** The built-in `duckduckgo-search` skill uses `fallback_for_toolsets: [web]`. When you have `FIRECRAWL_API_KEY` set, the web toolset is available and the agent uses `web_search` — the DuckDuckGo skill stays hidden. If the API key is missing, the web toolset is unavailable and the DuckDuckGo skill automatically appears as a fallback.
 
-## SKILL.md File Format
+Skills without any conditional fields behave exactly as before — they're always shown.
 
-```markdown
----
-name: my-skill
-description: Brief description of what this skill does
-version: 1.0.0
-author: Your Name
-license: MIT
-platforms: [macos, linux]     # Optional — restrict to specific OS platforms
-                               #   Valid: macos, linux, windows
-                               #   Omit to load on all platforms (default)
-required_environment_variables:
-  - name: TENOR_API_KEY
-    prompt: Tenor API key
-    help: Get a key from https://developers.google.com/tenor
-    required_for: full functionality
-metadata:
-  hermes:
-    tags: [python, automation]
-    category: devops
-    related_skills: [other-skill-name]
-    fallback_for_toolsets: [web]    # Optional — conditional activation
-    requires_toolsets: [terminal]   # Optional — conditional activation
----
-
-# Skill Title
-
-Brief intro.
-
-## When to Use
-Trigger conditions — when should the agent load this skill?
-
-## Quick Reference
-Table of common commands or API calls.
-
-## Procedure
-Step-by-step instructions the agent follows.
-
-## Pitfalls
-Known failure modes and how to handle them.
-
-## Verification
-How the agent confirms it worked.
-```
-
-### Field Reference
-
-| Field | Required | Description |
-|-------|----------|-------------|
-| `name` | Yes | Skill name, max 64 characters |
-| `description` | Yes | Brief description, max 1024 characters |
-| `version` | No | Semantic version string |
-| `author` | No | Author name |
-| `license` | No | License identifier (agentskills.io standard) |
-| `platforms` | No | List of `macos`, `linux`, `windows`. Omit for all platforms. |
-| `required_environment_variables` | No | List of required env vars with prompts |
-| `metadata.hermes.tags` | No | List of keyword tags |
-| `metadata.hermes.related_skills` | No | List of related skill names |
-| `metadata.hermes.fallback_for_toolsets` | No | Show only when listed toolsets are absent |
-| `metadata.hermes.requires_toolsets` | No | Show only when listed toolsets are present |
-| `metadata.hermes.fallback_for_tools` | No | Show only when listed tools are absent |
-| `metadata.hermes.requires_tools` | No | Show only when listed tools are present |
-| `compatibility` | No | Compatibility note (agentskills.io standard) |
-| `prerequisites.env_vars` | No | Legacy alias for `required_environment_variables` |
-
-### Platform-Specific Skills
-
-```yaml
-platforms: [macos]            # macOS only (e.g., iMessage, Apple Reminders, FindMy)
-platforms: [macos, linux]     # macOS and Linux
-platforms: [windows]          # Windows only
-```
-
-When set, the skill is automatically hidden from the system prompt, `skills_list()`, and slash commands on incompatible platforms. The platform detection maps `macos` to `sys.platform.startswith("darwin")`, `linux` to `sys.platform.startswith("linux")`, and `windows` to `sys.platform.startswith("win32")`.
-
-### Secure Setup on Load
+## Secure Setup on Load
 
 Skills can declare required environment variables without disappearing from discovery:
 
@@ -152,9 +138,27 @@ required_environment_variables:
     required_for: full functionality
 ```
 
-When a missing value is encountered, Hermes prompts for it securely only when the skill is actually loaded in the local CLI. You can skip setup and keep using the skill. Messaging platforms never ask for secrets in chat — they tell you to use `hermes setup` or add the key to `~/.hermes/.env` manually.
+When a missing value is encountered, Hermes asks for it securely only when the skill is actually loaded in the local CLI. You can skip setup and keep using the skill. Messaging surfaces never ask for secrets in chat — they tell you to use `hermes setup` or `~/.hermes/.env` locally instead.
 
-The legacy `prerequisites.env_vars` field is supported as a backward-compatible alias.
+Once set, declared env vars are **automatically passed through** to `execute_code` and `terminal` sandboxes — the skill's scripts can use `$TENOR_API_KEY` directly. For non-skill env vars, use the `terminal.env_passthrough` config option. See [Environment Variable Passthrough](/docs/user-guide/security#environment-variable-passthrough) for details.
+
+### Skill Config Settings
+
+Skills can also declare non-secret config settings (paths, preferences) stored in `config.yaml`:
+
+```yaml
+metadata:
+  hermes:
+    config:
+      - key: wiki.path
+        description: Path to the wiki directory
+        default: "~/wiki"
+        prompt: Wiki directory path
+```
+
+Settings are stored under `skills.config` in your config.yaml. `hermes config migrate` prompts for unconfigured settings, and `hermes config show` displays them. When a skill loads, its resolved config values are injected into the context so the agent knows the configured values automatically.
+
+See [Skill Settings](/docs/user-guide/configuration#skill-settings) and [Creating Skills — Config Settings](/docs/developer-guide/creating-skills#config-settings-configyaml) for details.
 
 ## Skill Directory Structure
 
@@ -163,10 +167,10 @@ The legacy `prerequisites.env_vars` field is supported as a backward-compatible 
 ├── mlops/                         # Category directory
 │   ├── axolotl/
 │   │   ├── SKILL.md               # Main instructions (required)
-│   │   ├── references/            # Additional docs (API specs, examples)
-│   │   ├── templates/             # Output formats, config boilerplate
+│   │   ├── references/            # Additional docs
+│   │   ├── templates/             # Output formats
 │   │   ├── scripts/               # Helper scripts callable from the skill
-│   │   └── assets/                # Supplementary files (agentskills.io standard)
+│   │   └── assets/                # Supplementary files
 │   └── vllm/
 │       └── SKILL.md
 ├── devops/
@@ -180,531 +184,78 @@ The legacy `prerequisites.env_vars` field is supported as a backward-compatible 
 └── .bundled_manifest              # Tracks seeded bundled skills
 ```
 
-## External Skill Directories (v0.6.0)
+## External Skill Directories
 
-Added in v0.6.0 (PR [#3678](https://github.com/NousResearch/hermes-agent/pull/3678)).
+If you maintain skills outside of Hermes — for example, a shared `~/.agents/skills/` directory used by multiple AI tools — you can tell Hermes to scan those directories too.
 
-By default, Hermes only loads skills from `~/.hermes/skills/`. You can configure additional read-only skill directories via `skills.external_dirs` in `config.yaml`:
+Add `external_dirs` under the `skills` section in `~/.hermes/config.yaml`:
 
 ```yaml
 skills:
   external_dirs:
-    - "~/.agents/shared-skills"
-    - "/mnt/team-skills"
+    - ~/.agents/skills
+    - /home/shared/team-skills
+    - ${SKILLS_REPO}/skills
 ```
 
-Each path is shell-expanded (`~`, `${VAR}`) and resolved at startup. External directories are scanned recursively for `SKILL.md` files alongside the local `~/.hermes/skills/` directory.
+Paths support `~` expansion and `${VAR}` environment variable substitution.
 
-**Behavior:**
+### How it works
 
-- External dirs are read-only — the agent can read skills from them but new skills are always created in `~/.hermes/skills/`.
-- When two skills share the same name, the local skill takes precedence over any external directory.
-- External skills appear in `skills_list()` and all slash commands exactly like local skills.
+- **Read-only**: External dirs are only scanned for skill discovery. When the agent creates or edits a skill, it always writes to `~/.hermes/skills/`.
+- **Local precedence**: If the same skill name exists in both the local dir and an external dir, the local version wins.
+- **Full integration**: External skills appear in the system prompt index, `skills_list`, `skill_view`, and as `/skill-name` slash commands — no different from local skills.
+- **Non-existent paths are silently skipped**: If a configured directory doesn't exist, Hermes ignores it without errors. Useful for optional shared directories that may not be present on every machine.
 
-**Use cases:**
+### Example
 
-- Sharing a common skill library across multiple Hermes profiles or team members
-- Mounting skill directories into Docker or Modal containers without copying files
-- Keeping project-specific skills in a repo directory separate from personal skills
+```text
+~/.hermes/skills/               # Local (primary, read-write)
+├── devops/deploy-k8s/
+│   └── SKILL.md
+└── mlops/axolotl/
+    └── SKILL.md
 
-## Skills Directory Mounting to Remote Backends (v0.6.0)
-
-The `~/.hermes/skills/` directory is automatically mounted and live-synced to all remote terminal backends (Docker, Modal, SSH, Singularity, Daytona). The sync uses mtime+size caching to avoid redundant transfers. This means skills that reference local helper scripts or templates work identically on remote backends -- the files are available inside the sandbox.
-
-## Preload Mode
-
-You can preload a skill into the session at startup using the `--skill` flag:
-
-```bash
-hermes -c "fine-tune Llama 3 on my dataset" --skill axolotl
+~/.agents/skills/               # External (read-only, shared)
+├── my-custom-workflow/
+│   └── SKILL.md
+└── team-conventions/
+    └── SKILL.md
 ```
 
-This loads the skill content into the session prompt before the task runs, so the agent does not need to discover and load the skill itself. Multiple `--skill` flags can be combined. This is useful for one-shot commands where you already know which skill is needed.
+All four skills appear in your skill index. If you create a new skill called `my-custom-workflow` locally, it shadows the external version.
 
----
+## Agent-Managed Skills (skill_manage tool)
 
-## Bundled Skills Catalog
-
-Hermes ships with a large built-in skill library that is copied into `~/.hermes/skills/` on install. The repository organizes skills under `skills/` by category. The actual directory structure on disk is verified below.
-
-### apple
-
-Apple/macOS-specific skills. All four restrict themselves to `platforms: [macos]` and are hidden on Linux and Windows.
-
-| Skill | Description | Path |
-|-------|-------------|------|
-| `apple-notes` | Manage Apple Notes via the memo CLI on macOS (create, view, search, edit). | `apple/apple-notes` |
-| `apple-reminders` | Manage Apple Reminders via remindctl CLI (list, add, complete, delete). | `apple/apple-reminders` |
-| `findmy` | Track Apple devices and AirTags via FindMy.app on macOS using AppleScript and screen capture. | `apple/findmy` |
-| `imessage` | Send and receive iMessages/SMS via the imsg CLI on macOS. | `apple/imessage` |
-
-### autonomous-ai-agents
-
-Skills for spawning and orchestrating autonomous AI coding agents and multi-agent workflows.
-
-| Skill | Description | Path |
-|-------|-------------|------|
-| `claude-code` | Delegate coding tasks to Claude Code (Anthropic's CLI agent). Requires the claude CLI. | `autonomous-ai-agents/claude-code` |
-| `codex` | Delegate coding tasks to OpenAI Codex CLI agent. Requires the codex CLI and a git repository. | `autonomous-ai-agents/codex` |
-| `hermes-agent-spawning` | Spawn additional Hermes Agent instances as autonomous subprocesses. Supports non-interactive one-shot mode (-q) and interactive PTY mode. | `autonomous-ai-agents/hermes-agent` |
-| `opencode` | Delegate coding tasks to OpenCode CLI agent. Requires the opencode CLI. | `autonomous-ai-agents/opencode` |
-
-### creative
-
-| Skill | Description | Path |
-|-------|-------------|------|
-| `ascii-art` | Generate ASCII art using pyfiglet (571 fonts), cowsay, boxes, toilet, image-to-ascii, remote APIs, and LLM fallback. No API keys required. | `creative/ascii-art` |
-| `ascii-video` | Production pipeline for ASCII art video — converts video/audio/images/generative input into colored ASCII character video output (MP4, GIF, image sequence). | `creative/ascii-video` |
-| `excalidraw` | Create hand-drawn style diagrams using Excalidraw JSON format (.excalidraw files) for architecture diagrams, flowcharts, sequence diagrams, and concept maps. | `creative/excalidraw` |
-
-### data-science
-
-| Skill | Description | Path |
-|-------|-------------|------|
-| `jupyter-live-kernel` | Work with Jupyter notebooks using a live kernel for interactive data science. | `data-science/jupyter-live-kernel` |
-
-### dogfood
-
-| Skill | Description | Path |
-|-------|-------------|------|
-| `dogfood` | Systematic exploratory QA testing of web applications — find bugs, capture evidence, and generate structured reports. | `dogfood` |
-| `hermes-agent-setup` | Help users configure Hermes Agent — CLI usage, setup wizard, model/provider selection, tools, skills, voice/STT/TTS, gateway, and troubleshooting. | `dogfood/hermes-agent-setup` |
-
-### email
-
-| Skill | Description | Path |
-|-------|-------------|------|
-| `himalaya` | CLI to manage emails via IMAP/SMTP. List, read, write, reply, forward, search, and organize emails from the terminal. Supports multiple accounts and MML composition. | `email/himalaya` |
-
-### gaming
-
-| Skill | Description | Path |
-|-------|-------------|------|
-| `minecraft-modpack-server` | Set up a modded Minecraft server from a CurseForge/Modrinth server pack zip. Covers NeoForge/Forge install, Java version, JVM tuning, firewall, backups, and launch scripts. | `gaming/minecraft-modpack-server` |
-| `pokemon-player` | Play Pokemon games autonomously via headless emulation. Reads structured game state from RAM, makes strategic decisions, and sends button inputs. | `gaming/pokemon-player` |
-
-### github
-
-GitHub workflow skills for managing repositories, pull requests, code reviews, issues, and CI/CD pipelines using the gh CLI and git via terminal.
-
-| Skill | Description | Path |
-|-------|-------------|------|
-| `codebase-inspection` | Inspect and analyze codebases using pygount for LOC counting, language breakdown, and code-vs-comment ratios. | `github/codebase-inspection` |
-| `github-auth` | Set up GitHub authentication using git or the gh CLI. Covers HTTPS tokens, SSH keys, credential helpers, and gh auth. | `github/github-auth` |
-| `github-code-review` | Review code changes by analyzing git diffs, leaving inline comments on PRs, and performing pre-push review. | `github/github-code-review` |
-| `github-issues` | Create, manage, triage, and close GitHub issues. Search, add labels, assign people, and link to PRs. | `github/github-issues` |
-| `github-pr-workflow` | Full pull request lifecycle — create branches, commit changes, open PRs, monitor CI, auto-fix failures, and merge. | `github/github-pr-workflow` |
-| `github-repo-management` | Clone, create, fork, configure, and manage GitHub repositories. Manage remotes, secrets, releases, and workflows. | `github/github-repo-management` |
-
-### inference-sh
-
-| Skill | Description | Path |
-|-------|-------------|------|
-| `inference-sh-cli` | Run 150+ AI apps via inference.sh CLI (infsh) — image generation, video creation, LLMs, search, 3D, social automation. No GPU required. | `inference-sh/cli` |
-
-### leisure
-
-| Skill | Description | Path |
-|-------|-------------|------|
-| `find-nearby` | Find nearby places (restaurants, cafes, bars, pharmacies) using OpenStreetMap. Works with coordinates, addresses, cities, zip codes, or Telegram location pins. No API keys needed. | `leisure/find-nearby` |
-
-### mcp
-
-| Skill | Description | Path |
-|-------|-------------|------|
-| `mcporter` | Use the mcporter CLI to list, configure, auth, and call MCP servers/tools directly (HTTP or stdio), including ad-hoc servers, config edits, and CLI/type generation. | `mcp/mcporter` |
-| `native-mcp` | Built-in MCP client documentation — explains configuring MCP servers in config.yaml for automatic tool discovery. Supports stdio and HTTP transports with automatic reconnection. | `mcp/native-mcp` |
-
-### media
-
-| Skill | Description | Path |
-|-------|-------------|------|
-| `gif-search` | Search and download GIFs from Tenor using curl. No dependencies beyond curl and jq. | `media/gif-search` |
-| `heartmula` | Set up and run HeartMuLa, the open-source music generation model family. Generates full songs from lyrics and tags with multilingual support. | `media/heartmula` |
-| `songsee` | Generate spectrograms and audio feature visualizations (mel, chroma, MFCC, tempogram) from audio files via CLI. | `media/songsee` |
-| `youtube-content` | Fetch YouTube video transcripts and transform them into structured content (chapters, summaries, threads, blog posts). | `media/youtube-content` |
-
-### mlops
-
-| Skill | Description | Path |
-|-------|-------------|------|
-| `huggingface-hub` | Hugging Face Hub CLI (hf) — search, download, and upload models and datasets, manage repos, query datasets with SQL, deploy inference endpoints, manage Spaces and buckets. | `mlops/huggingface-hub` |
-
-### mlops/cloud
-
-GPU cloud providers and serverless compute platforms for ML workloads.
-
-| Skill | Description | Path |
-|-------|-------------|------|
-| `lambda-labs-gpu-cloud` | Reserved and on-demand GPU cloud instances for ML training and inference via simple SSH access. | `mlops/cloud/lambda-labs` |
-| `modal-serverless-gpu` | Serverless GPU cloud platform for running ML workloads on-demand with automatic scaling. | `mlops/cloud/modal` |
-
-### mlops/evaluation
-
-Model evaluation benchmarks, experiment tracking, data curation, tokenizers, and interpretability tools.
-
-| Skill | Description | Path |
-|-------|-------------|------|
-| `evaluating-llms-harness` | Evaluate LLMs across 60+ academic benchmarks (MMLU, HumanEval, GSM8K, TruthfulQA, HellaSwag). Industry standard used by EleutherAI and HuggingFace. | `mlops/evaluation/lm-evaluation-harness` |
-| `huggingface-tokenizers` | Fast Rust-based tokenizers. Trains custom vocabularies, handles BPE/WordPiece/Unigram, tokenizes 1GB in under 20 seconds. | `mlops/evaluation/huggingface-tokenizers` |
-| `nemo-curator` | GPU-accelerated data curation for LLM training — fuzzy deduplication (16x faster), quality filtering (30+ heuristics), semantic dedup, PII redaction. | `mlops/evaluation/nemo-curator` |
-| `sparse-autoencoder-training` | Train and analyze Sparse Autoencoders (SAEs) using SAELens to decompose neural network activations into interpretable features. | `mlops/evaluation/saelens` |
-| `weights-and-biases` | Track ML experiments with automatic logging, visualize training in real-time, and optimize hyperparameters with sweeps. | `mlops/evaluation/weights-and-biases` |
-
-### mlops/inference
-
-Model serving, quantization (GGUF/GPTQ), structured output, inference optimization, and model surgery tools for deploying and running LLMs.
-
-| Skill | Description | Path |
-|-------|-------------|------|
-| `gguf-quantization` | GGUF format and llama.cpp quantization for CPU/GPU inference. 2-8 bit quantization without GPU requirements. | `mlops/inference/gguf` |
-| `guidance` | Control LLM output with regex and grammars, guarantee valid JSON/XML/code generation with Microsoft Guidance. | `mlops/inference/guidance` |
-| `instructor` | Extract structured data from LLM responses with Pydantic validation, retry failed extractions, parse complex JSON with type safety. | `mlops/inference/instructor` |
-| `llama-cpp` | Run LLM inference on CPU, Apple Silicon (M1/M2/M3), and consumer GPUs without NVIDIA hardware. Supports GGUF quantization (1.5-8 bit). | `mlops/inference/llama-cpp` |
-| `obliteratus` | Remove refusal behaviors from open-weight LLMs using mechanistic interpretability techniques (diff-in-means, SVD, LEACE, SAE decomposition). 9 CLI methods, 28 analysis modules, 116 model presets. | `mlops/inference/obliteratus` |
-| `outlines` | Guarantee valid JSON/XML/code structure during generation using Pydantic models for type-safe outputs. Supports local models (Transformers, vLLM). | `mlops/inference/outlines` |
-| `serving-llms-vllm` | Serve LLMs with high throughput using vLLM's PagedAttention and continuous batching. OpenAI-compatible endpoints, GPTQ/AWQ/FP8 quantization. | `mlops/inference/vllm` |
-| `tensorrt-llm` | Optimize LLM inference with NVIDIA TensorRT for maximum throughput on A100/H100 GPUs. In-flight batching, FP8/INT4 quantization. | `mlops/inference/tensorrt-llm` |
-
-### mlops/models
-
-Specific model architectures — computer vision, speech, audio generation, and multimodal models.
-
-| Skill | Description | Path |
-|-------|-------------|------|
-| `audiocraft-audio-generation` | PyTorch library for audio generation including text-to-music (MusicGen) and text-to-sound (AudioGen). | `mlops/models/audiocraft` |
-| `clip` | OpenAI's model connecting vision and language. Zero-shot image classification, image-text matching, cross-modal retrieval. Trained on 400M image-text pairs. | `mlops/models/clip` |
-| `llava` | Large Language and Vision Assistant — visual instruction tuning and image-based conversations combining CLIP and LLaMA. | `mlops/models/llava` |
-| `segment-anything-model` | Foundation model for image segmentation with zero-shot transfer. Segment any object using points, boxes, or masks as prompts. | `mlops/models/segment-anything` |
-| `stable-diffusion-image-generation` | Text-to-image generation with Stable Diffusion via HuggingFace Diffusers. Supports img2img, inpainting, and custom pipelines. | `mlops/models/stable-diffusion` |
-| `whisper` | OpenAI's general-purpose speech recognition. 99 languages, transcription, translation to English. Six model sizes from tiny (39M) to large (1550M). | `mlops/models/whisper` |
-
-### mlops/research
-
-| Skill | Description | Path |
-|-------|-------------|------|
-| `dspy` | Build complex AI systems with declarative programming, optimize prompts automatically, create modular RAG systems with Stanford NLP's DSPy. | `mlops/research/dspy` |
-
-### mlops/training
-
-Fine-tuning, RLHF/DPO/GRPO training, distributed training frameworks, and optimization tools for training LLMs.
-
-| Skill | Description | Path |
-|-------|-------------|------|
-| `axolotl` | Expert guidance for fine-tuning LLMs with Axolotl — YAML configs, 100+ models, LoRA/QLoRA, DPO/KTO/ORPO/GRPO, multimodal support. | `mlops/training/axolotl` |
-| `distributed-llm-pretraining-torchtitan` | PyTorch-native distributed LLM pretraining using torchtitan with 4D parallelism (FSDP2, TP, PP, CP). Supports Llama 3.1, DeepSeek V3 at scale. | `mlops/training/torchtitan` |
-| `fine-tuning-with-trl` | Fine-tune LLMs with TRL — SFT for instruction tuning, DPO for preference alignment, PPO/GRPO for reward optimization. | `mlops/training/trl-fine-tuning` |
-| `grpo-rl-training` | Expert guidance for GRPO/RL fine-tuning with TRL for reasoning and task-specific model training. | `mlops/training/grpo-rl-training` |
-| `hermes-atropos-environments` | Build, test, and debug Hermes Agent RL environments for Atropos training — HermesAgentBaseEnv interface, reward functions, wandb logging. | `mlops/training/hermes-atropos-environments` |
-| `huggingface-accelerate` | Distributed training API — 4 lines to add distributed support to any PyTorch script. Unified DeepSpeed/FSDP/Megatron/DDP API. | `mlops/training/accelerate` |
-| `optimizing-attention-flash` | Optimize transformer attention with Flash Attention for 2-4x speedup and 10-20x memory reduction. | `mlops/training/flash-attention` |
-| `peft-fine-tuning` | Parameter-efficient fine-tuning using LoRA, QLoRA, and 25+ methods. Train less than 1% of parameters for 7B-70B models. | `mlops/training/peft` |
-| `pytorch-fsdp` | Expert guidance for Fully Sharded Data Parallel training with PyTorch FSDP — parameter sharding, mixed precision, CPU offloading. | `mlops/training/pytorch-fsdp` |
-| `pytorch-lightning` | High-level PyTorch framework with Trainer class, automatic distributed training (DDP/FSDP/DeepSpeed), and callbacks system. | `mlops/training/pytorch-lightning` |
-| `simpo-training` | Simple Preference Optimization — reference-free DPO alternative with better performance (+6.4 points on AlpacaEval 2.0). | `mlops/training/simpo` |
-| `slime-rl-training` | LLM post-training with RL using slime, a Megatron+SGLang framework for GLM models. | `mlops/training/slime` |
-| `unsloth` | Expert guidance for fast fine-tuning with Unsloth — 2-5x faster training, 50-80% less memory, LoRA/QLoRA optimization. | `mlops/training/unsloth` |
-
-### mlops/vector-databases
-
-Vector similarity search and embedding databases for RAG, semantic search, and AI application backends.
-
-| Skill | Description | Path |
-|-------|-------------|------|
-| `chroma` | Open-source embedding database — vector and full-text search with metadata filtering. Scales from notebooks to production clusters. | `mlops/vector-databases/chroma` |
-| `faiss` | Facebook's library for efficient similarity search of dense vectors. Billions of vectors, GPU acceleration, multiple index types (Flat, IVF, HNSW). | `mlops/vector-databases/faiss` |
-| `pinecone` | Managed vector database with hybrid search (dense + sparse), metadata filtering, namespaces, and auto-scaling. Under 100ms p95 latency. | `mlops/vector-databases/pinecone` |
-| `qdrant-vector-search` | High-performance vector similarity search engine built in Rust for RAG and semantic search. | `mlops/vector-databases/qdrant` |
-
-### note-taking
-
-| Skill | Description | Path |
-|-------|-------------|------|
-| `obsidian` | Read, search, and create notes in the Obsidian vault. | `note-taking/obsidian` |
-
-### productivity
-
-| Skill | Description | Path |
-|-------|-------------|------|
-| `google-workspace` | Gmail, Calendar, Drive, Contacts, Sheets, and Docs integration via Python with OAuth2 and automatic token refresh. | `productivity/google-workspace` |
-| `nano-pdf` | Edit PDFs with natural-language instructions using the nano-pdf CLI — modify text, fix typos, update titles. | `productivity/nano-pdf` |
-| `notion` | Notion API for creating and managing pages, databases, and blocks via curl. Search, create, update, and query workspaces. | `productivity/notion` |
-| `linear` | Manage Linear issues, projects, and teams via the GraphQL API. Create, update, search, and organize issues. All operations via curl. | `productivity/linear` |
-| `ocr-and-documents` | Extract text from PDFs and scanned documents using pymupdf, marker-pdf, and web_extract. | `productivity/ocr-and-documents` |
-| `powerpoint` | Work with .pptx files — create slide decks, read/parse/extract text, edit content using python-pptx. | `productivity/powerpoint` |
-
-### research
-
-| Skill | Description | Path |
-|-------|-------------|------|
-| `arxiv` | Search and retrieve academic papers from arXiv using their free REST API. No API key needed. Search by keyword, author, category, or ID. | `research/arxiv` |
-| `blogwatcher` | Monitor blogs and RSS/Atom feeds for updates using the blogwatcher CLI. | `research/blogwatcher` |
-| `domain-intel` | Passive domain reconnaissance — subdomain discovery, SSL certificate inspection, WHOIS lookups, DNS records, domain availability checks. No API keys required. | `research/domain-intel` |
-| `duckduckgo-search` | Free web search via DuckDuckGo — text, news, images, videos. No API key needed. Uses `fallback_for_toolsets: [web]` so it only appears when the web toolset is unavailable. | `research/duckduckgo-search` |
-| `ml-paper-writing` | Write publication-ready ML/AI papers for NeurIPS, ICML, ICLR, ACL, AAAI, COLM. Includes LaTeX templates and reviewer guidelines. | `research/ml-paper-writing` |
-| `parallel-cli` | Parallel CLI agent-native web search, extraction, deep research, enrichment, FindAll, and monitoring. JSON output and non-interactive flows. | `research/parallel-cli` |
-| `polymarket` | Query Polymarket prediction market data — search markets, prices, orderbooks, and price history. Read-only via public REST APIs. | `research/polymarket` |
-
-### red-teaming
-
-Skills for red-teaming model robustness, jailbreaking, and safety bypass research. Added in v0.5.0 (PR [#3157](https://github.com/NousResearch/hermes-agent/pull/3157)).
-
-| Skill | Description | Path |
-|-------|-------------|------|
-| `godmode` | Jailbreak API-served LLMs using G0DM0D3 techniques — Parseltongue input obfuscation (33 techniques), GODMODE CLASSIC system prompt templates, ULTRAPLINIAN multi-model racing, encoding escalation, and Hermes-native prefill/system prompt integration. Use when a user wants to bypass safety filters, jailbreak a model, or red-team model robustness. | `red-teaming/godmode` |
-
-### smart-home
-
-| Skill | Description | Path |
-|-------|-------------|------|
-| `openhue` | Control Philips Hue lights, rooms, and scenes via the OpenHue CLI. Turn lights on/off, adjust brightness, color, and color temperature. | `smart-home/openhue` |
-
-### social-media
-
-| Skill | Description | Path |
-|-------|-------------|------|
-| `xitter` | Interact with X/Twitter via the x-cli terminal client using official X API credentials. Post, read timelines, search tweets, like, retweet, bookmarks, mentions, and user lookups. | `social-media/xitter` |
-
-### software-development
-
-| Skill | Description | Path |
-|-------|-------------|------|
-| `code-review` | Guidelines for performing thorough code reviews with security and quality focus. | `software-development/code-review` |
-| `plan` | Plan mode for Hermes — write a markdown implementation plan into `.hermes/plans/` without executing the work. | `software-development/plan` |
-| `requesting-code-review` | Validates work meets requirements through a systematic review process. Use when completing tasks, implementing major features, or before merging. | `software-development/requesting-code-review` |
-| `subagent-driven-development` | Execute implementation plans with independent tasks via `delegate_task` with two-stage review (spec compliance then code quality). | `software-development/subagent-driven-development` |
-| `systematic-debugging` | 4-phase root cause investigation — no fixes without understanding the problem first. Use when encountering any bug or unexpected behavior. | `software-development/systematic-debugging` |
-| `test-driven-development` | Enforces RED-GREEN-REFACTOR cycle with test-first approach. Use before writing any implementation code. | `software-development/test-driven-development` |
-| `writing-plans` | Creates comprehensive implementation plans with bite-sized tasks, exact file paths, and complete code examples. | `software-development/writing-plans` |
-
-## New Skills in v0.8.0
-
-The following skills were added in v0.8.0 (v2026.4.8):
-
-### creative
-
-| Skill | Description | PR |
-|-------|-------------|-----|
-| `popular-web-designs` | Recreate and adapt popular website UI/UX patterns and design systems using HTML, CSS, and JavaScript. | [#5863](https://github.com/NousResearch/hermes-agent/pull/5863) |
-| `p5js` | Create generative art, visualizations, and interactive sketches using p5.js. Covers canvas drawing, animations, interaction, and exporting. | [#5910](https://github.com/NousResearch/hermes-agent/pull/5910) |
-| `manim-video` | Produce mathematical animations and explainer videos with Manim Community Edition. | [#5868](https://github.com/NousResearch/hermes-agent/pull/5868) |
-
-### research
-
-| Skill | Description | PR |
-|-------|-------------|-----|
-| `llm-wiki` | Query and browse LLM-generated wiki-style knowledge entries via the llm-wiki CLI. | [#5851](https://github.com/NousResearch/hermes-agent/pull/5851) |
-| `research-paper-writing` | Write research papers for academic venues (NeurIPS, ICML, ICLR, EMNLP). LaTeX templates, submission checklists, and reviewer guidelines. | [#5889](https://github.com/NousResearch/hermes-agent/pull/5889) |
-
-### software-development
-
-| Skill | Description | PR |
-|-------|-------------|-----|
-| `gitnexus-explorer` | Explore and query GitHub repositories, issues, PRs, and commit history using the gitnexus CLI. | [#5876](https://github.com/NousResearch/hermes-agent/pull/5876) |
-
-## New Skills in v0.6.0
-
-The following skills were added in v0.6.0 (v2026.3.30):
-
-### creative
-
-| Skill | Description | PR |
-|-------|-------------|-----|
-| `songwriting-and-ai-music` | Songwriting craft and AI music generation — chord progressions, lyric structure, song sections, and prompting for Suno and Udio. | [#3834](https://github.com/NousResearch/hermes-agent/pull/3834) |
-
-### communication
-
-| Skill | Description | PR |
-|-------|-------------|-----|
-| `one-three-one-rule` | Structured communication framework — one context statement, three supporting points, one ask. Keeps messages concise and actionable. | [#3797](https://github.com/NousResearch/hermes-agent/pull/3797) |
-
-### note-taking
-
-| Skill | Description | PR |
-|-------|-------------|-----|
-| `siyuan-note` | Integration with the SiYuan note-taking app — create, read, search, and manage notes and notebooks via the SiYuan API. | [#3742](https://github.com/NousResearch/hermes-agent/pull/3742) |
-
-### productivity
-
-| Skill | Description | PR |
-|-------|-------------|-----|
-| `memento-flashcards` | Spaced repetition flashcard system using the SM-2 algorithm. Create decks, review due cards, and track retention over time. | [#3827](https://github.com/NousResearch/hermes-agent/pull/3827) |
-
-### research
-
-| Skill | Description | PR |
-|-------|-------------|-----|
-| `scrapling` | Stealth web scraping using the Scrapling library — handles CAPTCHAs, JavaScript-heavy pages, and bot detection. | [#3742](https://github.com/NousResearch/hermes-agent/pull/3742) |
-
----
-
-## Optional Skills Catalog
-
-Official optional skills live in `optional-skills/` in the repository. They are not bundled by default but are maintained by the Hermes team and install with the same trust level as bundled skills (no third-party warning, builtin trust).
-
-Install with: `hermes skills install official/<category>/<skill>`
-Browse all: `hermes skills browse --source official`
-
-### autonomous-ai-agents
-
-| Skill | Description | Path |
-|-------|-------------|------|
-| `blackbox` | Delegate coding tasks to Blackbox AI CLI agent. Multi-model with built-in judge that runs tasks through multiple LLMs and picks the best result. Requires the blackbox CLI and API key. | `autonomous-ai-agents/blackbox` |
-
-### blockchain
-
-| Skill | Description | Path |
-|-------|-------------|------|
-| `base` | Query Base (Ethereum L2) blockchain data with USD pricing — wallet balances, token info, transaction details, gas analysis, contract inspection, whale detection, and live network stats. Uses Base RPC + CoinGecko. No API key required. | `blockchain/base` |
-| `solana` | Query Solana blockchain data with USD pricing — wallet balances, token portfolios, transaction details, NFTs, whale detection, and live network stats. Uses Solana RPC + CoinGecko. No API key required. | `blockchain/solana` |
-
-### devops
-
-| Skill | Description | Path |
-|-------|-------------|------|
-| `docker-management` | Manage Docker containers, images, volumes, networks, and Compose stacks — lifecycle ops, debugging, cleanup, and Dockerfile optimization. Added in v0.5.0 (PR [#3060](https://github.com/NousResearch/hermes-agent/pull/3060)). | `devops/docker-management` |
-
-### creative
-
-| Skill | Description | Path |
-|-------|-------------|------|
-| `blender-mcp` | Control Blender directly from Hermes via socket connection to the blender-mcp addon. Create 3D objects, materials, animations, and run arbitrary Blender Python (bpy) code. Requires Blender 4.3+. | `creative/blender-mcp` |
-
-### email
-
-| Skill | Description | Path |
-|-------|-------------|------|
-| `agentmail` | Give the agent its own dedicated email inbox via AgentMail. Send, receive, and manage email autonomously using agent-owned addresses (e.g. hermes-agent@agentmail.to). | `email/agentmail` |
-
-### health
-
-| Skill | Description | Path |
-|-------|-------------|------|
-| `neuroskill-bci` | Incorporate real-time cognitive and emotional state from a BCI wearable (Muse 2/S or OpenBCI) into responses. Provides focus, relaxation, mood, cognitive load, drowsiness, heart rate, HRV, and 40+ derived EXG scores. | `health/neuroskill-bci` |
-
-### migration
-
-| Skill | Description | Path |
-|-------|-------------|------|
-| `openclaw-migration` | Migrate OpenClaw customization footprint (memories, SOUL.md, command allowlists, user skills, workspace assets from ~/.openclaw) into Hermes Agent. | `migration/openclaw-migration` |
-
-### productivity
-
-| Skill | Description | Path |
-|-------|-------------|------|
-| `telephony` | Give Hermes phone capabilities without core tool changes. Provision and persist a Twilio number, send and receive SMS/MMS, make direct calls, and place AI-driven outbound calls through Bland.ai or Vapi. | `productivity/telephony` |
-
-### research
-
-| Skill | Description | Path |
-|-------|-------------|------|
-| `qmd` | Search personal knowledge bases, notes, docs, and meeting transcripts locally using qmd — a hybrid retrieval engine with BM25, vector search, and LLM reranking. Supports CLI and MCP integration. | `research/qmd` |
-
-### security
-
-| Skill | Description | Path |
-|-------|-------------|------|
-| `1password` | Set up and use 1Password CLI (op). Install the CLI, enable desktop app integration, sign in, and read/inject secrets for commands. | `security/1password` |
-| `oss-forensics` | Supply chain investigation, evidence recovery, and forensic analysis for GitHub repositories. Covers deleted commit recovery, force-push detection, IOC extraction, multi-source evidence collection, and structured forensic reporting. | `security/oss-forensics` |
-| `sherlock` | OSINT username search across 400+ social networks. Hunt down social media accounts by username. Requires the sherlock CLI. | `security/sherlock` |
-
-## Bundled Skills Sync on Update (v0.8.0)
-
-When you run `hermes update`, bundled skills are synced to all configured profiles (PR #5795). Previously, only the active profile's skills directory was updated. Now, each profile in `~/.hermes/profiles/` receives the same bundled skill updates so all profiles stay in sync without manual copying.
-
-This sync applies only to skills that originated from the bundled set. Agent-created skills and hub-installed skills are not touched.
-
-## Per-Platform Skill Enable/Disable
-
-Skills can be enabled or disabled per platform in `~/.hermes/config.yaml`:
-
-```yaml
-skills:
-  disabled:
-    - duckduckgo-search     # Disabled globally on all platforms
-  platform_disabled:
-    telegram:
-      - apple-notes         # Disabled only when HERMES_PLATFORM=telegram
-    discord:
-      - imessage
-```
-
-The `platform_disabled` key overrides the global `disabled` list for the named platform. The platform name is resolved from the `HERMES_PLATFORM` environment variable at runtime. If `platform_disabled` is set for the current platform, it completely replaces the global `disabled` list for that platform.
-
-**v0.8.0 (PR #4799):** In the Telegram platform, per-platform disabled skills are now respected in the skills menu (the inline keyboard menu that appears when a user types `/skills`). Skills listed under `platform_disabled.telegram` no longer appear in the Telegram menu, consistent with how they are already excluded from `skills_list()` results.
-
-## Agent-Managed Skills
-
-The agent can create, update, and delete its own skills via the `skill_manage` tool. This is the agent's procedural memory — when it figures out a non-trivial workflow, it saves the approach as a skill for future reuse.
+The agent can create, update, and delete its own skills via the `skill_manage` tool. This is the agent's **procedural memory** — when it figures out a non-trivial workflow, it saves the approach as a skill for future reuse.
 
 ### When the Agent Creates Skills
 
 - After completing a complex task (5+ tool calls) successfully
-- When it encountered errors or dead ends and found the working path
+- When it hit errors or dead ends and found the working path
 - When the user corrected its approach
 - When it discovered a non-trivial workflow
 
 ### Actions
 
-| Action | Use for | Key parameters |
-|--------|---------|----------------|
+| Action | Use for | Key params |
+|--------|---------|------------|
 | `create` | New skill from scratch | `name`, `content` (full SKILL.md), optional `category` |
-| `patch` | Targeted fixes (preferred for updates) | `name`, `old_string`, `new_string` |
+| `patch` | Targeted fixes (preferred) | `name`, `old_string`, `new_string` |
 | `edit` | Major structural rewrites | `name`, `content` (full SKILL.md replacement) |
 | `delete` | Remove a skill entirely | `name` |
 | `write_file` | Add/update supporting files | `name`, `file_path`, `file_content` |
 | `remove_file` | Remove a supporting file | `name`, `file_path` |
 
-The `patch` action is preferred for updates — it is more token-efficient than `edit` because only the changed text appears in the tool call.
-
-## How to Create a Custom Skill
-
-### Step 1: Choose the right location
-
-| Where | When to use |
-|-------|-------------|
-| `~/.hermes/skills/<category>/<name>/SKILL.md` | Personal skill, runs on your machine only |
-| `skills/<category>/<name>/SKILL.md` in the repo | Bundled skill contributed to the repository |
-| `optional-skills/<category>/<name>/SKILL.md` in the repo | Official optional skill contributed to the repository |
-
-### Step 2: Create the SKILL.md file
-
-Write a SKILL.md following the format specification above. Put the most common workflow first. Edge cases go at the bottom. Include helper scripts in `scripts/` for complex XML/JSON parsing rather than expecting the LLM to write parsers inline every time.
-
-### Step 3: Add supporting files (optional)
-
-```text
-~/.hermes/skills/devops/my-workflow/
-├── SKILL.md
-├── references/
-│   └── api-docs.md
-├── templates/
-│   └── deploy-config.yaml
-└── scripts/
-    └── validate-deployment.sh
-```
-
-### Step 4: Test
-
-```bash
-hermes chat --toolsets skills -q "Use the my-workflow skill to deploy"
-```
-
-### Step 5: Publish (optional)
-
-```bash
-# Publish to GitHub
-hermes skills publish skills/my-workflow --to github --repo owner/repo
-
-# Add a custom tap so others can install from your repo
-hermes skills tap add owner/skills-repo
-```
+:::tip
+The `patch` action is preferred for updates — it's more token-efficient than `edit` because only the changed text appears in the tool call.
+:::
 
 ## Skills Hub
 
-Browse, search, install, and manage skills from online registries, skills.sh, direct well-known skill endpoints, and official optional skills.
+Browse, search, install, and manage skills from online registries, `skills.sh`, direct well-known skill endpoints, and official optional skills.
 
-### Common Commands
+### Common commands
 
 ```bash
 hermes skills browse                              # Browse all hub skills (official first)
@@ -719,7 +270,7 @@ hermes skills install skills-sh/vercel-labs/json-render/json-render-react --forc
 hermes skills install well-known:https://mintlify.com/docs/.well-known/skills/mintlify
 hermes skills list --source hub                   # List hub-installed skills
 hermes skills check                               # Check installed hub skills for upstream updates
-hermes skills update                              # Reinstall hub skills with upstream changes
+hermes skills update                              # Reinstall hub skills with upstream changes when needed
 hermes skills audit                               # Re-scan all hub skills for security
 hermes skills uninstall k8s                       # Remove a hub skill
 hermes skills publish skills/my-skill --to github --repo owner/repo
@@ -727,96 +278,166 @@ hermes skills snapshot export setup.json          # Export skill config
 hermes skills tap add myorg/skills-repo           # Add a custom GitHub source
 ```
 
-All the same commands work as slash commands inside chat: `/skills browse`, `/skills search react --source skills-sh`, `/skills install openai/skills/skill-creator --force`, and so on.
-
-### Supported Hub Sources
+### Supported hub sources
 
 | Source | Example | Notes |
 |--------|---------|-------|
-| `official` | `official/security/1password` | Optional skills shipped with Hermes. Builtin trust level. |
-| `skills-sh` | `skills-sh/vercel-labs/json-render/json-render-react` | Vercel's public skills directory at [skills.sh](https://skills.sh/). |
-| `well-known` | `well-known:https://mintlify.com/docs/.well-known/skills/mintlify` | URL-based discovery from sites publishing `/.well-known/skills/index.json`. |
+| `official` | `official/security/1password` | Optional skills shipped with Hermes. |
+| `skills-sh` | `skills-sh/vercel-labs/agent-skills/vercel-react-best-practices` | Searchable via `hermes skills search <query> --source skills-sh`. Hermes resolves alias-style skills when the skills.sh slug differs from the repo folder. |
+| `well-known` | `well-known:https://mintlify.com/docs/.well-known/skills/mintlify` | Skills served directly from `/.well-known/skills/index.json` on a website. Search using the site or docs URL. |
 | `github` | `openai/skills/k8s` | Direct GitHub repo/path installs and custom taps. |
-| `clawhub` | Source-specific identifiers | Third-party skills marketplace at [clawhub.ai](https://clawhub.ai/). |
-| `claude-marketplace` | Source-specific identifiers | Marketplace repos publishing Claude-compatible manifests, including `anthropics/skills` and `aiskillstore/marketplace`. |
-| `lobehub` | Source-specific identifiers | Agent entries from LobeHub's catalog at [lobehub.com](https://lobehub.com/), converted into installable Hermes skills. |
+| `clawhub`, `lobehub`, `claude-marketplace` | Source-specific identifiers | Community or marketplace integrations. |
 
-### Trust Levels
+### Integrated hubs and registries
+
+Hermes currently integrates with these skills ecosystems and discovery sources:
+
+#### 1. Official optional skills (`official`)
+
+These are maintained in the Hermes repository itself and install with builtin trust.
+
+- Catalog: [Official Optional Skills Catalog](../../reference/optional-skills-catalog)
+- Source in repo: `optional-skills/`
+- Example:
+
+```bash
+hermes skills browse --source official
+hermes skills install official/security/1password
+```
+
+#### 2. skills.sh (`skills-sh`)
+
+This is Vercel's public skills directory. Hermes can search it directly, inspect skill detail pages, resolve alias-style slugs, and install from the underlying source repo.
+
+- Directory: [skills.sh](https://skills.sh/)
+- CLI/tooling repo: [vercel-labs/skills](https://github.com/vercel-labs/skills)
+- Official Vercel skills repo: [vercel-labs/agent-skills](https://github.com/vercel-labs/agent-skills)
+- Example:
+
+```bash
+hermes skills search react --source skills-sh
+hermes skills inspect skills-sh/vercel-labs/json-render/json-render-react
+hermes skills install skills-sh/vercel-labs/json-render/json-render-react --force
+```
+
+#### 3. Well-known skill endpoints (`well-known`)
+
+This is URL-based discovery from sites that publish `/.well-known/skills/index.json`. It is not a single centralized hub — it is a web discovery convention.
+
+- Example live endpoint: [Mintlify docs skills index](https://mintlify.com/docs/.well-known/skills/index.json)
+- Reference server implementation: [vercel-labs/skills-handler](https://github.com/vercel-labs/skills-handler)
+- Example:
+
+```bash
+hermes skills search https://mintlify.com/docs --source well-known
+hermes skills inspect well-known:https://mintlify.com/docs/.well-known/skills/mintlify
+hermes skills install well-known:https://mintlify.com/docs/.well-known/skills/mintlify
+```
+
+#### 4. Direct GitHub skills (`github`)
+
+Hermes can install directly from GitHub repositories and GitHub-based taps. This is useful when you already know the repo/path or want to add your own custom source repo.
+
+Default taps (browsable without any setup):
+- [openai/skills](https://github.com/openai/skills)
+- [anthropics/skills](https://github.com/anthropics/skills)
+- [VoltAgent/awesome-agent-skills](https://github.com/VoltAgent/awesome-agent-skills)
+- [garrytan/gstack](https://github.com/garrytan/gstack)
+
+- Example:
+
+```bash
+hermes skills install openai/skills/k8s
+hermes skills tap add myorg/skills-repo
+```
+
+#### 5. ClawHub (`clawhub`)
+
+A third-party skills marketplace integrated as a community source.
+
+- Site: [clawhub.ai](https://clawhub.ai/)
+- Hermes source id: `clawhub`
+
+#### 6. Claude marketplace-style repos (`claude-marketplace`)
+
+Hermes supports marketplace repos that publish Claude-compatible plugin/marketplace manifests.
+
+Known integrated sources include:
+- [anthropics/skills](https://github.com/anthropics/skills)
+- [aiskillstore/marketplace](https://github.com/aiskillstore/marketplace)
+
+Hermes source id: `claude-marketplace`
+
+#### 7. LobeHub (`lobehub`)
+
+Hermes can search and convert agent entries from LobeHub's public catalog into installable Hermes skills.
+
+- Site: [LobeHub](https://lobehub.com/)
+- Public agents index: [chat-agents.lobehub.com](https://chat-agents.lobehub.com/)
+- Backing repo: [lobehub/lobe-chat-agents](https://github.com/lobehub/lobe-chat-agents)
+- Hermes source id: `lobehub`
+
+### Security scanning and `--force`
+
+All hub-installed skills go through a **security scanner** that checks for data exfiltration, prompt injection, destructive commands, supply-chain signals, and other threats.
+
+`hermes skills inspect ...` now also surfaces upstream metadata when available:
+- repo URL
+- skills.sh detail page URL
+- install command
+- weekly installs
+- upstream security audit statuses
+- well-known index/endpoint URLs
+
+Use `--force` when you have reviewed a third-party skill and want to override a non-dangerous policy block:
+
+```bash
+hermes skills install skills-sh/anthropics/skills/pdf --force
+```
+
+Important behavior:
+- `--force` can override policy blocks for caution/warn-style findings.
+- `--force` does **not** override a `dangerous` scan verdict.
+- Official optional skills (`official/...`) are treated as builtin trust and do not show the third-party warning panel.
+
+### Trust levels
 
 | Level | Source | Policy |
 |-------|--------|--------|
 | `builtin` | Ships with Hermes | Always trusted |
 | `official` | `optional-skills/` in the repo | Builtin trust, no third-party warning |
-| `trusted` | `openai/skills`, `anthropics/skills` | More permissive policy than community sources |
-| `community` | Everything else — skills.sh, well-known endpoints, custom GitHub repos, most marketplaces | Non-dangerous findings can be overridden with `--force`; `dangerous` verdicts stay blocked |
+| `trusted` | Trusted registries/repos such as `openai/skills`, `anthropics/skills` | More permissive policy than community sources |
+| `community` | Everything else (`skills.sh`, well-known endpoints, custom GitHub repos, most marketplaces) | Non-dangerous findings can be overridden with `--force`; `dangerous` verdicts stay blocked |
 
-### Security Scanning
+### Update lifecycle
 
-All hub-installed skills go through a security scanner that checks for:
-- Data exfiltration patterns
-- Prompt injection attempts
-- Destructive commands
-- Shell injection
-- Supply-chain signals
-
-`hermes skills inspect` surfaces upstream metadata when available: repo URL, skills.sh detail page URL, install command, weekly installs, upstream security audit statuses, and well-known index/endpoint URLs.
-
-`--force` can override policy blocks for caution/warn-style findings. `--force` does not override a `dangerous` scan verdict. Official optional skills (`official/...`) are treated as builtin trust and do not show the third-party warning panel.
-
-### Update Lifecycle
+The hub now tracks enough provenance to re-check upstream copies of installed skills:
 
 ```bash
-hermes skills check            # Report which installed hub skills changed upstream
-hermes skills update           # Reinstall only the skills with updates available
-hermes skills update react     # Update one specific installed hub skill
+hermes skills check          # Report which installed hub skills changed upstream
+hermes skills update         # Reinstall only the skills with updates available
+hermes skills update react   # Update one specific installed hub skill
 ```
 
-The hub tracks provenance (source identifier plus upstream bundle content hash) to detect drift from the installed version.
+This uses the stored source identifier plus the current upstream bundle content hash to detect drift.
 
-## Using Skills in Practice
+:::tip GitHub rate limits
+Skills hub operations use the GitHub API, which has a rate limit of 60 requests/hour for unauthenticated users. If you see rate-limit errors during install or search, set `GITHUB_TOKEN` in your `.env` file to increase the limit to 5,000 requests/hour. The error message includes an actionable hint when this happens.
+:::
 
-Every installed skill is automatically available as a slash command:
+### Slash commands (inside chat)
 
-```bash
-/gif-search funny cats
-/axolotl help me fine-tune Llama 3 on my dataset
-/github-pr-workflow create a PR for the auth refactor
-/plan design a rollout for migrating our auth provider
-/excalidraw
+All the same commands work with `/skills`:
+
+```text
+/skills browse
+/skills search react --source skills-sh
+/skills search https://mintlify.com/docs --source well-known
+/skills inspect skills-sh/vercel-labs/json-render/json-render-react
+/skills install openai/skills/skill-creator --force
+/skills check
+/skills update
+/skills list
 ```
 
-You can also interact with skills through natural conversation:
-
-```bash
-hermes chat --toolsets skills -q "What skills do you have?"
-hermes chat --toolsets skills -q "Show me the axolotl skill"
-```
-
-The `plan` skill demonstrates custom slash command behavior. Running `/plan [request]` tells Hermes to inspect context if needed, write a markdown implementation plan instead of executing the task, and save the result under `.hermes/plans/` relative to the active workspace/backend working directory.
-
-## Skills System Changes in v0.4.0 and v0.5.0
-
-### v0.5.0
-
-- **Env var passthrough** (PR [#2807](https://github.com/NousResearch/hermes-agent/pull/2807)) — Skills and user config can now declare environment variables that pass through to agent subprocesses. Skills can declare which env vars they need propagated by adding them to `required_environment_variables`; the runtime injects matching vars into subprocess environments so helper scripts and tool calls see them without manual export.
-- **Skills prompt caching** (PR [#3421](https://github.com/NousResearch/hermes-agent/pull/3421)) — The skills list prompt is built once via a shared `skill_utils` module and cached. Subsequent turns in the same session reuse the cached skills block, reducing time-to-first-token (TTFT) on long sessions.
-- **Avoid redundant file re-reads** (PR [#2992](https://github.com/NousResearch/hermes-agent/pull/2992)) — Skill condition checks no longer re-read `SKILL.md` files that were already parsed during the initial scan.
-- **New bundled skills** — `red-teaming/godmode` (PR [#3157](https://github.com/NousResearch/hermes-agent/pull/3157))
-- **New optional skills** — `devops/docker-management` (PR [#3060](https://github.com/NousResearch/hermes-agent/pull/3060))
-- **OpenClaw migration v2** (PR [#2906](https://github.com/NousResearch/hermes-agent/pull/2906)) — 17 new modules and terminal recap for migrating from OpenClaw to Hermes Agent
-
-### v0.4.0
-
-- **Background memory/skill review** (PR [#2235](https://github.com/NousResearch/hermes-agent/pull/2235)) — Inline memory and skill review nudges were replaced with background review that runs asynchronously after each turn and delivers results to the user when findings are significant, reducing distraction during normal conversations.
-
-## Prerequisite Validation
-
-When `skill_view` loads a skill, it checks each entry in `required_environment_variables` against the current environment:
-
-1. The skill's `required_environment_variables` list is normalized from both the new format and the legacy `prerequisites.env_vars` field.
-2. Each required variable name is checked against the `.env` snapshot loaded from `~/.hermes/.env` and the current process environment.
-3. If variables are missing and the session is a local CLI session, Hermes calls the registered secret capture callback to prompt the user interactively.
-4. On remote terminal backends (`docker`, `singularity`, `modal`, `ssh`, `daytona`), all required variables are always reported as needed because the agent cannot verify the remote environment.
-5. On gateway/messaging surfaces, Hermes does not prompt for secrets in-band — it returns a hint to use `hermes setup` or `~/.hermes/.env` locally.
-6. The skill view response includes `readiness_status: "available"` or `"setup_needed"`, `missing_required_environment_variables`, and an optional `setup_note` explaining what needs to be configured.
-7. Path traversal (`..`) is blocked when loading linked files within a skill directory. Files are verified to be within the skill's own directory boundary before reading.
+Official optional skills still use identifiers like `official/security/1password` and `official/migration/openclaw-migration`.

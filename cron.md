@@ -1,27 +1,25 @@
+
 # Scheduled Tasks (Cron)
 
-Hermes provides a built-in cron system for scheduling tasks to run automatically. Jobs run in fresh agent sessions and can deliver results back to messaging platforms, local files, or specific channels.
+Schedule tasks to run automatically with natural language or cron expressions. Hermes exposes cron management through a single `cronjob` tool with action-style operations instead of separate schedule/list/remove tools.
 
-## Overview
+## What cron can do now
 
-The cron system consists of:
+Cron jobs can:
 
-- **Job storage** — `~/.hermes/cron/jobs.json` stores all scheduled jobs
-- **Scheduler** — `cron/scheduler.py` provides the `tick()` function that checks for due jobs
-- **Gateway integration** — the gateway daemon calls `tick()` every 60 seconds
-- **Output storage** — `~/.hermes/cron/output/{job_id}/{timestamp}.md` stores job run output
+- schedule one-shot or recurring tasks
+- pause, resume, edit, trigger, and remove jobs
+- attach zero, one, or multiple skills to a job
+- deliver results back to the origin chat, local files, or configured platform targets
+- run in fresh agent sessions with the normal static tool list
 
-The gateway must be running for scheduled tasks to execute. Run it with:
+:::warning
+Cron-run sessions cannot recursively create more cron jobs. Hermes disables cron management tools inside cron executions to prevent runaway scheduling loops.
+:::
 
-```bash
-hermes gateway           # run in foreground
-hermes gateway install   # install as a user service (runs at login)
-sudo hermes gateway install --system   # Linux: install as boot-time system service
-```
+## Creating scheduled tasks
 
-## Creating Scheduled Tasks
-
-### In chat with /cron
+### In chat with `/cron`
 
 ```bash
 /cron add 30m "Remind me to check the build"
@@ -43,13 +41,225 @@ hermes cron create "every 1h" "Use both skills and combine the result" \
 
 ### Through natural conversation
 
+Ask Hermes normally:
+
 ```text
 Every morning at 9am, check Hacker News for AI news and send me a summary on Telegram.
 ```
 
-Hermes uses the unified `cronjob` tool internally.
+Hermes will use the unified `cronjob` tool internally.
 
-## Schedule Formats
+## Skill-backed cron jobs
+
+A cron job can load one or more skills before it runs the prompt.
+
+### Single skill
+
+```python
+cronjob(
+    action="create",
+    skill="blogwatcher",
+    prompt="Check the configured feeds and summarize anything new.",
+    schedule="0 9 * * *",
+    name="Morning feeds",
+)
+```
+
+### Multiple skills
+
+Skills are loaded in order. The prompt becomes the task instruction layered on top of those skills.
+
+```python
+cronjob(
+    action="create",
+    skills=["blogwatcher", "find-nearby"],
+    prompt="Look for new local events and interesting nearby places, then combine them into one short brief.",
+    schedule="every 6h",
+    name="Local brief",
+)
+```
+
+This is useful when you want a scheduled agent to inherit reusable workflows without stuffing the full skill text into the cron prompt itself.
+
+## Editing jobs
+
+You do not need to delete and recreate jobs just to change them.
+
+### Chat
+
+```bash
+/cron edit <job_id> --schedule "every 4h"
+/cron edit <job_id> --prompt "Use the revised task"
+/cron edit <job_id> --skill blogwatcher --skill find-nearby
+/cron edit <job_id> --remove-skill blogwatcher
+/cron edit <job_id> --clear-skills
+```
+
+### Standalone CLI
+
+```bash
+hermes cron edit <job_id> --schedule "every 4h"
+hermes cron edit <job_id> --prompt "Use the revised task"
+hermes cron edit <job_id> --skill blogwatcher --skill find-nearby
+hermes cron edit <job_id> --add-skill find-nearby
+hermes cron edit <job_id> --remove-skill blogwatcher
+hermes cron edit <job_id> --clear-skills
+```
+
+Notes:
+
+- repeated `--skill` replaces the job's attached skill list
+- `--add-skill` appends to the existing list without replacing it
+- `--remove-skill` removes specific attached skills
+- `--clear-skills` removes all attached skills
+
+## Lifecycle actions
+
+Cron jobs now have a fuller lifecycle than just create/remove.
+
+### Chat
+
+```bash
+/cron list
+/cron pause <job_id>
+/cron resume <job_id>
+/cron run <job_id>
+/cron remove <job_id>
+```
+
+### Standalone CLI
+
+```bash
+hermes cron list
+hermes cron pause <job_id>
+hermes cron resume <job_id>
+hermes cron run <job_id>
+hermes cron remove <job_id>
+hermes cron status
+hermes cron tick
+```
+
+What they do:
+
+- `pause` — keep the job but stop scheduling it
+- `resume` — re-enable the job and compute the next future run
+- `run` — trigger the job on the next scheduler tick
+- `remove` — delete it entirely
+
+## How it works
+
+**Cron execution is handled by the gateway daemon.** The gateway ticks the scheduler every 60 seconds, running any due jobs in isolated agent sessions.
+
+```bash
+hermes gateway install     # Install as a user service
+sudo hermes gateway install --system   # Linux: boot-time system service for servers
+hermes gateway             # Or run in foreground
+
+hermes cron list
+hermes cron status
+```
+
+### Gateway scheduler behavior
+
+On each tick Hermes:
+
+1. loads jobs from `~/.hermes/cron/jobs.json`
+2. checks `next_run_at` against the current time
+3. starts a fresh `AIAgent` session for each due job
+4. optionally injects one or more attached skills into that fresh session
+5. runs the prompt to completion
+6. delivers the final response
+7. updates run metadata and the next scheduled time
+
+A file lock at `~/.hermes/cron/.tick.lock` prevents overlapping scheduler ticks from double-running the same job batch.
+
+## Delivery options
+
+When scheduling jobs, you specify where the output goes:
+
+| Option | Description | Example |
+|--------|-------------|---------|
+| `"origin"` | Back to where the job was created | Default on messaging platforms |
+| `"local"` | Save to local files only (`~/.hermes/cron/output/`) | Default on CLI |
+| `"telegram"` | Telegram home channel | Uses `TELEGRAM_HOME_CHANNEL` |
+| `"telegram:123456"` | Specific Telegram chat by ID | Direct delivery |
+| `"telegram:-100123:17585"` | Specific Telegram topic | `chat_id:thread_id` format |
+| `"discord"` | Discord home channel | Uses `DISCORD_HOME_CHANNEL` |
+| `"discord:#engineering"` | Specific Discord channel | By channel name |
+| `"slack"` | Slack home channel | |
+| `"whatsapp"` | WhatsApp home | |
+| `"signal"` | Signal | |
+| `"matrix"` | Matrix home room | |
+| `"mattermost"` | Mattermost home channel | |
+| `"email"` | Email | |
+| `"sms"` | SMS via Twilio | |
+| `"homeassistant"` | Home Assistant | |
+| `"dingtalk"` | DingTalk | |
+| `"feishu"` | Feishu/Lark | |
+| `"wecom"` | WeCom | |
+| `"weixin"` | Weixin (WeChat) | |
+| `"bluebubbles"` | BlueBubbles (iMessage) | |
+
+The agent's final response is automatically delivered. You do not need to call `send_message` in the cron prompt.
+
+### Response wrapping
+
+By default, delivered cron output is wrapped with a header and footer so the recipient knows it came from a scheduled task:
+
+```
+Cronjob Response: Morning feeds
+-------------
+
+<agent output here>
+
+Note: The agent cannot see this message, and therefore cannot respond to it.
+```
+
+To deliver the raw agent output without the wrapper, set `cron.wrap_response` to `false`:
+
+```yaml
+# ~/.hermes/config.yaml
+cron:
+  wrap_response: false
+```
+
+### Silent suppression
+
+If the agent's final response starts with `[SILENT]`, delivery is suppressed entirely. The output is still saved locally for audit (in `~/.hermes/cron/output/`), but no message is sent to the delivery target.
+
+This is useful for monitoring jobs that should only report when something is wrong:
+
+```text
+Check if nginx is running. If everything is healthy, respond with only [SILENT].
+Otherwise, report the issue.
+```
+
+Failed jobs always deliver regardless of the `[SILENT]` marker — only successful runs can be silenced.
+
+## Script timeout
+
+Pre-run scripts (attached via the `script` parameter) have a default timeout of 120 seconds. If your scripts need longer — for example, to include randomized delays that avoid bot-like timing patterns — you can increase this:
+
+```yaml
+# ~/.hermes/config.yaml
+cron:
+  script_timeout_seconds: 300   # 5 minutes
+```
+
+Or set the `HERMES_CRON_SCRIPT_TIMEOUT` environment variable. The resolution order is: env var → config.yaml → 120s default.
+
+## Provider recovery
+
+Cron jobs inherit your configured fallback providers and credential pool rotation. If the primary API key is rate-limited or the provider returns an error, the cron agent can:
+
+- **Fall back to an alternate provider** if you have `fallback_providers` (or the legacy `fallback_model`) configured in `config.yaml`
+- **Rotate to the next credential** in your [credential pool](/docs/user-guide/configuration#credential-pool-strategies) for the same provider
+
+This means cron jobs that run at high frequency or during peak hours are more resilient — a single rate-limited key won't fail the entire run.
+
+## Schedule formats
+
+The agent's final response is automatically delivered — you do **not** need to include `send_message` in the cron prompt for that same destination. If a cron run calls `send_message` to the exact target the scheduler will already deliver to, Hermes skips that duplicate send and tells the model to put the user-facing content in the final response instead. Use `send_message` only for additional or different targets.
 
 ### Relative delays (one-shot)
 
@@ -77,15 +287,13 @@ every 1d     → Every day
 0 0 * * 0       → Every Sunday at midnight
 ```
 
-Cron expressions require the `croniter` package: `pip install croniter`
-
-### ISO timestamps (one-shot at specific time)
+### ISO timestamps
 
 ```text
 2026-03-15T09:00:00    → One-time at March 15, 2026 9:00 AM
 ```
 
-## Repeat Behavior
+## Repeat behavior
 
 | Schedule type | Default repeat | Behavior |
 |--------------|----------------|----------|
@@ -93,123 +301,20 @@ Cron expressions require the `croniter` package: `pip install croniter`
 | Interval (`every 2h`) | forever | Runs until removed |
 | Cron expression | forever | Runs until removed |
 
-Override with an explicit `repeat` count:
+You can override it:
 
 ```python
 cronjob(
     action="create",
     prompt="...",
     schedule="every 2h",
-    repeat=5,          # run exactly 5 times then auto-delete
+    repeat=5,
 )
 ```
 
-## Skill-Backed Cron Jobs
+## Managing jobs programmatically
 
-A cron job can load one or more skills before running the prompt. Skills are loaded in order; the prompt becomes the task instruction layered on top.
-
-### Single skill
-
-```python
-cronjob(
-    action="create",
-    skill="blogwatcher",
-    prompt="Check the configured feeds and summarize anything new.",
-    schedule="0 9 * * *",
-    name="Morning feeds",
-)
-```
-
-### Multiple skills
-
-```python
-cronjob(
-    action="create",
-    skills=["blogwatcher", "find-nearby"],
-    prompt="Look for new local events and interesting nearby places, then combine them into one short brief.",
-    schedule="every 6h",
-    name="Local brief",
-)
-```
-
-## Delivery Options
-
-| Option | Description | Example |
-|--------|-------------|---------|
-| `"origin"` | Back to where the job was created | Default on messaging platforms |
-| `"local"` | Save to local files only (`~/.hermes/cron/output/`) | Default on CLI |
-| `"telegram"` | Telegram home channel | Uses `TELEGRAM_HOME_CHANNEL` |
-| `"discord"` | Discord home channel | Uses `DISCORD_HOME_CHANNEL` |
-| `"telegram:123456"` | Specific Telegram chat by ID | Direct delivery |
-| `"discord:987654"` | Specific Discord channel by ID | Direct delivery |
-
-The agent's final response is automatically delivered. You do not need to call `send_message` in the cron prompt for the same destination. Use `send_message` only for additional or different targets.
-
-If the agent's response starts with `[SILENT]`, delivery is suppressed. Output is still saved locally. This allows cron agents to opt out of delivery when there is nothing new to report.
-
-## Job Lifecycle Actions
-
-### Chat
-
-```bash
-/cron list
-/cron pause <job_id>
-/cron resume <job_id>
-/cron run <job_id>
-/cron remove <job_id>
-```
-
-### Standalone CLI
-
-```bash
-hermes cron list
-hermes cron pause <job_id>
-hermes cron resume <job_id>
-hermes cron run <job_id>
-hermes cron remove <job_id>
-hermes cron status
-hermes cron tick
-```
-
-- `pause` — keep the job but stop scheduling it; sets `state: "paused"` and `enabled: false`; records `paused_at` timestamp and optional `paused_reason`
-- `resume` — re-enable the job and compute the next future run from now; clears pause metadata
-- `run` — trigger the job on the next scheduler tick by setting `next_run_at` to now; also clears pause state if the job was paused
-- `remove` — delete the job entirely
-
-## Editing Jobs
-
-Jobs can be edited without deleting and recreating them.
-
-### Chat
-
-```bash
-/cron edit <job_id> --schedule "every 4h"
-/cron edit <job_id> --prompt "Use the revised task"
-/cron edit <job_id> --skill blogwatcher --skill find-nearby
-/cron edit <job_id> --remove-skill blogwatcher
-/cron edit <job_id> --clear-skills
-```
-
-### Standalone CLI
-
-```bash
-hermes cron edit <job_id> --schedule "every 4h"
-hermes cron edit <job_id> --prompt "Use the revised task"
-hermes cron edit <job_id> --skill blogwatcher --skill find-nearby
-hermes cron edit <job_id> --add-skill find-nearby
-hermes cron edit <job_id> --remove-skill blogwatcher
-hermes cron edit <job_id> --clear-skills
-```
-
-Skill edit notes:
-- Repeated `--skill` replaces the job's entire attached skill list
-- `--add-skill` appends to the existing list without replacing
-- `--remove-skill` removes a specific skill
-- `--clear-skills` removes all attached skills
-
-## Programmatic API (cronjob tool)
-
-The agent-facing API uses one tool with action-style operations:
+The agent-facing API is one tool:
 
 ```python
 cronjob(action="create", ...)
@@ -223,88 +328,17 @@ cronjob(action="remove", job_id="...")
 
 For `update`, pass `skills=[]` to remove all attached skills.
 
-## How Jobs Are Executed
+## Job storage
 
-The gateway ticks the scheduler every 60 seconds via `cron.scheduler.tick()`. On each tick:
+Jobs are stored in `~/.hermes/cron/jobs.json`. Output from job runs is saved to `~/.hermes/cron/output/{job_id}/{timestamp}.md`.
 
-1. Loads jobs from `~/.hermes/cron/jobs.json`
-2. Checks `next_run_at` against the current time
-3. For recurring jobs that are more than 2 minutes stale (gateway was down), fast-forwards to the next future occurrence instead of firing a missed run
-4. Starts a fresh `AIAgent` session for each due job with `disabled_toolsets=["cronjob"]` (cron agents cannot create more cron jobs)
-5. Optionally injects one or more attached skills into the session prompt
-6. Runs the prompt to completion
-7. Delivers the final response to the configured target
-8. Updates `last_run_at`, `last_status`, and `next_run_at`
-9. Auto-deletes one-shot jobs after they complete their `repeat` count
+The storage uses atomic file writes so interrupted writes do not leave a partially written job file behind.
 
-A file lock at `~/.hermes/cron/.tick.lock` prevents overlapping ticks from double-running the same job batch. The lock uses `fcntl` on Unix and `msvcrt` on Windows.
+## Self-contained prompts still matter
 
-One-shot jobs get a 120-second grace period (`ONESHOT_GRACE_SECONDS`). If a job is created a few seconds after its requested time, it still fires on the next tick as long as the scheduled time is within 2 minutes of now.
-
-The cron scheduler re-reads `~/.hermes/.env` and `config.yaml` fresh on every run, so provider/key changes take effect without a gateway restart.
-
-Each cron job session initializes its own SQLite session store so messages are persisted and discoverable via `session_search`.
-
-## Job Storage Format
-
-Jobs are stored in `~/.hermes/cron/jobs.json` as a JSON object with a `jobs` array. Each job contains:
-
-```json
-{
-  "id": "abc123def456",
-  "name": "Morning feeds",
-  "prompt": "Check feeds and summarize",
-  "skills": ["blogwatcher"],
-  "skill": "blogwatcher",
-  "model": null,
-  "provider": null,
-  "base_url": null,
-  "schedule": {"kind": "cron", "expr": "0 9 * * *", "display": "0 9 * * *"},
-  "schedule_display": "0 9 * * *",
-  "repeat": {"times": null, "completed": 0},
-  "enabled": true,
-  "state": "scheduled",
-  "paused_at": null,
-  "paused_reason": null,
-  "created_at": "2026-03-19T10:00:00",
-  "next_run_at": "2026-03-20T09:00:00",
-  "last_run_at": null,
-  "last_status": null,
-  "last_error": null,
-  "last_delivery_error": null,
-  "deliver": "origin",
-  "origin": {"platform": "telegram", "chat_id": "123456"}
-}
-```
-
-Storage uses atomic writes (`tempfile.mkstemp` + `os.replace`) so interrupted writes never leave a partially written jobs file. Cron directories and files are created with owner-only permissions (`0700` for directories, `0600` for files).
-
-## Output Files
-
-Job run output is saved to `~/.hermes/cron/output/{job_id}/{timestamp}.md`. Each output file is a Markdown document containing:
-
-- Job name and ID
-- Run time and schedule
-- The prompt used (including skill content if applicable)
-- The agent's response (or error traceback)
-
-## Per-Job Model Override
-
-A cron job can use a different model than the gateway's default:
-
-```python
-cronjob(
-    action="create",
-    prompt="...",
-    schedule="every 2h",
-    model="google/gemini-flash-2.0",
-    provider="openrouter",
-)
-```
-
-## Self-Contained Prompts
-
+:::warning Important
 Cron jobs run in a completely fresh agent session. The prompt must contain everything the agent needs that is not already provided by attached skills.
+:::
 
 **BAD:** `"Check on that server issue"`
 
@@ -313,30 +347,3 @@ Cron jobs run in a completely fresh agent session. The prompt must contain every
 ## Security
 
 Scheduled task prompts are scanned for prompt-injection and credential-exfiltration patterns at creation and update time. Prompts containing invisible Unicode tricks, SSH backdoor attempts, or obvious secret-exfiltration payloads are blocked.
-
-Cron agents run with `disabled_toolsets=["cronjob"]` — they cannot recursively create more cron jobs, preventing runaway scheduling loops.
-
-## REST API for Cron Management
-
-The gateway's API server (when enabled) exposes a REST API for cron job management at `/api/jobs`. This provides programmatic create, read, update, delete, pause, resume, and trigger operations over HTTP using the same Bearer token auth as the OpenAI endpoints.
-
-See [api-server.md](api-server.md#cron-jobs-rest-api) for the full endpoint reference.
-
-## What's New
-
-### v0.4.0
-
-- `/api/jobs` REST API introduced via the API server platform adapter (PR #1756, #2450). Provides full CRUD + pause/resume/run operations over HTTP.
-
-### v0.5.0
-
-- **Prevent recurring job re-fire on gateway crash/restart loop** (PR #3396) — For recurring cron jobs (interval and cron-expression schedules), `next_run_at` is now advanced to the next future occurrence _before_ the job executes. If the gateway crashes mid-run, the job will not re-fire immediately on restart. One-shot jobs are left unchanged so they can retry on restart.
-- **Mark cron session as ended after job completes** (PR #2998) — Cron job sessions are now properly closed in the session database after execution.
-- **Auto-repair `jobs.json` with invalid control characters** (PR #3537) — If `jobs.json` contains bare control characters (from a crash or corruption), the scheduler automatically repairs and rewrites the file on the next load.
-
-### v0.8.0
-
-- **Inactivity-based cron timeout** (PR #5440) — The cron agent timeout was changed from a wall-clock limit to an inactivity-based limit. A cron job that is actively making tool calls runs indefinitely; only a job that has been truly idle (no tool call activity) for longer than `HERMES_CRON_TIMEOUT` seconds (default: 600) is killed. This means long-running tasks — model downloads, extended web research, large code generation — complete naturally without being killed mid-work.
-- **Delivery failure tracking** (PR #6042) — Job status now separately tracks delivery failures. When the agent produces output successfully but the platform delivery fails (platform down, invalid chat ID, etc.), `last_delivery_error` is set in the job record and `last_status` reflects the agent outcome (`ok`), not the delivery outcome. Delivery failures are cleared on the next successful delivery.
-- **MEDIA tag extraction before delivery** (PR #5921) — `MEDIA:` tags in cron agent output are extracted before the message is sent. Media files are delivered as native platform attachments; the delivery text has the tags stripped.
-- **Cron path traversal hardening** — Job IDs and output paths are validated and normalized to prevent crafted job IDs from escaping the cron output directory.

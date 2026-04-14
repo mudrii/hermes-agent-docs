@@ -1,56 +1,59 @@
-# Telegram
 
-Hermes integrates with Telegram as a full-featured conversational bot using the [python-telegram-bot](https://python-telegram-bot.org/) library. Once connected, you can chat from any device, send voice memos that get auto-transcribed, receive scheduled task results, and use the agent in group chats or Telegram forum topics.
+# Telegram Setup
 
-This document covers the released Telegram adapter surface through v0.8.0 (`v2026.4.8`).
-
----
-
-## Prerequisites
-
-- A Telegram account
-- Access to [@BotFather](https://t.me/BotFather) to create a bot and get a token
-- Your numeric Telegram user ID (not your username)
-
----
+Hermes Agent integrates with Telegram as a full-featured conversational bot. Once connected, you can chat with your agent from any device, send voice memos that get auto-transcribed, receive scheduled task results, and use the agent in group chats. The integration is built on [python-telegram-bot](https://python-telegram-bot.org/) and supports text, voice, images, and file attachments.
 
 ## Step 1: Create a Bot via BotFather
 
-1. Open Telegram and message [@BotFather](https://t.me/BotFather)
+Every Telegram bot requires an API token issued by [@BotFather](https://t.me/BotFather), Telegram's official bot management tool.
+
+1. Open Telegram and search for **@BotFather**, or visit [t.me/BotFather](https://t.me/BotFather)
 2. Send `/newbot`
-3. Choose a display name (e.g., "Hermes Agent") — this can be anything
-4. Choose a username — must be unique and end in `bot` (e.g., `my_hermes_bot`)
-5. BotFather replies with your API token in this format:
+3. Choose a **display name** (e.g., "Hermes Agent") — this can be anything
+4. Choose a **username** — this must be unique and end in `bot` (e.g., `my_hermes_bot`)
+5. BotFather replies with your **API token**. It looks like this:
 
 ```
 123456789:ABCdefGHIjklMNOpqrSTUvwxYZ
 ```
 
-Keep this token secret. Anyone with this token can control your bot. If it leaks, revoke it immediately via `/revoke` in BotFather.
-
----
+:::warning
+Keep your bot token secret. Anyone with this token can control your bot. If it leaks, revoke it immediately via `/revoke` in BotFather.
+:::
 
 ## Step 2: Customize Your Bot (Optional)
 
-These BotFather commands improve the user experience:
+These BotFather commands improve the user experience. Message @BotFather and use:
 
 | Command | Purpose |
 |---------|---------|
 | `/setdescription` | The "What can this bot do?" text shown before a user starts chatting |
 | `/setabouttext` | Short text on the bot's profile page |
 | `/setuserpic` | Upload an avatar for your bot |
-| `/setprivacy` | Control whether the bot sees all group messages |
+| `/setcommands` | Define the command menu (the `/` button in chat) |
+| `/setprivacy` | Control whether the bot sees all group messages (see Step 3) |
 
----
+:::tip
+For `/setcommands`, a useful starting set:
+
+```
+help - Show help information
+new - Start a new conversation
+sethome - Set this chat as the home channel
+```
+:::
 
 ## Step 3: Privacy Mode (Critical for Groups)
 
-Telegram bots have **privacy mode** enabled by default. With privacy mode ON, your bot can only see:
-- Messages that start with `/` commands
-- Replies directly to the bot's own messages
-- Service messages (member joins/leaves, pinned messages)
+Telegram bots have a **privacy mode** that is **enabled by default**. This is the single most common source of confusion when using bots in groups.
 
-With privacy mode OFF, the bot receives every message in the group.
+**With privacy mode ON**, your bot can only see:
+- Messages that start with a `/` command
+- Replies directly to the bot's own messages
+- Service messages (member joins/leaves, pinned messages, etc.)
+- Messages in channels where the bot is an admin
+
+**With privacy mode OFF**, the bot receives every message in the group.
 
 ### How to disable privacy mode
 
@@ -59,20 +62,23 @@ With privacy mode OFF, the bot receives every message in the group.
 3. Select your bot
 4. Go to **Bot Settings → Group Privacy → Turn off**
 
-You must remove and re-add the bot to any group after changing the privacy setting. Telegram caches the privacy state when a bot joins a group.
+:::warning
+**You must remove and re-add the bot to any group** after changing the privacy setting. Telegram caches the privacy state when a bot joins a group, and it will not update until the bot is removed and re-added.
+:::
 
-An alternative: promote the bot to **group admin**. Admin bots always receive all messages regardless of the privacy setting.
-
----
+:::tip
+An alternative to disabling privacy mode: promote the bot to **group admin**. Admin bots always receive all messages regardless of the privacy setting, and this avoids needing to toggle the global privacy mode.
+:::
 
 ## Step 4: Find Your User ID
 
-Hermes uses numeric Telegram user IDs to control access. Your user ID is a number like `123456789` — not your username.
+Hermes Agent uses numeric Telegram user IDs to control access. Your user ID is **not** your username — it's a number like `123456789`.
 
-- Message [@userinfobot](https://t.me/userinfobot) — it instantly replies with your user ID
-- Or message [@get_id_bot](https://t.me/get_id_bot)
+**Method 1 (recommended):** Message [@userinfobot](https://t.me/userinfobot) — it instantly replies with your user ID.
 
----
+**Method 2:** Message [@get_id_bot](https://t.me/get_id_bot) — another reliable option.
+
+Save this number; you'll need it for the next step.
 
 ## Step 5: Configure Hermes
 
@@ -82,11 +88,11 @@ Hermes uses numeric Telegram user IDs to control access. Your user ID is a numbe
 hermes gateway setup
 ```
 
-Select **Telegram** when prompted. The wizard asks for your bot token and allowed user IDs.
+Select **Telegram** when prompted. The wizard asks for your bot token and allowed user IDs, then writes the configuration for you.
 
 ### Option B: Manual Configuration
 
-Add to `~/.hermes/.env`:
+Add the following to `~/.hermes/.env`:
 
 ```bash
 TELEGRAM_BOT_TOKEN=123456789:ABCdefGHIjklMNOpqrSTUvwxYZ
@@ -99,323 +105,448 @@ TELEGRAM_ALLOWED_USERS=123456789    # Comma-separated for multiple users
 hermes gateway
 ```
 
-The bot comes online within seconds. Send it a message on Telegram to verify.
+The bot should come online within seconds. Send it a message on Telegram to verify.
 
----
+## Webhook Mode
 
-## config.yaml Section
+By default, Hermes connects to Telegram using **long polling** — the gateway makes outbound requests to Telegram's servers to fetch new updates. This works well for local and always-on deployments.
 
-No Telegram-specific section is required in `config.yaml` for basic operation. The following optional keys are available:
+For **cloud deployments** (Fly.io, Railway, Render, etc.), **webhook mode** is more cost-effective. These platforms can auto-wake suspended machines on inbound HTTP traffic, but not on outbound connections. Since polling is outbound, a polling bot can never sleep. Webhook mode flips the direction — Telegram pushes updates to your bot's HTTPS URL, enabling sleep-when-idle deployments.
 
-```yaml
-# Gateway-wide settings that apply to Telegram
-group_sessions_per_user: true
+| | Polling (default) | Webhook |
+|---|---|---|
+| Direction | Gateway → Telegram (outbound) | Telegram → Gateway (inbound) |
+| Best for | Local, always-on servers | Cloud platforms with auto-wake |
+| Setup | No extra config | Set `TELEGRAM_WEBHOOK_URL` |
+| Idle cost | Machine must stay running | Machine can sleep between messages |
 
-# How to handle unauthorized DMs
-unauthorized_dm_behavior: pair    # pair | ignore
+### Configuration
+
+Add the following to `~/.hermes/.env`:
+
+```bash
+TELEGRAM_WEBHOOK_URL=https://my-app.fly.dev/telegram
+# TELEGRAM_WEBHOOK_PORT=8443        # optional, default 8443
+# TELEGRAM_WEBHOOK_SECRET=mysecret  # optional, recommended
 ```
-
----
-
-## Environment Variables Reference
 
 | Variable | Required | Description |
 |----------|----------|-------------|
-| `TELEGRAM_BOT_TOKEN` | Yes | Bot API token from BotFather |
-| `TELEGRAM_ALLOWED_USERS` | Recommended | Comma-separated numeric user IDs |
-| `TELEGRAM_HOME_CHANNEL` | No | Chat ID for cron job delivery |
-| `TELEGRAM_HOME_CHANNEL_NAME` | No | Display name for the home channel (default: `Home`) |
-| `TELEGRAM_ALLOW_ALL_USERS` | No | Allow all users (not recommended) |
-| `HERMES_TELEGRAM_MEDIA_BATCH_DELAY_SECONDS` | No | Album merge delay in seconds (default: `0.8`) |
-| `HERMES_TELEGRAM_TEXT_BATCH_DELAY_SECONDS` | No | Text message batch delay in seconds (default: `0.6`) |
+| `TELEGRAM_WEBHOOK_URL` | Yes | Public HTTPS URL where Telegram will send updates. The URL path is auto-extracted (e.g., `/telegram` from the example above). |
+| `TELEGRAM_WEBHOOK_PORT` | No | Local port the webhook server listens on (default: `8443`). |
+| `TELEGRAM_WEBHOOK_SECRET` | No | Secret token for verifying that updates actually come from Telegram. **Strongly recommended** for production deployments. |
 
----
+When `TELEGRAM_WEBHOOK_URL` is set, the gateway starts an HTTP webhook server instead of polling. When unset, polling mode is used — no behavior change from previous versions.
+
+### Cloud deployment example (Fly.io)
+
+1. Add the env vars to your Fly.io app secrets:
+
+```bash
+fly secrets set TELEGRAM_WEBHOOK_URL=https://my-app.fly.dev/telegram
+fly secrets set TELEGRAM_WEBHOOK_SECRET=$(openssl rand -hex 32)
+```
+
+2. Expose the webhook port in your `fly.toml`:
+
+```toml
+[[services]]
+  internal_port = 8443
+  protocol = "tcp"
+
+  [[services.ports]]
+    handlers = ["tls", "http"]
+    port = 443
+```
+
+3. Deploy:
+
+```bash
+fly deploy
+```
+
+The gateway log should show: `[telegram] Connected to Telegram (webhook mode)`.
 
 ## Home Channel
 
-Use `/sethome` in any Telegram chat (DM or group) to designate it as the home channel for cron job delivery. Or set it manually:
+Use the `/sethome` command in any Telegram chat (DM or group) to designate it as the **home channel**. Scheduled tasks (cron jobs) deliver their results to this channel.
+
+You can also set it manually in `~/.hermes/.env`:
 
 ```bash
 TELEGRAM_HOME_CHANNEL=-1001234567890
 TELEGRAM_HOME_CHANNEL_NAME="My Notes"
 ```
 
+:::tip
 Group chat IDs are negative numbers (e.g., `-1001234567890`). Your personal DM chat ID is the same as your user ID.
+:::
 
----
+## Voice Messages
 
-## Platform-Specific Features
+### Incoming Voice (Speech-to-Text)
 
-### Forum Topics
+Voice messages you send on Telegram are automatically transcribed by Hermes's configured STT provider and injected as text into the conversation.
 
-Telegram supergroups can have forum mode enabled, which creates named topics (threads). The adapter fully supports forum topic session isolation — each topic gets its own session. The `thread_id` from the Telegram message is used as part of the session key.
+- `local` uses `faster-whisper` on the machine running Hermes — no API key required
+- `groq` uses Groq Whisper and requires `GROQ_API_KEY`
+- `openai` uses OpenAI Whisper and requires `VOICE_TOOLS_OPENAI_KEY`
 
-**Group topics skill binding (v0.8.0):** You can bind a skill to specific supergroup forum topics using the `group_topics` config ([PR #4886](https://github.com/NousResearch/hermes-agent/pull/4886)):
+### Outgoing Voice (Text-to-Speech)
 
-```json
-{
-  "platforms": {
-    "telegram": {
-      "extra": {
-        "group_topics": [
-          {
-            "chat_id": "-1001234567890",
-            "topics": [
-              {"thread_id": 42, "skill": "code-review"},
-              {"thread_id": 87, "skill": "devops"}
-            ]
-          }
-        ]
-      }
-    }
-  }
-}
-```
+When the agent generates audio via TTS, it's delivered as native Telegram **voice bubbles** — the round, inline-playable kind.
 
-When a message arrives in a configured forum topic, the bound skill is automatically loaded for that agent run.
-
-### Private Chat Topics (v0.5.0)
-
-Private Chat Topics ([PR #3163](https://github.com/NousResearch/hermes-agent/pull/3163)) extend forum-style topics to **any supergroup** — not just groups with Telegram's official forum mode enabled. Any supergroup with topics created (whether or not "Topics" is toggled on in group settings) can use this feature. Each topic is mapped to a distinct Hermes project with its own isolated session and conversation history — sending a message in topic A does not affect the session in topic B within the same group.
-
-**Per-topic skill binding:** You can bind a specific skill to a topic so the agent automatically loads a particular skill context when that topic is active. Configure this in `~/.hermes/gateway.json` or via `hermes gateway setup`:
-
-```json
-{
-  "platforms": {
-    "telegram": {
-      "extra": {
-        "topic_skills": {
-          "42": "code-review",
-          "87": "devops"
-        }
-      }
-    }
-  }
-}
-```
-
-Keys are Telegram `thread_id` values (as strings); values are skill names.
-
-**DM Topics:** You can also enable topic-style session isolation in private (DM) chats by setting `dm_topics` in the platform extra config. When enabled, the adapter treats forwarded-topic replies in DMs as separate sessions, keyed by the topic thread ID:
-
-```json
-{
-  "platforms": {
-    "telegram": {
-      "extra": {
-        "dm_topics": true
-      }
-    }
-  }
-}
-```
-
-This is configured via `extra.dm_topics` in `gateway.json` or the equivalent `config.yaml` path.
-
-**Thread not found fallback:** If a reply targets a topic whose `thread_id` no longer exists (the topic was deleted), the adapter falls back to sending the message without a thread ID instead of raising an error ([PR #3390](https://github.com/NousResearch/hermes-agent/pull/3390)).
-
-### Message Formatting
-
-The adapter converts standard markdown to Telegram MarkdownV2 format. Protected regions (code blocks, inline code) are extracted first so their contents are never modified. Conversions applied:
-
-- `## Header` → bold `*Header*`
-- `**bold**` → `*bold*`
-- `*italic*` → `_italic_`
-- `[link](url)` → MarkdownV2 link syntax
-- All remaining special characters are escaped with backslashes
-
-If MarkdownV2 parsing fails, the adapter falls back to plain text.
-
-### Long Message Splitting
-
-Telegram's message limit is 4096 characters. Longer responses are split at natural line breaks, preserving code block boundaries. Each chunk is labeled `(1/N)` when the response spans multiple messages.
-
-### Media Batch Handling
-
-When users send multiple photos (albums), Telegram delivers them as separate update events with a shared `media_group_id`. The adapter buffers them and merges them into a single `MessageEvent` before dispatching, preventing the second photo from being treated as an interrupt. The batch delay is configurable via `HERMES_TELEGRAM_MEDIA_BATCH_DELAY_SECONDS` (default: `0.8`).
-
-Similarly, text messages from a Telegram client that splits long messages into multiple parts are aggregated with a configurable delay (`HERMES_TELEGRAM_TEXT_BATCH_DELAY_SECONDS`, default: `0.6`).
-
-### Sticker Analysis
-
-Static stickers (WEBP format) are analyzed via the vision tool to extract a text description. The description is cached by `file_unique_id` so the same sticker is only analyzed once. Animated and video stickers receive a placeholder description noting their emoji.
-
-### Voice Messages
-
-Incoming `.ogg` voice messages are cached locally and transcribed by the configured STT provider. The agent receives the transcription as the message text.
-
-Outgoing TTS audio is sent as native Telegram voice bubbles when the audio is in OGG/Opus format. Other formats (MP3) are sent as audio file attachments. The Edge TTS provider outputs MP3 and requires `ffmpeg` to convert to Opus for bubble delivery:
+- **OpenAI and ElevenLabs** produce Opus natively — no extra setup needed
+- **Edge TTS** (the default free provider) outputs MP3 and requires **ffmpeg** to convert to Opus:
 
 ```bash
-# macOS
-brew install ffmpeg
-
 # Ubuntu/Debian
 sudo apt install ffmpeg
+
+# macOS
+brew install ffmpeg
 ```
 
-### Photo and Document Handling
+Without ffmpeg, Edge TTS audio is sent as a regular audio file (still playable, but uses the rectangular player instead of a voice bubble).
 
-Images sent to the bot are downloaded to `{HERMES_HOME}/image_cache/` using the highest-resolution version available. Documents are downloaded to `{HERMES_HOME}/document_cache/`. Supported document types: `.pdf`, `.md`, `.txt`, `.docx`, `.xlsx`, `.pptx`. Maximum document size: 20 MB (Telegram Bot API limit).
-
-Text files (`.md`, `.txt`) up to 100 KB have their content injected directly into the message text.
-
-### Location Sharing
-
-When a user shares a location pin, the adapter formats the coordinates and a Google Maps link into the message text and prompts the agent to ask about nearby places.
-
-### Token Conflict Protection
-
-The adapter uses a scoped lock file to prevent two gateway instances from polling with the same bot token simultaneously. If a conflict is detected via Telegram's API error, polling stops immediately with `error_code: "telegram_polling_conflict"` and a non-retryable fatal error is recorded.
-
-### Duplicate Message Prevention (v0.8.0)
-
-The adapter guards against duplicate message delivery that can occur when a send times out and the library retries. A dedup check ensures the same message is not delivered twice to the user ([PR #5153](https://github.com/NousResearch/hermes-agent/pull/5153)).
-
-### Interactive Model Picker (v0.8.0)
-
-The `/model` command displays a **paginated inline keyboard** for model selection. Use the Next/Prev navigation buttons to browse all available models. Selecting a model switches immediately without restarting the session ([PR #5742](https://github.com/NousResearch/hermes-agent/pull/5742)).
-
----
-
-## Exec Approval
-
-When the agent tries to run a potentially dangerous command, it presents an approval prompt in the chat. In v0.8.0, this prompt renders as **interactive inline buttons** — click **Approve** or **Deny** directly instead of typing a command.
-
-The text commands `/approve` and `/deny` still work as a fallback.
-
-**Emoji reactions** (v0.8.0): the bot adds emoji reactions to the user's message to indicate approval status — a pending reaction while waiting, then a check or cross when resolved ([PR #5975](https://github.com/NousResearch/hermes-agent/pull/5975)).
-
----
+Configure the TTS provider in your `config.yaml` under the `tts.provider` key.
 
 ## Group Chat Usage
 
-- Privacy mode determines what the bot can see (see Step 3)
-- With privacy mode on, @mention the bot or reply to its messages
-- With privacy mode off (or bot is admin), the bot sees all messages
-- `TELEGRAM_ALLOWED_USERS` still applies in groups — only authorized users can trigger the bot
+Hermes Agent works in Telegram group chats with a few considerations:
 
----
+- **Privacy mode** determines what messages the bot can see (see [Step 3](#step-3-privacy-mode-critical-for-groups))
+- `TELEGRAM_ALLOWED_USERS` still applies — only authorized users can trigger the bot, even in groups
+- You can keep the bot from responding to ordinary group chatter with `telegram.require_mention: true`
+- With `telegram.require_mention: true`, group messages are accepted when they are:
+  - slash commands
+  - replies to one of the bot's messages
+  - `@botusername` mentions
+  - matches for one of your configured regex wake words in `telegram.mention_patterns`
+- If `telegram.require_mention` is left unset or false, Hermes keeps the previous open-group behavior and responds to normal group messages it can see
+
+### Example group trigger configuration
+
+Add this to `~/.hermes/config.yaml`:
+
+```yaml
+telegram:
+  require_mention: true
+  mention_patterns:
+    - "^\\s*chompy\\b"
+```
+
+This example allows all the usual direct triggers plus messages that begin with `chompy`, even if they do not use an `@mention`.
+
+### Notes on `mention_patterns`
+
+- Patterns use Python regular expressions
+- Matching is case-insensitive
+- Patterns are checked against both text messages and media captions
+- Invalid regex patterns are ignored with a warning in the gateway logs rather than crashing the bot
+- If you want a pattern to match only at the start of a message, anchor it with `^`
+
+## Private Chat Topics (Bot API 9.4)
+
+Telegram Bot API 9.4 (February 2026) introduced **Private Chat Topics** — bots can create forum-style topic threads directly in 1-on-1 DM chats, no supergroup needed. This lets you run multiple isolated workspaces within your existing DM with Hermes.
+
+### Use case
+
+If you work on several long-running projects, topics keep their context separate:
+
+- **Topic "Website"** — work on your production web service
+- **Topic "Research"** — literature review and paper exploration
+- **Topic "General"** — miscellaneous tasks and quick questions
+
+Each topic gets its own conversation session, history, and context — completely isolated from the others.
+
+### Configuration
+
+Add topics under `platforms.telegram.extra.dm_topics` in `~/.hermes/config.yaml`:
+
+```yaml
+platforms:
+  telegram:
+    extra:
+      dm_topics:
+      - chat_id: 123456789        # Your Telegram user ID
+        topics:
+        - name: General
+          icon_color: 7322096
+        - name: Website
+          icon_color: 9367192
+        - name: Research
+          icon_color: 16766590
+          skill: arxiv              # Auto-load a skill in this topic
+```
+
+**Fields:**
+
+| Field | Required | Description |
+|-------|----------|-------------|
+| `name` | Yes | Topic display name |
+| `icon_color` | No | Telegram icon color code (integer) |
+| `icon_custom_emoji_id` | No | Custom emoji ID for the topic icon |
+| `skill` | No | Skill to auto-load on new sessions in this topic |
+| `thread_id` | No | Auto-populated after topic creation — don't set manually |
+
+### How it works
+
+1. On gateway startup, Hermes calls `createForumTopic` for each topic that doesn't have a `thread_id` yet
+2. The `thread_id` is saved back to `config.yaml` automatically — subsequent restarts skip the API call
+3. Each topic maps to an isolated session key: `agent:main:telegram:dm:{chat_id}:{thread_id}`
+4. Messages in each topic have their own conversation history, memory flush, and context window
+
+### Skill binding
+
+Topics with a `skill` field automatically load that skill when a new session starts in the topic. This works exactly like typing `/skill-name` at the start of a conversation — the skill content is injected into the first message, and subsequent messages see it in the conversation history.
+
+For example, a topic with `skill: arxiv` will have the arxiv skill pre-loaded whenever its session resets (due to idle timeout, daily reset, or manual `/reset`).
+
+:::tip
+Topics created outside of the config (e.g., by manually calling the Telegram API) are discovered automatically when a `forum_topic_created` service message arrives. You can also add topics to the config while the gateway is running — they'll be picked up on the next cache miss.
+:::
+
+## Group Forum Topic Skill Binding
+
+Supergroups with **Topics mode** enabled (also called "forum topics") already get session isolation per topic — each `thread_id` maps to its own conversation. But you may want to **auto-load a skill** when messages arrive in a specific group topic, just like DM topic skill binding works.
+
+### Use case
+
+A team supergroup with forum topics for different workstreams:
+
+- **Engineering** topic → auto-loads the `software-development` skill
+- **Research** topic → auto-loads the `arxiv` skill
+- **General** topic → no skill, general-purpose assistant
+
+### Configuration
+
+Add topic bindings under `platforms.telegram.extra.group_topics` in `~/.hermes/config.yaml`:
+
+```yaml
+platforms:
+  telegram:
+    extra:
+      group_topics:
+      - chat_id: -1001234567890       # Supergroup ID
+        topics:
+        - name: Engineering
+          thread_id: 5
+          skill: software-development
+        - name: Research
+          thread_id: 12
+          skill: arxiv
+        - name: General
+          thread_id: 1
+          # No skill — general purpose
+```
+
+**Fields:**
+
+| Field | Required | Description |
+|-------|----------|-------------|
+| `chat_id` | Yes | The supergroup's numeric ID (negative number starting with `-100`) |
+| `name` | No | Human-readable label for the topic (informational only) |
+| `thread_id` | Yes | Telegram forum topic ID — visible in `t.me/c/<group_id>/<thread_id>` links |
+| `skill` | No | Skill to auto-load on new sessions in this topic |
+
+### How it works
+
+1. When a message arrives in a mapped group topic, Hermes looks up the `chat_id` and `thread_id` in `group_topics` config
+2. If a matching entry has a `skill` field, that skill is auto-loaded for the session — identical to DM topic skill binding
+3. Topics without a `skill` key get session isolation only (existing behavior, unchanged)
+4. Unmapped `thread_id` values or `chat_id` values fall through silently — no error, no skill
+
+### Differences from DM Topics
+
+| | DM Topics | Group Topics |
+|---|---|---|
+| Config key | `extra.dm_topics` | `extra.group_topics` |
+| Topic creation | Hermes creates topics via API if `thread_id` is missing | Admin creates topics in Telegram UI |
+| `thread_id` | Auto-populated after creation | Must be set manually |
+| `icon_color` / `icon_custom_emoji_id` | Supported | Not applicable (admin controls appearance) |
+| Skill binding | ✓ | ✓ |
+| Session isolation | ✓ | ✓ (already built-in for forum topics) |
+
+:::tip
+To find a topic's `thread_id`, open the topic in Telegram Web or Desktop and look at the URL: `https://t.me/c/1234567890/5` — the last number (`5`) is the `thread_id`. The `chat_id` for supergroups is the group ID prefixed with `-100` (e.g., group `1234567890` becomes `-1001234567890`).
+:::
+
+## Recent Bot API Features
+
+- **Bot API 9.4 (Feb 2026):** Private Chat Topics — bots can create forum topics in 1-on-1 DM chats via `createForumTopic`. See [Private Chat Topics](#private-chat-topics-bot-api-94) above.
+- **Privacy policy:** Telegram now requires bots to have a privacy policy. Set one via BotFather with `/setprivacy_policy`, or Telegram may auto-generate a placeholder. This is particularly important if your bot is public-facing.
+- **Message streaming:** Bot API 9.x added support for streaming long responses, which can improve perceived latency for lengthy agent replies.
+
+## Interactive Model Picker
+
+When you send `/model` with no arguments in a Telegram chat, Hermes shows an interactive inline keyboard for switching models:
+
+1. **Provider selection** — buttons showing each available provider with model counts (e.g., "OpenAI (15)", "✓ Anthropic (12)" for the current provider).
+2. **Model selection** — paginated model list with **Prev**/**Next** navigation, a **Back** button to return to providers, and **Cancel**.
+
+The current model and provider are displayed at the top. All navigation happens by editing the same message in-place (no chat clutter).
+
+:::tip
+If you know the exact model name, type `/model <name>` directly to skip the picker. You can also type `/model <name> --global` to persist the change across sessions.
+:::
+
+## Webhook Mode
+
+By default, the Telegram adapter connects via **long polling** — the gateway makes outbound connections to Telegram's servers. This works everywhere but keeps a persistent connection open.
+
+**Webhook mode** is an alternative where Telegram pushes updates to your server over HTTPS. This is ideal for **serverless and cloud deployments** (Fly.io, Railway, etc.) where inbound HTTP can wake a suspended machine.
+
+### Configuration
+
+Set the `TELEGRAM_WEBHOOK_URL` environment variable to enable webhook mode:
+
+```bash
+# Required — your public HTTPS endpoint
+TELEGRAM_WEBHOOK_URL=https://app.fly.dev/telegram
+
+# Optional — local listen port (default: 8443)
+TELEGRAM_WEBHOOK_PORT=8443
+
+# Optional — secret token for update verification (auto-generated if not set)
+TELEGRAM_WEBHOOK_SECRET=my-secret-token
+```
+
+Or in `~/.hermes/config.yaml`:
+
+```yaml
+telegram:
+  webhook_mode: true
+```
+
+When `TELEGRAM_WEBHOOK_URL` is set, the gateway starts an HTTP server listening on `0.0.0.0:<port>` and registers the webhook URL with Telegram. The URL path is extracted from the webhook URL (defaults to `/telegram`).
+
+:::warning
+Telegram requires a **valid TLS certificate** on the webhook endpoint. Self-signed certificates will be rejected. Use a reverse proxy (nginx, Caddy) or a platform that provides TLS termination (Fly.io, Railway, Cloudflare Tunnel).
+:::
+
+## DNS-over-HTTPS Fallback IPs
+
+In some restricted networks, `api.telegram.org` may resolve to an IP that is unreachable. The Telegram adapter includes a **fallback IP** mechanism that transparently retries connections against alternative IPs while preserving the correct TLS hostname and SNI.
+
+### How it works
+
+1. If `TELEGRAM_FALLBACK_IPS` is set, those IPs are used directly.
+2. Otherwise, the adapter automatically queries **Google DNS** and **Cloudflare DNS** via DNS-over-HTTPS (DoH) to discover alternative IPs for `api.telegram.org`.
+3. IPs returned by DoH that differ from the system DNS result are used as fallbacks.
+4. If DoH is also blocked, a hardcoded seed IP (`149.154.167.220`) is used as a last resort.
+5. Once a fallback IP succeeds, it becomes "sticky" — subsequent requests use it directly without retrying the primary path first.
+
+### Configuration
+
+```bash
+# Explicit fallback IPs (comma-separated)
+TELEGRAM_FALLBACK_IPS=149.154.167.220,149.154.167.221
+```
+
+Or in `~/.hermes/config.yaml`:
+
+```yaml
+platforms:
+  telegram:
+    extra:
+      fallback_ips:
+        - "149.154.167.220"
+```
+
+:::tip
+You usually don't need to configure this manually. The auto-discovery via DoH handles most restricted-network scenarios. The `TELEGRAM_FALLBACK_IPS` env var is only needed if DoH is also blocked on your network.
+:::
+
+## Proxy Support
+
+If your network requires an HTTP proxy to reach the internet (common in corporate environments), the Telegram adapter automatically reads standard proxy environment variables and routes all connections through the proxy.
+
+### Supported variables
+
+The adapter checks these environment variables in order, using the first one that is set:
+
+1. `HTTPS_PROXY`
+2. `HTTP_PROXY`
+3. `ALL_PROXY`
+4. `https_proxy` / `http_proxy` / `all_proxy` (lowercase variants)
+
+### Configuration
+
+Set the proxy in your environment before starting the gateway:
+
+```bash
+export HTTPS_PROXY=http://proxy.example.com:8080
+hermes gateway
+```
+
+Or add it to `~/.hermes/.env`:
+
+```bash
+HTTPS_PROXY=http://proxy.example.com:8080
+```
+
+The proxy applies to both the primary transport and all fallback IP transports. No additional Hermes configuration is needed — if the environment variable is set, it's used automatically.
+
+:::note
+This covers the custom fallback transport layer that Hermes uses for Telegram connections. The standard `httpx` client used elsewhere already respects proxy env vars natively.
+:::
+
+## Message Reactions
+
+The bot can add emoji reactions to messages as visual processing feedback:
+
+- 👀 when the bot starts processing your message
+- ✅ when the response is delivered successfully
+- ❌ if an error occurs during processing
+
+Reactions are **disabled by default**. Enable them in `config.yaml`:
+
+```yaml
+telegram:
+  reactions: true
+```
+
+Or via environment variable:
+
+```bash
+TELEGRAM_REACTIONS=true
+```
+
+:::note
+Unlike Discord (where reactions are additive), Telegram's Bot API replaces all bot reactions in a single call. The transition from 👀 to ✅/❌ happens atomically — you won't see both at once.
+:::
+
+:::tip
+If the bot doesn't have permission to add reactions in a group, the reaction calls fail silently and message processing continues normally.
+:::
 
 ## Troubleshooting
 
 | Problem | Solution |
 |---------|----------|
-| Bot not responding at all | Verify `TELEGRAM_BOT_TOKEN` is correct. Check `hermes gateway` logs. |
-| Bot responds with "unauthorized" | Your user ID is not in `TELEGRAM_ALLOWED_USERS`. Check with @userinfobot. |
-| Bot ignores group messages | Privacy mode is likely on. Disable it (Step 3) or make the bot a group admin. Remove and re-add the bot after changing privacy. |
-| Voice messages not transcribed | Verify STT is configured: install `faster-whisper` for local transcription, or set `GROQ_API_KEY` / `VOICE_TOOLS_OPENAI_KEY`. |
+| Bot not responding at all | Verify `TELEGRAM_BOT_TOKEN` is correct. Check `hermes gateway` logs for errors. |
+| Bot responds with "unauthorized" | Your user ID is not in `TELEGRAM_ALLOWED_USERS`. Double-check with @userinfobot. |
+| Bot ignores group messages | Privacy mode is likely on. Disable it (Step 3) or make the bot a group admin. **Remember to remove and re-add the bot after changing privacy.** |
+| Voice messages not transcribed | Verify STT is available: install `faster-whisper` for local transcription, or set `GROQ_API_KEY` / `VOICE_TOOLS_OPENAI_KEY` in `~/.hermes/.env`. |
 | Voice replies are files, not bubbles | Install `ffmpeg` (needed for Edge TTS Opus conversion). |
-| Bot token conflict error | Another gateway instance is using this token. Stop the other instance first. |
-| Bot token revoked/invalid | Generate a new token via `/revoke` then `/token` in BotFather. Update `~/.hermes/.env`. |
+| Bot token revoked/invalid | Generate a new token via `/revoke` then `/newbot` or `/token` in BotFather. Update your `.env` file. |
+| Webhook not receiving updates | Verify `TELEGRAM_WEBHOOK_URL` is publicly reachable (test with `curl`). Ensure your platform/reverse proxy routes inbound HTTPS traffic from the URL's port to the local listen port configured by `TELEGRAM_WEBHOOK_PORT` (they do not need to be the same number). Ensure SSL/TLS is active — Telegram only sends to HTTPS URLs. Check firewall rules. |
 
----
+## Exec Approval
+
+When the agent tries to run a potentially dangerous command, it asks you for approval in the chat:
+
+> ⚠️ This command is potentially dangerous (recursive delete). Reply "yes" to approve.
+
+Reply "yes"/"y" to approve or "no"/"n" to deny.
 
 ## Security
 
-Always set `TELEGRAM_ALLOWED_USERS`. Without it, the gateway denies all users by default. Never share your bot token publicly — if compromised, revoke it immediately via BotFather's `/revoke` command.
+:::warning
+Always set `TELEGRAM_ALLOWED_USERS` to restrict who can interact with your bot. Without it, the gateway denies all users by default as a safety measure.
+:::
 
----
+Never share your bot token publicly. If compromised, revoke it immediately via BotFather's `/revoke` command.
 
-## Webhook Mode (v0.6.0)
-
-By default the adapter uses **long polling** — it makes outbound requests to Telegram. In v0.6.0, **webhook mode** is available as an alternative. Telegram pushes updates to your HTTP endpoint instead of waiting for the adapter to poll. Webhook mode is faster and better suited for cloud platforms (Fly.io, Railway) where inbound HTTP traffic can wake a suspended container.
-
-### Requirements
-
-- A publicly reachable HTTPS URL pointing to your server
-- Port 443, 80, 88, or 8443 (Telegram requirement)
-
-### Enabling webhook mode
-
-Set the following environment variables before starting the gateway:
-
-```bash
-TELEGRAM_WEBHOOK_URL=https://your-server.example.com/telegram   # Required
-TELEGRAM_WEBHOOK_PORT=8443                                        # Local listen port (default: 8443)
-TELEGRAM_WEBHOOK_SECRET=your-random-secret-token                  # Optional but recommended
-```
-
-Hermes registers the webhook with Telegram automatically on startup. No manual `setWebhook` call is needed.
-
-### Reverting to polling
-
-Remove `TELEGRAM_WEBHOOK_URL` from your environment and restart the gateway. Hermes will fall back to long polling automatically.
-
-PR [#3880](https://github.com/NousResearch/hermes-agent/pull/3880)
-
----
-
-## Group Mention Gating (v0.6.0)
-
-v0.6.0 adds configurable **group mention gating** — you can control when the bot responds in group and supergroup chats.
-
-### `TELEGRAM_REQUIRE_MENTION`
-
-Set this to `true` to make the bot ignore group messages unless it is explicitly triggered:
-
-```bash
-TELEGRAM_REQUIRE_MENTION=true
-```
-
-When `TELEGRAM_REQUIRE_MENTION=true`, the bot responds in groups only when:
-- The message @mentions the bot by username
-- The message is a reply to one of the bot's own messages
-- The message matches a configured regex pattern (see below)
-- The message is a slash command (`/...`)
-- The chat ID is in `TELEGRAM_FREE_RESPONSE_CHATS`
-
-When `TELEGRAM_REQUIRE_MENTION=false` (default), the bot responds to all messages in groups (subject to `TELEGRAM_ALLOWED_USERS`).
-
-### `TELEGRAM_MENTION_PATTERNS`
-
-Define one or more regex patterns that trigger the bot in groups without an @mention. Useful for wake-word style activation.
-
-```bash
-# Single pattern
-TELEGRAM_MENTION_PATTERNS='["hey hermes", "hermes,"]'
-
-# JSON array of patterns (case-insensitive)
-TELEGRAM_MENTION_PATTERNS='["^hermes[,:]", "\\bhey bot\\b"]'
-```
-
-Patterns are matched case-insensitively against the message text and caption.
-
-### `TELEGRAM_FREE_RESPONSE_CHATS`
-
-Comma-separated list of chat IDs where the bot responds to all messages regardless of `TELEGRAM_REQUIRE_MENTION`:
-
-```bash
-TELEGRAM_FREE_RESPONSE_CHATS=-1001234567890,-1009876543210
-```
-
-### config.yaml equivalent
-
-```yaml
-gateway:
-  platforms:
-    telegram:
-      extra:
-        require_mention: true
-        mention_patterns:
-          - "^hermes[,:]"
-          - "\\bhey bot\\b"
-        free_response_chats:
-          - "-1001234567890"
-```
-
-PR [#3870](https://github.com/NousResearch/hermes-agent/pull/3870)
-
----
-
-## Changelog
-
-- **v0.8.0:** Group topics skill binding for supergroup forum topics ([PR #4886](https://github.com/NousResearch/hermes-agent/pull/4886)).
-- **v0.8.0:** Emoji reactions for approval status and notifications ([PR #5975](https://github.com/NousResearch/hermes-agent/pull/5975)).
-- **v0.8.0:** Paginated model picker with Next/Prev inline button navigation ([PR #5742](https://github.com/NousResearch/hermes-agent/pull/5742)).
-- **v0.8.0:** Approval buttons — interactive inline buttons replace text `/approve`/`/deny` ([PR #5890](https://github.com/NousResearch/hermes-agent/pull/5890)).
-- **v0.8.0:** Duplicate message delivery prevented on send timeout ([PR #5153](https://github.com/NousResearch/hermes-agent/pull/5153)).
-- **v0.6.0:** Webhook mode — Telegram can receive updates via HTTP push instead of polling ([PR #3880](https://github.com/NousResearch/hermes-agent/pull/3880)).
-- **v0.6.0:** Group mention gating — `TELEGRAM_REQUIRE_MENTION` and `TELEGRAM_MENTION_PATTERNS` ([PR #3870](https://github.com/NousResearch/hermes-agent/pull/3870)).
-- **v0.5.0:** Private Chat Topics with per-topic skill binding ([PR #3163](https://github.com/NousResearch/hermes-agent/pull/3163)).
+For more details, see the [Security documentation](/user-guide/security). You can also use [DM pairing](/user-guide/messaging#dm-pairing-alternative-to-allowlists) for a more dynamic approach to user authorization.
