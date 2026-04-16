@@ -1,3 +1,8 @@
+---
+sidebar_position: 7
+title: "Gateway Internals"
+description: "How the messaging gateway boots, authorizes users, routes sessions, and delivers messages"
+---
 
 # Gateway Internals
 
@@ -157,6 +162,7 @@ gateway/platforms/
 ├── wecom.py             # WeCom (WeChat Work) callback
 ├── weixin.py            # Weixin (personal WeChat) via iLink Bot API
 ├── bluebubbles.py       # Apple iMessage via BlueBubbles macOS server
+├── qqbot.py             # QQ Bot (Tencent QQ) via Official API v2
 ├── webhook.py           # Inbound/outbound webhook adapter
 ├── api_server.py        # REST API server adapter
 └── homeassistant.py     # Home Assistant conversation integration

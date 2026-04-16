@@ -1,3 +1,8 @@
+---
+title: "AI Providers"
+sidebar_label: "AI Providers"
+sidebar_position: 1
+---
 
 # AI Providers
 
@@ -10,7 +15,6 @@ You need at least one way to connect to an LLM. Use `hermes model` to switch pro
 | Provider | Setup |
 |----------|-------|
 | **Nous Portal** | `hermes model` (OAuth, subscription-based) |
-| **AWS Bedrock** | `hermes model` (native Bedrock provider with IAM auth) |
 | **OpenAI Codex** | `hermes model` (ChatGPT OAuth, uses Codex models) |
 | **GitHub Copilot** | `hermes model` (OAuth device code flow, `COPILOT_GITHUB_TOKEN`, `GH_TOKEN`, or `gh auth token`) |
 | **GitHub Copilot ACP** | `hermes model` (spawns local `copilot --acp --stdio`) |
@@ -46,8 +50,19 @@ Even when using Nous Portal, Codex, or a custom endpoint, some tools (vision, we
 :::
 
 :::tip Nous Tool Gateway
-Paid Nous Portal subscribers also get access to the [Tool Gateway](/docs/user-guide/features/tool-gateway) for web search, image generation, TTS, and browser automation. Hermes can offer this automatically during `hermes model`, or you can enable it later with `hermes tools`.
+Paid Nous Portal subscribers also get access to the **[Tool Gateway](/docs/user-guide/features/tool-gateway)** — web search, image generation, TTS, and browser automation routed through your subscription. No extra API keys needed. It's offered automatically during `hermes model` setup, or enable it later with `hermes tools`.
 :::
+
+### Two Commands for Model Management
+
+Hermes has **two** model commands that serve different purposes:
+
+| Command | Where to run | What it does |
+|---------|-------------|--------------|
+| **`hermes model`** | Your terminal (outside any session) | Full setup wizard — add providers, run OAuth, enter API keys, configure endpoints |
+| **`/model`** | Inside a Hermes chat session | Quick switch between **already-configured** providers and models |
+
+If you're trying to switch to a provider you haven't set up yet (e.g. you only have OpenRouter configured and want to use Anthropic), you need `hermes model`, not `/model`. Exit your session first (`Ctrl+C` or `/quit`), run `hermes model`, complete the provider setup, then start a new session.
 
 ### Anthropic (Native)
 
@@ -252,7 +267,15 @@ Both approaches persist to `config.yaml`, which is the source of truth for model
 
 ### Switching Models with `/model`
 
-Once a custom endpoint is configured, you can switch models mid-session:
+:::warning hermes model vs /model
+**`hermes model`** (run from your terminal, outside any chat session) is the **full provider setup wizard**. Use it to add new providers, run OAuth flows, enter API keys, and configure custom endpoints.
+
+**`/model`** (typed inside an active Hermes chat session) can only **switch between providers and models you've already set up**. It cannot add new providers, run OAuth, or prompt for API keys. If you've only configured one provider (e.g. OpenRouter), `/model` will only show models for that provider.
+
+**To add a new provider:** Exit your session (`Ctrl+C` or `/quit`), run `hermes model`, set up the new provider, then start a new session.
+:::
+
+Once you have at least one custom endpoint configured, you can switch models mid-session:
 
 ```
 /model custom:qwen-2.5          # Switch to a model on your custom endpoint

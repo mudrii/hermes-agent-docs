@@ -1,3 +1,8 @@
+---
+sidebar_position: 11
+title: "Cron Internals"
+description: "How Hermes stores, schedules, edits, pauses, skill-loads, and delivers cron jobs"
+---
 
 # Cron Internals
 
@@ -175,6 +180,7 @@ Cron job results can be delivered to any supported platform:
 | WeCom | `wecom` | Deliver to WeCom |
 | Weixin | `weixin` | Deliver to Weixin (WeChat) |
 | BlueBubbles | `bluebubbles` | Deliver to iMessage via BlueBubbles |
+| QQ Bot | `qqbot` | Deliver to QQ (Tencent) via Official API v2 |
 
 For Telegram topics, use the format `telegram:<chat_id>:<thread_id>` (e.g., `telegram:-1001234567890:17585`).
 

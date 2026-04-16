@@ -1,6 +1,12 @@
+---
+sidebar_position: 2
+title: "Adding Tools"
+description: "How to add a new tool to Hermes Agent — schemas, handlers, registration, and toolsets"
+---
+
 # Adding Tools
 
-Before writing a tool, ask: should this be a skill instead?
+Before writing a tool, ask yourself: **should this be a [skill](creating-skills.md) instead?**
 
 Make it a **Skill** when the capability can be expressed as instructions + shell commands + existing tools (arXiv search, git workflows, Docker management, PDF processing).
 
@@ -8,11 +14,12 @@ Make it a **Tool** when it requires end-to-end integration with API keys, custom
 
 ## Overview
 
-Adding a tool touches 3 files:
+Adding a tool touches **2 files**:
 
-1. `tools/your_tool.py` -- handler, schema, check function, `registry.register()` call
-2. `toolsets.py` -- add tool name to `_HERMES_CORE_TOOLS` or a specific toolset
-3. `model_tools.py` -- add `"tools.your_tool"` to the `_discover_tools()` list
+1. **`tools/your_tool.py`** — handler, schema, check function, `registry.register()` call
+2. **`toolsets.py`** — add tool name to `_HERMES_CORE_TOOLS` (or a specific toolset)
+
+Any `tools/*.py` file with a top-level `registry.register()` call is auto-discovered at startup — no manual import list required.
 
 ## Step 1: Create the Tool File
 
@@ -20,6 +27,7 @@ Every tool file follows the same structure:
 
 ```python
 # tools/weather_tool.py
+"""Weather Tool -- look up current weather for a location."""
 
 import json
 import os
@@ -28,20 +36,28 @@ import logging
 logger = logging.getLogger(__name__)
 
 
+# --- Availability check ---
+
 def check_weather_requirements() -> bool:
+    """Return True if the tool's dependencies are available."""
     return bool(os.getenv("WEATHER_API_KEY"))
 
 
+# --- Handler ---
+
 def weather_tool(location: str, units: str = "metric") -> str:
+    """Fetch weather for a location. Returns JSON string."""
     api_key = os.getenv("WEATHER_API_KEY")
     if not api_key:
         return json.dumps({"error": "WEATHER_API_KEY not configured"})
     try:
-        # call weather API...
+        # ... call weather API ...
         return json.dumps({"location": location, "temp": 22, "units": units})
     except Exception as e:
         return json.dumps({"error": str(e)})
 
+
+# --- Schema ---
 
 WEATHER_SCHEMA = {
     "name": "weather",
@@ -65,6 +81,8 @@ WEATHER_SCHEMA = {
 }
 
 
+# --- Registration ---
+
 from tools.registry import registry
 
 registry.register(
@@ -81,20 +99,22 @@ registry.register(
 
 ### Key Rules
 
-- Handlers **must** return a JSON string (via `json.dumps()`), never raw dicts
-- Errors **must** be returned as `{"error": "message"}`, never raised as exceptions
-- The `check_fn` is called when building tool definitions -- if it returns `False`, the tool is silently excluded
+:::danger Important
+- Handlers **MUST** return a JSON string (via `json.dumps()`), never raw dicts
+- Errors **MUST** be returned as `{"error": "message"}`, never raised as exceptions
+- The `check_fn` is called when building tool definitions — if it returns `False`, the tool is silently excluded
 - The `handler` receives `(args: dict, **kwargs)` where `args` is the LLM's tool call arguments
+:::
 
 ## Step 2: Add to a Toolset
 
 In `toolsets.py`, add the tool name:
 
 ```python
-# If it should be available on all platforms:
+# If it should be available on all platforms (CLI + messaging):
 _HERMES_CORE_TOOLS = [
     ...
-    "weather",
+    "weather",  # <-- add here
 ]
 
 # Or create a new standalone toolset:
@@ -105,19 +125,9 @@ _HERMES_CORE_TOOLS = [
 },
 ```
 
-## Step 3: Add Discovery Import
+## ~~Step 3: Add Discovery Import~~ (No longer needed)
 
-In `model_tools.py`, add the module to the `_discover_tools()` list:
-
-```python
-def _discover_tools():
-    _modules = [
-        ...
-        "tools.weather_tool",
-    ]
-```
-
-This import triggers the `registry.register()` call at the bottom of your tool file.
+Tool modules with a top-level `registry.register()` call are auto-discovered by `discover_builtin_tools()` in `tools/registry.py`. No manual import list to maintain — just create your file in `tools/` and it's picked up at startup.
 
 ## Async Handlers
 
@@ -135,11 +145,11 @@ registry.register(
     schema=WEATHER_SCHEMA,
     handler=lambda args, **kw: weather_tool_async(args.get("location", "")),
     check_fn=check_weather_requirements,
-    is_async=True,
+    is_async=True,  # registry calls _run_async() automatically
 )
 ```
 
-The registry handles async bridging transparently -- you never call `asyncio.run()` yourself.
+The registry handles async bridging transparently — you never call `asyncio.run()` yourself.
 
 ## Handlers That Need task_id
 
@@ -180,10 +190,10 @@ OPTIONAL_ENV_VARS = {
 
 ## Checklist
 
-- Tool file created with handler, schema, check function, and registration
-- Added to appropriate toolset in `toolsets.py`
-- Discovery import added to `model_tools.py`
-- Handler returns JSON strings; errors returned as `{"error": "..."}`
-- Optional: API key added to `OPTIONAL_ENV_VARS` in `hermes_cli/config.py`
-- Optional: Added to `toolset_distributions.py` for batch processing
-- Tested with `hermes chat -q "Use the weather tool for London"`
+- [ ] Tool file created with handler, schema, check function, and registration
+- [ ] Added to appropriate toolset in `toolsets.py`
+- [ ] Discovery import added to `model_tools.py`
+- [ ] Handler returns JSON strings, errors returned as `{"error": "..."}`
+- [ ] Optional: API key added to `OPTIONAL_ENV_VARS` in `hermes_cli/config.py`
+- [ ] Optional: Added to `toolset_distributions.py` for batch processing
+- [ ] Tested with `hermes chat -q "Use the weather tool for London"`

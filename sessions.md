@@ -1,3 +1,8 @@
+---
+sidebar_position: 7
+title: "Sessions"
+description: "Session persistence, resume, search, management, and per-platform session tracking"
+---
 
 # Sessions
 
@@ -41,6 +46,7 @@ Each session is tagged with its source platform:
 | `wecom` | WeCom (WeChat Work) |
 | `weixin` | Weixin (personal WeChat) |
 | `bluebubbles` | Apple iMessage via BlueBubbles macOS server |
+| `qqbot` | QQ Bot (Tencent QQ) via Official API v2 |
 | `homeassistant` | Home Assistant conversation |
 | `webhook` | Incoming webhooks |
 | `api-server` | API server requests |
