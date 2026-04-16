@@ -2,9 +2,28 @@
 
 All notable changes to Hermes Agent are documented here.
 
-**Current stable release: v0.9.0** (v2026.4.13, April 13, 2026)
+**Current stable release: v0.10.0** (v2026.4.16, April 16, 2026)
 
 ---
+
+## v0.10.0 -- April 16, 2026
+
+> The Tool Gateway release — Hermes adds subscription-backed web search, image generation, TTS, and browser automation for paid Nous Portal users, ships a native AWS Bedrock provider, expands messaging with QQ Bot, and opens the web dashboard to plugin-defined tabs.
+
+### Highlights
+
+- **Nous Tool Gateway** — paid Nous Portal subscribers can route web search, image generation, text-to-speech, and browser automation through their existing subscription. Per-tool `use_gateway` config is supported in `config.yaml`, and `hermes model`, `hermes tools`, and `hermes status` surface the gateway state directly.
+- **AWS Bedrock provider** — Hermes now supports Bedrock natively through the Converse API with IAM auth, region-aware model discovery, inference profiles, and Guardrails support.
+- **QQ Bot messaging adapter** — Hermes can now connect to Tencent QQ through the Official QQ Bot API v2 with private, group, and guild messaging plus voice transcription support.
+- **Dashboard plugins** — the local web dashboard now supports plugin-defined tabs, frontend bundles, and optional backend API routes.
+- **Reliability and hardening** — the release window also includes a broad set of fixes across gateway delivery, browser fallback, tool execution, provider selection, Unicode handling, and context-compression recovery.
+
+### Delivery notes
+
+- The upstream source tree includes a local `RELEASE_v0.10.0.md` artifact and `v2026.4.16` tag.
+- The public GitHub “latest release” surface lagged behind during this docs audit, so the docs repo is explicitly aligned to the local released source tree used for synchronization.
+
+**Full Changelog:** [v2026.4.13...v2026.4.16](https://github.com/NousResearch/hermes-agent/compare/v2026.4.13...v2026.4.16)
 
 ## v0.9.0 -- April 13, 2026
 

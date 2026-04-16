@@ -10,6 +10,7 @@ You need at least one way to connect to an LLM. Use `hermes model` to switch pro
 | Provider | Setup |
 |----------|-------|
 | **Nous Portal** | `hermes model` (OAuth, subscription-based) |
+| **AWS Bedrock** | `hermes model` (native Bedrock provider with IAM auth) |
 | **OpenAI Codex** | `hermes model` (ChatGPT OAuth, uses Codex models) |
 | **GitHub Copilot** | `hermes model` (OAuth device code flow, `COPILOT_GITHUB_TOKEN`, `GH_TOKEN`, or `gh auth token`) |
 | **GitHub Copilot ACP** | `hermes model` (spawns local `copilot --acp --stdio`) |
@@ -42,6 +43,10 @@ The OpenAI Codex provider authenticates via device code (open a URL, enter a cod
 
 :::warning
 Even when using Nous Portal, Codex, or a custom endpoint, some tools (vision, web summarization, MoA) use a separate "auxiliary" model — by default Gemini Flash via OpenRouter. An `OPENROUTER_API_KEY` enables these tools automatically. You can also configure which model and provider these tools use — see [Auxiliary Models](/docs/user-guide/configuration#auxiliary-models).
+:::
+
+:::tip Nous Tool Gateway
+Paid Nous Portal subscribers also get access to the [Tool Gateway](/docs/user-guide/features/tool-gateway) for web search, image generation, TTS, and browser automation. Hermes can offer this automatically during `hermes model`, or you can enable it later with `hermes tools`.
 :::
 
 ### Anthropic (Native)

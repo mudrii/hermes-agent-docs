@@ -4,7 +4,7 @@
 
 Hermes Agent is an autonomous AI agent with a built-in learning loop. It creates skills from experience, improves them during use, searches its own past conversations for context, and builds a deepening model of who you are across sessions. It runs on a $5 VPS, a GPU cluster, or serverless infrastructure -- not tied to your laptop.
 
-Current version: **v0.9.0 (v2026.4.13)** -- released April 13, 2026.
+Current version: **v0.10.0 (v2026.4.16)** -- released April 16, 2026.
 
 ---
 
@@ -53,9 +53,11 @@ Drop Python files into `~/.hermes/plugins/` to extend Hermes with custom tools, 
 Use any model without code changes. Supported providers:
 
 - **Nous Portal** -- first-class provider; 400+ models via Nous inference (`https://inference-api.nousresearch.com/v1`)
+- **Nous Tool Gateway** (v0.10.0) -- paid Nous Portal subscribers can route web search, image generation, TTS, and browser automation through their subscription with per-tool `use_gateway` control
 - **OpenRouter** -- 200+ models (`https://openrouter.ai/api/v1`)
 - **Anthropic** (native, v0.3.0) -- direct API with Claude Code credential auto-discovery, OAuth PKCE flows, and native prompt caching
 - **OpenAI** -- GPT-5 variants via chat completions or Codex Responses API
+- **AWS Bedrock** (v0.10.0) -- native Converse API provider with IAM authentication, model discovery, and Guardrails support
 - **Vercel AI Gateway** (v0.3.0) -- access Vercel's model catalog and infrastructure (`https://ai-gateway.vercel.sh/v1`)
 - **GitHub Copilot** (v0.4.0) -- OAuth auth, 400k context, token validation
 - **Alibaba Cloud / DashScope** (v0.4.0) -- DashScope v1 runtime
@@ -283,7 +285,9 @@ Hermes has two entry points: start the terminal UI with `hermes`, or run the gat
 | [installation.md](installation.md) | Install methods (one-liner, manual, Windows), prerequisites, setup wizard |
 | [configuration.md](configuration.md) | Complete config.yaml reference, env vars, precedence rules |
 | [cli-reference.md](cli-reference.md) | All CLI commands, slash commands, flags, environment variables |
-| [providers.md](providers.md) | All 17 LLM providers, credential resolution, routing, OAuth flows |
+| [providers.md](providers.md) | LLM providers, credential resolution, routing, OAuth flows, and released provider setup guides |
+| [tool-gateway.md](tool-gateway.md) | Nous Tool Gateway, `use_gateway`, per-tool routing, and subscription-backed tool access (v0.10.0) |
+| [guides/aws-bedrock.md](guides/aws-bedrock.md) | Native AWS Bedrock setup, IAM auth, regions, Guardrails, and troubleshooting (v0.10.0) |
 | [profiles.md](profiles.md) | Multi-instance profiles, creation, switching, gateway per-profile (v0.6.0) |
 
 ### Features
@@ -291,6 +295,7 @@ Hermes has two entry points: start the terminal UI with `hermes`, or run the gat
 | Document | Contents |
 |----------|----------|
 | [plugins.md](plugins.md) | Plugin architecture, discovery, registration, custom tools (v0.3.0) |
+| [dashboard-plugins.md](dashboard-plugins.md) | Extend the local web dashboard with custom tabs, bundles, and backend routes (v0.10.0) |
 | [hooks.md](hooks.md) | Gateway and plugin lifecycle hooks, event types |
 | [logging.md](logging.md) | Centralized logging to `~/.hermes/logs/`, `hermes logs` command, rotation, and redaction (v0.8.0) |
 | [live-model-switching.md](live-model-switching.md) | `/model` command, mid-session provider and model switching, interactive pickers (v0.8.0) |
@@ -352,6 +357,7 @@ Hermes has two entry points: start the terminal UI with `hermes`, or run the gat
 | [messaging/homeassistant.md](messaging/homeassistant.md) | Home Assistant smart home |
 | [messaging/feishu.md](messaging/feishu.md) | Feishu/Lark enterprise messaging (v0.6.0) |
 | [messaging/wecom.md](messaging/wecom.md) | WeCom enterprise messaging (v0.6.0) |
+| [messaging/qqbot.md](messaging/qqbot.md) | QQ Bot via the Official API v2 (v0.10.0) |
 | [messaging/webhook.md](messaging/webhook.md) | Webhook adapter |
 | [messaging/open-webui.md](messaging/open-webui.md) | Open WebUI / API server frontend |
 | [messaging/sms.md](messaging/sms.md) | SMS via Twilio |
@@ -407,6 +413,10 @@ Hermes has two entry points: start the terminal UI with `hermes`, or run the gat
 | [release_evaluation_v2026.4.13.md](release_evaluation_v2026.4.13.md) | Release validation, diff sizing, and unreleased-main exclusions |
 | [repo_review_v2026.4.13.md](repo_review_v2026.4.13.md) | Source-tree review mapped by subsystem |
 | [source_validation_matrix_v2026.4.13.md](source_validation_matrix_v2026.4.13.md) | Claim-to-source matrix with local and online validation links |
+| [review_plan_v2026.4.16.md](review_plan_v2026.4.16.md) | Release-bounded review plan for the April 16, 2026 audit |
+| [release_evaluation_v2026.4.16.md](release_evaluation_v2026.4.16.md) | Local-release validation plus public-release-surface discrepancy notes |
+| [repo_review_v2026.4.16.md](repo_review_v2026.4.16.md) | Docs-gap review and correction summary for v0.10.0 |
+| [source_validation_matrix_v2026.4.16.md](source_validation_matrix_v2026.4.16.md) | Source-to-doc mapping for the v2026.4.13..v2026.4.16 sync window |
 
 ### Contributing
 

@@ -2,9 +2,25 @@
 
 Hermes Agent can generate images from text prompts using FAL.ai's **FLUX 2 Pro** model with automatic 2x upscaling via the **Clarity Upscaler** for enhanced quality.
 
-Available since v0.2.0. Requires a `FAL_KEY` environment variable.
+Available since v0.2.0. You can use a direct `FAL_KEY` or route image generation through the [Nous Tool Gateway](tool-gateway.md) if you have a paid Nous Portal subscription.
 
 ## Setup
+
+### Use the Nous Tool Gateway
+
+If you have a paid Nous Portal subscription, enable image generation through:
+
+```bash
+hermes model
+```
+
+or:
+
+```bash
+hermes tools
+```
+
+This sets `image_gen.use_gateway: true` in `config.yaml` and routes requests through your Nous subscription instead of a direct FAL key.
 
 ### Get a FAL API Key
 
@@ -106,7 +122,7 @@ The image generation tool runs with safety checks disabled by default (`safety_t
 
 ## Limitations
 
-- **Requires FAL API key** -- image generation incurs API costs on your FAL.ai account
+- **Requires either a FAL key or a paid Nous Portal subscription** -- direct routing uses your FAL account, while `use_gateway: true` uses the Nous Tool Gateway
 - **No image editing** -- this is text-to-image only, no inpainting or img2img
 - **URL-based delivery** -- images are returned as temporary FAL.ai URLs, not saved locally
 - **Upscaling adds latency** -- the automatic 2x upscale step adds processing time

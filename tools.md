@@ -57,6 +57,10 @@ The registry handles async bridging transparently: if a handler is registered wi
 
 Tool calls may execute sequentially or concurrently depending on the tool mix and the model's interaction requirements.
 
+## Subscription-backed tools
+
+Paid Nous Portal subscribers can route web search, image generation, text-to-speech, and browser automation through the [Tool Gateway](tool-gateway.md). This is controlled per tool with `use_gateway: true` in `config.yaml`.
+
 ## All Built-in Tools by Toolset
 
 ### `browser` toolset
@@ -135,7 +139,7 @@ The standalone `honcho` toolset and its four tools (`honcho_conclude`, `honcho_c
 
 | Tool | Description | Requires |
 |------|-------------|---------|
-| `image_generate` | Generate high-quality images from text prompts using FLUX 2 Pro model with automatic 2x upscaling. Returns a single upscaled image URL. | `FAL_KEY` |
+| `image_generate` | Generate high-quality images from text prompts using FLUX 2 Pro model with automatic 2x upscaling. Returns a single upscaled image URL. | `FAL_KEY` or Nous Tool Gateway |
 
 Supported parameters:
 
@@ -216,7 +220,7 @@ RL training tools for running reinforcement learning on Tinker-Atropos. Requires
 
 | Tool | Description |
 |------|-------------|
-| `text_to_speech` | Convert text to speech audio. Supports four providers: Edge TTS (default, free), ElevenLabs (premium), OpenAI TTS, and NeuTTS (local, free). Returns a MEDIA: path that the platform delivers as a voice message. On Telegram it plays as a voice bubble; on Discord/WhatsApp as an audio attachment; in CLI mode, saves to `~/voice-memos/`. Voice and provider are configurable. |
+| `text_to_speech` | Convert text to speech audio. Supports Edge TTS, ElevenLabs, OpenAI TTS, MiniMax TTS, Mistral Voxtral TTS, and NeuTTS. Returns a MEDIA: path that the platform delivers as a voice message. On Telegram it plays as a voice bubble; on Discord/WhatsApp as an audio attachment; in CLI mode, saves to `~/voice-memos/`. Voice and provider are configurable, and OpenAI TTS can also be routed through the Nous Tool Gateway. |
 
 ### `vision` toolset
 
@@ -228,8 +232,8 @@ RL training tools for running reinforcement learning on Tinker-Atropos. Requires
 
 | Tool | Description | Requires |
 |------|-------------|---------|
-| `web_extract` | Extract content from web page URLs. Returns page content in markdown format. Also works with PDF URLs — pass the PDF link directly and it converts to markdown text. Pages under 5000 chars return full markdown; larger pages are LLM-summarized. | `PARALLEL_API_KEY` or `FIRECRAWL_API_KEY` or `TAVILY_API_KEY` or `EXA_API_KEY` (any one) |
-| `web_search` | Search the web for information on any topic. Returns up to 5 relevant results with titles, URLs, and descriptions. | `PARALLEL_API_KEY` or `FIRECRAWL_API_KEY` or `TAVILY_API_KEY` or `EXA_API_KEY` (any one) |
+| `web_extract` | Extract content from web page URLs. Returns page content in markdown format. Also works with PDF URLs — pass the PDF link directly and it converts to markdown text. Pages under 5000 chars return full markdown; larger pages are LLM-summarized. | direct search/extract API key or Nous Tool Gateway |
+| `web_search` | Search the web for information on any topic. Returns up to 5 relevant results with titles, URLs, and descriptions. | direct search API key or Nous Tool Gateway |
 
 #### Exa Search Backend (v0.6.0)
 

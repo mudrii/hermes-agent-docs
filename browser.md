@@ -2,6 +2,8 @@
 
 Hermes Agent includes a full browser automation toolset with multiple backend options. The `/browser` CLI command was introduced in v0.4.0 ([#2273](https://github.com/NousResearch/hermes-agent/pull/2273), [#1814](https://github.com/NousResearch/hermes-agent/pull/1814)) alongside the underlying browser tool system. The browser toolset must be enabled in your configuration before the tools are available to the model.
 
+Paid Nous Portal subscribers can also route browser automation through the [Nous Tool Gateway](tool-gateway.md) by setting `browser.use_gateway: true` or enabling it from `hermes model` / `hermes tools`.
+
 ## `/browser` CLI Command (v0.4.0)
 
 The `/browser` slash command provides an interactive browser workflow from the CLI without needing to phrase tool calls explicitly. It is available in both CLI and gateway modes.

@@ -10,6 +10,7 @@ You need at least one way to connect to an LLM. Use `hermes model` to switch pro
 | Provider | Setup |
 |----------|-------|
 | **Nous Portal** | `hermes model` (OAuth, subscription-based) |
+| **AWS Bedrock** | `hermes model` (native Bedrock provider with IAM auth) |
 | **OpenAI Codex** | `hermes model` (ChatGPT OAuth, uses Codex models) |
 | **GitHub Copilot** | `hermes model` (OAuth device code flow, `COPILOT_GITHUB_TOKEN`, `GH_TOKEN`, or `gh auth token`) |
 | **GitHub Copilot ACP** | `hermes model` (spawns local `copilot --acp --stdio`) |
@@ -43,6 +44,35 @@ The OpenAI Codex provider authenticates via device code (open a URL, enter a cod
 :::warning
 Even when using Nous Portal, Codex, or a custom endpoint, some tools (vision, web summarization, MoA) use a separate "auxiliary" model — by default Gemini Flash via OpenRouter. An `OPENROUTER_API_KEY` enables these tools automatically. You can also configure which model and provider these tools use — see [Auxiliary Models](/docs/user-guide/configuration#auxiliary-models).
 :::
+
+## Nous Tool Gateway
+
+Paid Nous Portal subscribers can also use the [Tool Gateway](tool-gateway.md) to route web search, image generation, text-to-speech, and browser automation through their subscription instead of separate direct-provider API keys.
+
+This is normally enabled from `hermes model` or `hermes tools`, but it can also be controlled per tool with `use_gateway: true` in `config.yaml`.
+
+### AWS Bedrock
+
+Hermes supports Amazon Bedrock as a native provider through the Bedrock Converse API.
+
+```bash
+hermes model
+# Choose AWS Bedrock
+```
+
+Typical persisted config:
+
+```yaml
+model:
+  provider: bedrock
+  default: us.anthropic.claude-sonnet-4-6
+  base_url: https://bedrock-runtime.us-east-2.amazonaws.com
+
+bedrock:
+  region: us-east-2
+```
+
+Bedrock uses the standard boto3 credential chain, so IAM roles, `AWS_PROFILE`, or environment credentials all work. For full setup, Guardrails, and troubleshooting, see [guides/aws-bedrock.md](guides/aws-bedrock.md).
 
 ### Anthropic (Native)
 
