@@ -16,6 +16,10 @@ All notable changes to Hermes Agent are documented here.
 - **AWS Bedrock provider** — Hermes now supports Bedrock natively through the Converse API with IAM auth, region-aware model discovery, inference profiles, and Guardrails support.
 - **QQ Bot messaging adapter** — Hermes can now connect to Tencent QQ through the Official QQ Bot API v2 with private, group, and guild messaging plus voice transcription support.
 - **Dashboard plugins** — the local web dashboard now supports plugin-defined tabs, frontend bundles, and optional backend API routes.
+- **Dashboard themes** — live theme switching from the dashboard header with six built-ins (Hermes Teal, Midnight, Ember, Mono, Cyberpunk, Rosé) and user-defined themes under `~/.hermes/dashboard-themes/`, persisted to `config.yaml` under `dashboard.theme`.
+- **Ollama Cloud as built-in provider** — Ollama Cloud is now first-class alongside local Ollama, with dynamic model discovery wired into the `/model` picker.
+- **Podman support** — entry-level Podman support via `find_docker()` and a rootless entrypoint, so container-based workflows no longer require Docker Desktop.
+- **Plugin `register_command()`** — plugins can register `/slash` commands for CLI and gateway sessions via `ctx.register_command(name, handler, description)`, complementing the existing `register_cli_command()` for top-level `hermes <plugin>` subcommands.
 - **Reliability and hardening** — the release window also includes a broad set of fixes across gateway delivery, browser fallback, tool execution, provider selection, Unicode handling, and context-compression recovery.
 
 ### Delivery notes
