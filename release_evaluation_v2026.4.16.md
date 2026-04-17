@@ -7,11 +7,11 @@
 - target commit on local `main`: `1dd6b5d5fb94cac59e93388f9aeee6bc365b8f42`
 - prior release tag: `v2026.4.13`
 
-## 2) Public-release-surface discrepancy
+## 2) Public-release-surface status
 
-During this audit, the public GitHub releases surface still reported `v2026.4.13` / `v0.9.0` as the latest published release, while the local source repository contained a newer release tag and release artifact for `v2026.4.16` / `v0.10.0`.
+Initially during the v2026.4.16 audit the public GitHub releases surface lagged behind the local tag. That lag has since resolved: v2026.4.16 / v0.10.0 is now the latest published release at https://github.com/NousResearch/hermes-agent/releases/tag/v2026.4.16 (verified 2026-04-17).
 
-This docs pass treats the local tagged source tree plus `RELEASE_v0.10.0.md` as the authoritative release boundary because that is the code and documentation source the docs repo is explicitly syncing against.
+The local tagged source tree plus `RELEASE_v0.10.0.md` remain the authoritative release boundary used for docs synchronization, and the public surface is consistent with that boundary.
 
 ## 3) Release-window scope
 

@@ -20,8 +20,8 @@ All notable changes to Hermes Agent are documented here.
 
 ### Delivery notes
 
-- The upstream source tree includes a local `RELEASE_v0.10.0.md` artifact and `v2026.4.16` tag.
-- The public GitHub “latest release” surface lagged behind during this docs audit, so the docs repo is explicitly aligned to the local released source tree used for synchronization.
+- The upstream source tree includes a `RELEASE_v0.10.0.md` artifact and `v2026.4.16` tag.
+- v2026.4.16 / v0.10.0 is [published on GitHub Releases](https://github.com/NousResearch/hermes-agent/releases/tag/v2026.4.16) as the latest release.
 
 **Full Changelog:** [v2026.4.13...v2026.4.16](https://github.com/NousResearch/hermes-agent/compare/v2026.4.13...v2026.4.16)
 
