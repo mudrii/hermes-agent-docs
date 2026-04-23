@@ -298,6 +298,7 @@ discord:
   ignored_channels: []            # Channel IDs where bot never responds
   no_thread_channels: []          # Channel IDs where bot responds without threading
   channel_prompts: {}             # Per-channel ephemeral system prompts
+  slash_commands: true            # Set false to prevent registering /hermes slash commands in this server
 
 # Session isolation (applies to all gateway platforms, not just Discord)
 group_sessions_per_user: true     # Isolate sessions per user in shared channels
@@ -403,6 +404,20 @@ Behavior:
 - Exact thread/channel ID matches win.
 - If a message arrives inside a thread or forum post and that thread has no explicit entry, Hermes falls back to the parent channel/forum ID.
 - Prompts are applied ephemerally at runtime, so changing them affects future turns immediately without rewriting past session history.
+
+#### `discord.slash_commands`
+
+**Type:** boolean — **Default:** `true`
+
+Controls whether Hermes registers its slash commands (e.g. `/model`, `/reset`, `/background`, and any installed skills) as Discord Application Commands when the gateway starts.
+
+Set `discord.slash_commands: false` if Hermes slash commands conflict with other bots in the server, or if you prefer @mention-only interaction and want to keep the `/` menu clean.
+
+```yaml
+discord:
+  slash_commands: false
+```
+
 
 #### `group_sessions_per_user`
 

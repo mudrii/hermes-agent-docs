@@ -240,3 +240,7 @@ If you hit a new Android-specific issue, please open a GitHub issue with:
 - `python --version`
 - `hermes doctor`
 - the exact install command and full error output
+
+### Platform Detection (v0.10.0)
+
+Hermes v0.10.0 correctly identifies Android/Termux as a Linux ABI-compatible environment. If you previously encountered errors about the platform not being recognized during dependency resolution, upgrading to v0.10.0 resolves this automatically.

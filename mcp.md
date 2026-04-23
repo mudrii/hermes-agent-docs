@@ -66,6 +66,7 @@ mcp_servers:
     # OR for HTTP servers:
     url: "..."          # HTTP MCP endpoint
     headers: {}         # HTTP headers
+    ssl_verify: true    # Set false to disable TLS verification for self-signed certs (not recommended for production)
 
     enabled: true       # Set to false to skip entirely
     timeout: 120        # Tool call timeout in seconds (default: 120)
@@ -108,6 +109,7 @@ mcp_servers:
 | `tools` | mapping | both | Tool filtering and utility policy |
 | `auth` | string | HTTP | Set to `oauth` to enable OAuth 2.1 PKCE authentication |
 | `oauth` | mapping | HTTP | Optional pre-registered client credentials for servers that do not support Dynamic Client Registration |
+| `ssl_verify` | bool | HTTP | If `false`, disables TLS certificate verification. Use only for self-signed certs in controlled environments. Default: `true`. |
 
 ### Tools policy keys
 
