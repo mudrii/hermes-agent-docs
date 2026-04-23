@@ -56,7 +56,7 @@ If your skill is specialized, community-contributed, or niche, it is better suit
 
 | Requirement | Notes |
 |-------------|-------|
-| **Git** | With `--recurse-submodules` support |
+| **Git** with **git-lfs** | With `--recurse-submodules` support, and the `git-lfs` extension installed (`git lfs install` must be run once after installing git-lfs) |
 | **Python 3.11+** | uv will install it if missing (`requires-python = ">=3.11"` in pyproject.toml) |
 | **uv** | Fast Python package manager -- install from https://docs.astral.sh/uv/ |
 | **Node.js 18+** | Optional -- needed for browser tools and WhatsApp bridge |
