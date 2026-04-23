@@ -150,6 +150,8 @@ Supported parameters:
 | **Acceleration** | 3 modes (quality, balanced, speed) |
 | **Guidance scale** | Default `4.5` |
 
+> **Nous Tool Gateway:** Also available without `FAL_KEY` when `image_gen.use_gateway: true` (paid Nous Portal subscription). See [Nous Tool Gateway](/docs/nous-tool-gateway).
+
 ### `memory` toolset
 
 | Tool | Description |
@@ -222,6 +224,8 @@ RL training tools for running reinforcement learning on Tinker-Atropos. Requires
 |------|-------------|
 | `text_to_speech` | Convert text to speech audio. Supports Edge TTS, ElevenLabs, OpenAI TTS, MiniMax TTS, Mistral Voxtral TTS, and NeuTTS. Returns a MEDIA: path that the platform delivers as a voice message. On Telegram it plays as a voice bubble; on Discord/WhatsApp as an audio attachment; in CLI mode, saves to `~/voice-memos/`. Voice and provider are configurable, and OpenAI TTS can also be routed through the Nous Tool Gateway. |
 
+> **Nous Tool Gateway:** Also available without `OPENAI_API_KEY` when `tts.use_gateway: true` (paid Nous Portal subscription). See [Nous Tool Gateway](/docs/nous-tool-gateway).
+
 ### `vision` toolset
 
 | Tool | Description |
@@ -261,6 +265,8 @@ Alternatively, run `hermes tools` and select Exa from the web backend chooser.
 If `web.backend` is not set, Hermes falls back to whichever key is present in the environment (priority order: exa > tavily > parallel > firecrawl). Setting `web.backend: exa` explicitly always routes to Exa regardless of which other keys are present.
 
 **What makes Exa different:** Exa's index is built for machine consumers — queries use semantic embedding rather than keyword matching, and results include highlighted text excerpts that surface the most relevant passage in each page. This tends to produce higher-quality results for precise or conceptual queries compared to keyword-based engines.
+
+> **Nous Tool Gateway:** Also available without `FIRECRAWL_API_KEY` when `web.use_gateway: true` (paid Nous Portal subscription) — no individual web API key needed. See [Nous Tool Gateway](/docs/nous-tool-gateway).
 
 ## Terminal Backends
 
@@ -416,8 +422,9 @@ If a command needs sudo, you will be prompted for your password (cached for the 
 ### Check Functions
 
 Each tool can define a `check_fn` that returns `True` or `False`. When `check_fn` returns `False`, the tool is silently excluded from the session's tool definitions. This is how tools gate on environment variables:
-- `image_generate` gates on `FAL_KEY`
-- `web_search` / `web_extract` gate on `PARALLEL_API_KEY` or `FIRECRAWL_API_KEY` or `TAVILY_API_KEY` or `EXA_API_KEY`
+- `image_generate` gates on `FAL_KEY` (or `image_gen.use_gateway: true` via Nous Tool Gateway)
+- `web_search` / `web_extract` gate on `PARALLEL_API_KEY` or `FIRECRAWL_API_KEY` or `TAVILY_API_KEY` or `EXA_API_KEY` (or `web.use_gateway: true` via Nous Tool Gateway)
+- `text_to_speech` gates on provider availability (or `tts.use_gateway: true` via Nous Tool Gateway)
 - `mixture_of_agents` gates on `OPENROUTER_API_KEY`
 - `ha_*` tools gate on `HASS_TOKEN`
 - `rl_*` tools gate on `TINKER_API_KEY` and `WANDB_API_KEY`
