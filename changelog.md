@@ -29,6 +29,8 @@ All notable changes to Hermes Agent are documented here.
 
 **Full Changelog:** [v2026.4.13...v2026.4.16](https://github.com/NousResearch/hermes-agent/compare/v2026.4.13...v2026.4.16)
 
+---
+
 ## v0.9.0 -- April 13, 2026
 
 > The everywhere release — Hermes goes mobile with Termux/Android, adds iMessage and WeChat, ships Fast Mode for OpenAI and Anthropic, introduces background process monitoring, launches a local web dashboard, and delivers the deepest security hardening pass yet across 16 supported platforms.
