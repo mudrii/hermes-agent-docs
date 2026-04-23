@@ -872,11 +872,19 @@ tts:
     ref_text: ''
     model: neuphonic/neutts-air-q4-gguf
     device: cpu
+  use_gateway: false            # true = route TTS through Nous Tool Gateway (paid subscription required; no OPENAI_API_KEY needed)
 ```
 
 This controls both the `text_to_speech` tool and spoken replies in voice mode (`/voice tts` in the CLI or messaging gateway).
 
 **Speed fallback hierarchy:** provider-specific speed (e.g. `tts.edge.speed`) → global `tts.speed` → `1.0` default. Set the global `tts.speed` to apply a uniform speed across all providers, or override per-provider for fine-grained control.
+
+## Image Generation
+
+```yaml
+image_gen:
+  use_gateway: false    # true = route image generation through Nous Tool Gateway (paid subscription required; no FAL_KEY needed)
+```
 
 ## Display Settings
 
@@ -1107,6 +1115,7 @@ The `web_search`, `web_extract`, and `web_crawl` tools support four backend prov
 ```yaml
 web:
   backend: firecrawl    # firecrawl | parallel | tavily | exa
+  use_gateway: false    # true = route web search through Nous Tool Gateway (paid subscription required; no FIRECRAWL_API_KEY needed)
 ```
 
 | Backend | Env Var | Search | Extract | Crawl |
