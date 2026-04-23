@@ -145,3 +145,17 @@ If your configured provider isn't available, Hermes automatically falls back:
 - **OpenAI key not set** → Falls back to local transcription, then Groq
 - **Mistral key/SDK not set** → Skipped in auto-detect; falls through to next available provider
 - **Nothing available** → Voice messages pass through with an accurate note to the user
+
+## Alternative: Nous Tool Gateway
+
+Paid [Nous Portal](https://portal.nousresearch.com) subscribers (non-free tier) can use OpenAI TTS via the Nous gateway with no `OPENAI_API_KEY`. Set both `provider` and `use_gateway` in `~/.hermes/config.yaml`:
+
+```yaml
+tts:
+  provider: openai
+  use_gateway: true
+```
+
+When `use_gateway: true`, both the `text_to_speech` tool and voice mode route through the gateway. A direct `OPENAI_API_KEY` is not required. For setup, run `hermes model` → Nous Portal → follow tool prompts.
+
+See [Nous Tool Gateway](/docs/nous-tool-gateway) for the full guide.

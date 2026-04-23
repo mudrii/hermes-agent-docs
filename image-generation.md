@@ -127,3 +127,16 @@ The image generation tool runs with safety checks disabled by default (`safety_t
 - **URL-based delivery** -- images are returned as temporary FAL.ai URLs, not saved locally
 - **Upscaling adds latency** -- the automatic 2x upscale step adds processing time
 - **Max 4 images per request** -- `num_images` is capped at 4
+
+## Alternative: Nous Tool Gateway
+
+Paid [Nous Portal](https://portal.nousresearch.com) subscribers (non-free tier) can use image generation without a `FAL_KEY`. Set `use_gateway: true` in your `~/.hermes/config.yaml`:
+
+```yaml
+image_gen:
+  use_gateway: true
+```
+
+The gateway routes generation through FAL using your Nous subscription credentials stored in `~/.hermes/auth.json`. When `use_gateway: true`, the gateway is used even if `FAL_KEY` is also set. For setup, run `hermes model` → Nous Portal → follow tool prompts.
+
+See [Nous Tool Gateway](/docs/nous-tool-gateway) for the full guide.
