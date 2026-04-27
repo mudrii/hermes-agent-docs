@@ -39,8 +39,13 @@ display:
 | `poseidon` | Ocean-god theme — deep blue and seafoam | `Poseidon Agent` |
 | `sisyphus` | Sisyphean theme — austere grayscale with persistence | `Sisyphus Agent` |
 | `charizard` | Volcanic theme — burnt orange and ember | `Charizard Agent` |
+| `light` | Light-theme preset for bright terminals — high-contrast on white backgrounds (v0.11.0) | `Hermes Agent` |
 
 Built-in skins are loaded from `hermes_cli/skin_engine.py`.
+
+:::tip v0.11.0 — `light` preset
+The new `light` skin is tuned for terminals running on a light background (white / cream). Border, accent, and dim colors are inverted relative to `default` so contrast stays legible without changing branding text. Activate with `/skin light` or set `display.skin: light` in `~/.hermes/config.yaml`.
+:::
 
 ## What a Skin Can Customize
 
@@ -227,3 +232,11 @@ A common pattern is to pair a matching skin with a personality for immersive the
 But they remain independent settings. You can use `ares` skin with `helpful` personality, or `default` skin with a custom `SOUL.md`.
 
 For conversational personality changes, see the Personality documentation. For terminal appearance, use skins.
+
+## Dashboard Themes vs CLI Skins (v0.11.0)
+
+CLI **skins** (this page) only style the terminal CLI. The browser-based **web dashboard** has its own independent theme system that switches live without a reload. The dashboard ships with multiple built-in themes (Hermes Teal, Midnight, Ember, Mono, Cyberpunk, Rosé) and can load custom YAML themes from `~/.hermes/dashboard-themes/`.
+
+In v0.11.0 the dashboard's theme picker became live-switching: clicking a theme updates colors, fonts, layout density, and ambient overlays in place via CSS custom properties — no full reload, no flicker. The active theme is persisted to `dashboard.theme` in `config.yaml` and restored on next page load.
+
+See **[Web Dashboard → Themes](./web-dashboard.md#themes)** for the full list, custom-theme YAML schema, and the `/api/dashboard/themes` endpoints.
