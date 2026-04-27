@@ -72,6 +72,7 @@ Routes define how different webhook sources are handled. Each route is a named e
 | `skills` | No | List of skill names to load for the agent run. |
 | `deliver` | No | Where to send the response: `github_comment`, `telegram`, `discord`, `slack`, `signal`, `sms`, `whatsapp`, `matrix`, `mattermost`, `homeassistant`, `email`, `dingtalk`, `feishu`, `wecom`, `weixin`, `bluebubbles`, `qqbot`, or `log` (default). |
 | `deliver_extra` | No | Additional delivery config — keys depend on `deliver` type (e.g. `repo`, `pr_number`, `chat_id`). Values support the same `{dot.notation}` templates as `prompt`. |
+| `deliver_only` | No | If `true`, **skip the agent entirely** and forward the rendered prompt straight to `deliver`. Useful for zero-LLM push notifications (e.g. fan webhook events out to Telegram with no inference cost). Default: `false`. |
 
 ### Full example
 
@@ -125,6 +126,35 @@ prompt: "PR #{pull_request.number} by {pull_request.user.login}: {__raw__}"
 If no `prompt` template is configured for a route, the entire payload is dumped as indented JSON (truncated at 4000 characters).
 
 The same dot-notation templates work in `deliver_extra` values.
+
+### Direct Delivery Mode (`deliver_only`)
+
+For high-volume notification routes — alerts, build statuses, deploy pings, monitoring webhooks — invoking the agent on every event is wasteful: there's nothing for it to "decide", you just want the formatted message pushed to a channel. Set `deliver_only: true` on the route to bypass the agent entirely:
+
+```yaml
+platforms:
+  webhook:
+    enabled: true
+    extra:
+      routes:
+        ci-status:
+          events: ["workflow_run"]
+          secret: "ci-secret"
+          prompt: "CI {workflow_run.conclusion}: {workflow_run.name} on {workflow_run.head_branch}"
+          deliver: "telegram"
+          deliver_only: true              # render prompt → telegram, skip the agent
+          deliver_extra:
+            chat_id: "-1001234567890"
+```
+
+In direct-delivery mode:
+
+- The webhook payload is rendered against the `prompt` template exactly as before.
+- The rendered string is passed straight to the `deliver` adapter — no LLM call, no token usage, no skill loading.
+- `skills` is ignored (there's no agent run).
+- Idempotency, HMAC validation, rate limiting, and body-size limits all still apply.
+
+This is the right mode for "I just want webhook X to show up in Telegram channel Y" routes. Leave `deliver_only` unset (or `false`) for routes where you actually want the agent to read the payload and reason about it.
 
 ### Forum Topic Delivery
 
