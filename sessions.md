@@ -170,6 +170,16 @@ When a session's context is compressed (manually via `/compress` or automaticall
 
 When you resume by name (`hermes -c "my project"`), it automatically picks the most recent session in the lineage.
 
+### Orchestrator Role and Cross-Agent File Coordination (v0.11.0)
+
+When a session spawns delegates (subagents) via the orchestrator role, the parent and child sessions share file-state coordination so concurrent edits from sibling agents don't clobber each other. Each delegate inherits the parent session's tracked-file snapshot and writes flow back through the orchestrator's tool ledger.
+
+The orchestrator depth is bounded by `delegation.max_spawn_depth` (1–3, default `1`) — an orchestrator may spawn delegates, but those delegates cannot spawn further sub-delegates unless the depth budget allows it. The lineage chain (parent → child) is recorded with `parent_session_id` exactly like compression splits, so `hermes sessions list --tree` and resume-by-name work transparently across delegated work.
+
+### /steer Mid-Run Nudges (v0.11.0)
+
+`/steer "<message>"` injects a steering nudge between turns of the active session without restarting the conversation or breaking the prompt cache. The nudge is recorded as a synthetic user note that the next turn sees, so the agent can course-correct without a full reset. Because it lands at a turn boundary, prefix caching for the previous prompt is preserved.
+
 ### /title in Messaging Platforms
 
 The `/title` command works in all gateway platforms (Telegram, Discord, Slack, WhatsApp):
@@ -268,6 +278,10 @@ hermes sessions prune --older-than 30 --yes
 
 :::info
 Pruning only deletes **ended** sessions (sessions that have been explicitly ended or auto-reset). Active sessions are never pruned.
+:::
+
+:::tip v0.11.0 — auto-prune + VACUUM at startup
+On agent startup the SQLite session store now opportunistically prunes ended sessions older than `sessions.auto_prune_days` (default `90`) and runs `VACUUM` when free-page churn exceeds the configured threshold. This keeps `~/.hermes/state.db` size bounded for long-running installs without requiring manual `hermes sessions prune` runs. Set `sessions.auto_prune_days: 0` in `config.yaml` to disable.
 :::
 
 ### Session Statistics
