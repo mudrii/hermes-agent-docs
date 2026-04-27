@@ -30,10 +30,11 @@ This page is the top-level map of Hermes Agent internals. Use it to orient yours
 │  └──────┬───────┘ └──────┬───────┘ └──────┬───────┘                │
 │         │                │                │                          │
 │  ┌──────┴───────┐ ┌──────┴───────┐ ┌──────┴───────┐                │
-│  │ Compression  │ │ 3 API Modes  │ │ Tool Registry│                │
-│  │ & Caching    │ │ chat_compl.  │ │ (registry.py)│                │
-│  │              │ │ codex_resp.  │ │ 47 tools     │                │
-│  │              │ │ anthropic    │ │ 19 toolsets  │                │
+│  │ Compression  │ │ Transport ABC│ │ Tool Registry│                │
+│  │ & Caching    │ │ Anthropic /  │ │ (registry.py)│                │
+│  │              │ │ ChatCompl. / │ │ 47 tools     │                │
+│  │              │ │ Responses /  │ │ 19 toolsets  │                │
+│  │              │ │ Bedrock      │ │              │                │
 │  └──────────────┘ └──────────────┘ └──────────────┘                │
 └─────────────────────────────────────────────────────────────────────┘
            │                                    │
@@ -142,7 +143,7 @@ User input → HermesCLI.process_input()
   → AIAgent.run_conversation()
     → prompt_builder.build_system_prompt()
     → runtime_provider.resolve_runtime_provider()
-    → API call (chat_completions / codex_responses / anthropic_messages)
+    → API call dispatched via `ProviderTransport` (Anthropic / ChatCompletions / Responses / Bedrock)
     → tool_calls? → model_tools.handle_function_call() → loop
     → final response → display → save to SessionDB
 ```
@@ -178,21 +179,22 @@ If you are new to the codebase:
 2. **[Agent Loop Internals](./agent-loop.md)** — how AIAgent works
 3. **[Prompt Assembly](./prompt-assembly.md)** — system prompt construction
 4. **[Provider Runtime Resolution](./provider-runtime.md)** — how providers are selected
-5. **[Adding Providers](./adding-providers.md)** — practical guide to adding a new provider
-6. **[Tools Runtime](./tools-runtime.md)** — tool registry, dispatch, environments
-7. **[Session Storage](./session-storage.md)** — SQLite schema, FTS5, session lineage
-8. **[Gateway Internals](./gateway-internals.md)** — messaging platform gateway
-9. **[Context Compression & Prompt Caching](./context-compression-and-caching.md)** — compression and caching
-10. **[ACP Internals](./acp-internals.md)** — IDE integration
-11. **[Environments, Benchmarks & Data Generation](./environments.md)** — RL training
+5. **[Transport Layer](./transport-layer.md)** — `ProviderTransport` ABC and concrete subclasses
+6. **[Adding Providers](./adding-providers.md)** — practical guide to adding a new provider
+7. **[Tools Runtime](./tools-runtime.md)** — tool registry, dispatch, environments
+8. **[Session Storage](./session-storage.md)** — SQLite schema, FTS5, session lineage
+9. **[Gateway Internals](./gateway-internals.md)** — messaging platform gateway
+10. **[Context Compression & Prompt Caching](./context-compression-and-caching.md)** — compression and caching
+11. **[ACP Internals](./acp-internals.md)** — IDE integration
+12. **[Environments, Benchmarks & Data Generation](./environments.md)** — RL training
 
 ## Major Subsystems
 
 ### Agent Loop
 
-The synchronous orchestration engine (`AIAgent` in `run_agent.py`). Handles provider selection, prompt construction, tool execution, retries, fallback, callbacks, compression, and persistence. Supports three API modes for different provider backends.
+The synchronous orchestration engine (`AIAgent` in `run_agent.py`). Handles provider selection, prompt construction, tool execution, retries, fallback, callbacks, compression, and persistence. Provider-specific request/response shaping is delegated to a pluggable [Transport Layer](./transport-layer.md) — concrete subclasses are `AnthropicTransport`, `ChatCompletionsTransport`, `ResponsesApiTransport`, and `BedrockTransport`. Streaming, retries, cache stat aggregation, and credential refresh remain owned by the agent loop, not the transport.
 
-→ [Agent Loop Internals](./agent-loop.md)
+→ [Agent Loop Internals](./agent-loop.md), [Transport Layer](./transport-layer.md)
 
 ### Prompt System
 
@@ -206,9 +208,9 @@ Prompt construction and maintenance across the conversation lifecycle:
 
 ### Provider Resolution
 
-A shared runtime resolver used by CLI, gateway, cron, ACP, and auxiliary calls. Maps `(provider, model)` tuples to `(api_mode, api_key, base_url)`. Handles 18+ providers, OAuth flows, credential pools, and alias resolution.
+A shared runtime resolver used by CLI, gateway, cron, ACP, and auxiliary calls. Maps `(provider, model)` tuples to `(api_mode, api_key, base_url)`. Handles 20+ providers, OAuth flows, credential pools, and alias resolution. The resolved `api_mode` then selects the concrete `ProviderTransport` (Anthropic / ChatCompletions / Responses / Bedrock) used to shape the wire request and normalize the response.
 
-→ [Provider Runtime Resolution](./provider-runtime.md)
+→ [Provider Runtime Resolution](./provider-runtime.md), [Transport Layer](./transport-layer.md)
 
 ### Tool System
 

@@ -1,6 +1,6 @@
 # Architecture
 
-This page is the authoritative map of Hermes Agent internals, reviewed against the released v0.8.0 surface (`v2026.4.8`). The project is organized around a shared agent core that serves multiple platform frontends, a centralized provider router, a SQLite session store, and a set of loosely-coupled optional subsystems.
+This page is the authoritative map of Hermes Agent internals, reviewed against the released v0.11.0 surface (`v2026.4.23`). The project is organized around a shared agent core that serves multiple platform frontends, a pluggable transport layer that abstracts every provider, a centralized auxiliary client, a SQLite session store, and a set of loosely-coupled optional subsystems.
 
 ---
 
@@ -30,11 +30,11 @@ This page is the authoritative map of Hermes Agent internals, reviewed against t
 |  +------------------------------------------------------------------+ |
 |                                                                       |
 |  +-- LLM Inference -------------------------------------------------+ |
-|  |  Three API modes: chat_completions / codex_responses /           | |
-|  |                   anthropic_messages                             | |
-|  |  agent/auxiliary_client.py -> call_llm() / async_call_llm()     | |
-|  |  agent/anthropic_adapter.py -> native Anthropic support          | |
-|  |  agent/smart_model_routing.py -> cheap vs strong routing         | |
+|  |  Transport ABC (agent/transports/base.py)                         | |
+|  |    AnthropicTransport / ChatCompletionsTransport /                | |
+|  |    ResponsesApiTransport / BedrockTransport                       | |
+|  |  agent/auxiliary_client.py -> call_llm() / async_call_llm()      | |
+|  |  agent/smart_model_routing.py -> cheap vs strong routing          | |
 |  +------------------------------------------------------------------+ |
 |                                                                       |
 |  +-- Tool Execution ------------------------------------------------+ |
@@ -147,21 +147,39 @@ run_conversation(user_message, stream_callback=None, ...)
                     -> return response to caller
 ```
 
-### API Modes
+### Transport Layer (v0.11.0)
 
-Hermes supports three API execution modes:
+In v0.11.0 the per-provider format-conversion code that used to live inline inside `run_agent.py` was extracted into a pluggable transport layer at `agent/transports/`. The base class is `ProviderTransport` (`agent/transports/base.py`) and it defines a small, focused contract:
 
-| Mode | Used For |
-|------|---------|
-| `chat_completions` | OpenAI-compatible chat endpoints, OpenRouter, most custom endpoints |
-| `codex_responses` | OpenAI Codex / Responses API path |
-| `anthropic_messages` | Native Anthropic Messages API |
+| Method | Required | Purpose |
+|--------|----------|---------|
+| `convert_messages(messages)` | yes | Convert canonical chat messages into the provider-native message shape |
+| `convert_tools(tools)` | yes | Convert canonical tool schemas into the provider-native tool schema |
+| `build_kwargs(...)` | yes | Assemble the keyword arguments for the underlying SDK call |
+| `normalize_response(response)` | yes | Translate the provider response into a `NormalizedResponse` |
+| `validate_response(response)` | optional | Provider-specific validation hooks |
+| `extract_cache_stats(response)` | optional | Pull cache-read / cache-write counters when the provider exposes them |
+| `map_finish_reason(reason)` | optional | Normalize finish-reason strings |
 
-The mode is resolved from explicit arguments, provider selection, and base URL heuristics. Detection logic in `AIAgent.__init__`:
+Concrete implementations:
 
-- `api_mode="codex_responses"` when provider is `openai-codex` or base URL contains `chatgpt.com/backend-api/codex`
-- `api_mode="anthropic_messages"` when provider is `anthropic`, base URL contains `api.anthropic.com`, or base URL ends in `/anthropic`
-- `api_mode="chat_completions"` for everything else
+| Transport | Used for |
+|-----------|----------|
+| `AnthropicTransport` | Native Anthropic Messages API (PR #13366) |
+| `ChatCompletionsTransport` | OpenAI-compatible chat endpoints, OpenRouter, most custom endpoints (PR #13805) |
+| `ResponsesApiTransport` | OpenAI Responses API and Codex OAuth (PR #13430) |
+| `BedrockTransport` | AWS Bedrock Converse API (PR #13814) |
+
+`api_mode` resolves to a transport instance during `AIAgent.__init__`:
+
+- `api_mode="codex_responses"` -> `ResponsesApiTransport`
+- `api_mode="anthropic_messages"` -> `AnthropicTransport`
+- `api_mode="bedrock_converse"` -> `BedrockTransport`
+- `api_mode="chat_completions"` -> `ChatCompletionsTransport` (default)
+
+The transport layer owns format conversion only. Streaming, retries, prompt caching, credential refresh, and provider rotation all stay on `AIAgent` -- transports are pure conversion seams that take canonical inputs and return a `NormalizedResponse`. To add a new provider, subclass `ProviderTransport`, register it, and wire the new `api_mode` into the provider catalog.
+
+See [developer-guide/transport-layer.md](developer-guide/transport-layer.md) for the full reference.
 
 ### Interruptible API Calls
 
@@ -729,6 +747,42 @@ Uses `zoneinfo.ZoneInfo` for IANA timezone names. Invalid timezone values log a 
 `InsightsEngine` analyzes historical session data from the SQLite state database to produce usage insights: token consumption, cost estimates, tool usage patterns, activity trends, model/platform breakdowns, and session metrics.
 
 Usage: `InsightsEngine(db).generate(days=30)` returns a report dict; `format_terminal(report)` renders it for the CLI.
+
+---
+
+## New in v0.11.0
+
+### Pluggable Transport Layer
+
+See the **Transport Layer (v0.11.0)** section above. Format conversion was extracted from `run_agent.py` into `agent/transports/` and now lives behind a `ProviderTransport` ABC with four concrete subclasses (`AnthropicTransport`, `ChatCompletionsTransport`, `ResponsesApiTransport`, `BedrockTransport`).
+
+### Orchestrator Subagent Role and Configurable Spawn Depth
+
+`delegate_task` subagents now have an explicit `role` -- `worker` (default) or `orchestrator`. Orchestrator subagents retain the `delegate_task` tool when `delegation.max_spawn_depth > 1` (range 1-3, default 1) and can spawn their own children. Worker subagents at any depth cannot delegate further. The whole feature is gated by `delegation.orchestrator_enabled` (default `true`); set it to `false` to keep the v0.10.0 flat behaviour.
+
+### Cross-Agent File State Coordination
+
+Concurrent sibling subagents now share a file-coordination layer so they don't clobber each other's writes. Reads and writes from siblings are coordinated through the parent's session state, eliminating the prior "two children edit the same file in parallel and lose work" failure mode.
+
+### Auto-Prune and SQLite VACUUM at Startup
+
+`SessionDB` now prunes old sessions and runs `VACUUM` on `state.db` at startup (PR #13861). This keeps the state file from growing unbounded across long-running gateway deployments.
+
+### `/steer <prompt>` Mid-Run Nudges
+
+`/steer <prompt>` injects a note that the running agent sees after its next tool call -- without interrupting the turn or breaking prompt cache. Used to course-correct an in-flight agent (PR #12116).
+
+### Auto-Continue Interrupted Work
+
+After a gateway restart, the agent now resumes interrupted in-flight work instead of silently dropping the active task (PR #9934). Paired with activity heartbeats (PR #10501) that prevent false inactivity timeouts during long tool runs.
+
+### Auxiliary Models: Main-Model-First Routing
+
+`auto` routing for auxiliary tasks (compression, vision, session_search, title_generation) now defaults to the main model for all users. Previously, aggregator users were silently routed to a cheap provider-side default. The dedicated **Configure auxiliary models** screen in `hermes model` allows per-task overrides (PRs #11891, #11900).
+
+### PLATFORM_HINTS Coverage
+
+`PLATFORM_HINTS` in `agent/prompt_builder.py` now covers Matrix, Mattermost, and Feishu in addition to the previously hinted platforms (PR #14428).
 
 ---
 
