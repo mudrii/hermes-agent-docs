@@ -1,3 +1,7 @@
+---
+title: "Run Local LLMs on Mac"
+description: "Run a local LLM server on macOS with an OpenAI-compatible API using llama.cpp or LM Studio, then point Hermes at it."
+---
 
 # Run Local LLMs on Mac
 
