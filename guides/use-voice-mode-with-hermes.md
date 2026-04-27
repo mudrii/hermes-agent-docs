@@ -1,7 +1,11 @@
+---
+title: "Use Voice Mode with Hermes"
+description: "Practical guide to enabling voice mode in the Hermes CLI, Telegram, Discord, and Discord voice channels."
+---
 
 # Use Voice Mode with Hermes
 
-This guide is the practical companion to the [Voice Mode feature reference](/docs/user-guide/features/voice-mode).
+This guide is the practical companion to the [Voice Mode feature reference](/docs/voice-mode).
 
 If the feature page explains what voice mode can do, this guide shows how to actually use it well.
 
@@ -159,6 +163,7 @@ voice:
   record_key: "ctrl+b"
   max_recording_seconds: 120
   auto_tts: false
+  beep_enabled: true
   silence_threshold: 200
   silence_duration: 3.0
 
