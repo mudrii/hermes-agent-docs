@@ -303,6 +303,23 @@ _WRITE_RETRY_MAX_S = 0.150   # 150ms
 _CHECKPOINT_EVERY_N_WRITES = 50
 ```
 
+## Auto-Prune and VACUUM at Startup (v0.11.0)
+
+To prevent `state.db` from growing unboundedly across long-lived installs, v0.11.0 ([#13861](https://github.com/NousResearch/hermes-agent/pull/13861)) adds a startup maintenance pass that runs once when `SessionDB` initializes:
+
+1. **Auto-prune.** Sessions older than the configured retention window (and any descendants reachable via `parent_session_id`) are dropped. This removes both the session row and all associated `messages` rows; the FTS5 index is updated transparently via the existing INSERT/UPDATE/DELETE triggers.
+2. **VACUUM.** After pruning, `SessionDB` issues a `VACUUM` to reclaim free pages and shrink the on-disk file. Because `VACUUM` requires no other connections, it is gated behind a startup-only check and skipped on subsequent reopens within the same process.
+
+The maintenance pass is a no-op on small databases — pruning only triggers when the session count or DB age crosses a threshold, and `VACUUM` is conditional on the amount of reclaimable space. Long-running gateway processes do not see additional VACUUMs at runtime; checkpointing the WAL on every 50 writes (see [Write Contention Handling](#write-contention-handling)) handles steady-state file growth.
+
+## FTS5 Rebuild Across Upgrades
+
+`messages_fts` is a content-table FTS5 virtual table backed by the `messages` table via `content=messages, content_rowid=id`. The view is kept in sync at write time by triggers on INSERT, UPDATE, and DELETE — `_register_fts5_triggers()` reinstalls these on every connection open so that a trigger lost across a schema migration is restored.
+
+When the migration system steps a database up to a newer schema version that touches columns referenced by FTS5 indexing (currently `content`), the FTS index is rebuilt with `INSERT INTO messages_fts(messages_fts) VALUES('rebuild')` so existing rows are re-indexed against the new schema. This is idempotent — running it on a freshly migrated DB re-emits the same rowids — and runs once per upgrade rather than on every startup. After rebuild, the trigger set is reinstalled so subsequent writes continue to flow into the FTS index.
+
+If the FTS index is suspected to be out of sync (e.g. after a manual schema repair), the same `'rebuild'` directive can be issued from a Python REPL against an open `SessionDB` connection without dropping the table.
+
 ## Database Location
 
 Default path: `~/.hermes/state.db`

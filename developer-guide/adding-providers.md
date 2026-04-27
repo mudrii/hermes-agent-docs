@@ -14,12 +14,16 @@ A built-in provider has to line up across a few layers:
 4. `hermes_cli/models.py` and `hermes_cli/main.py` make the provider show up in the CLI
 5. `agent/auxiliary_client.py` and `agent/model_metadata.py` keep side tasks and token budgeting working
 
-The important abstraction is `api_mode`:
+The important abstraction is `api_mode`. In v0.11.0 each `api_mode` is owned by a `ProviderTransport` subclass under `agent/transports/` (see [Transport Layer](./transport-layer.md)):
 
-- Most providers use `chat_completions`
-- Codex uses `codex_responses`
-- Anthropic uses `anthropic_messages`
-- A new non-OpenAI protocol usually means adding a new adapter and a new `api_mode` branch
+| `api_mode` | Transport class | Used for |
+|------------|-----------------|----------|
+| `chat_completions` | `ChatCompletionsTransport` | OpenAI-compatible providers (most providers) |
+| `codex_responses` | `ResponsesApiTransport` | Codex / Responses API (incl. xAI Grok Responses) |
+| `anthropic_messages` | `AnthropicTransport` | Native Anthropic |
+| `bedrock_converse` | `BedrockTransport` | AWS Bedrock |
+
+A new non-OpenAI protocol means picking or implementing a `ProviderTransport`, registering it with an `api_mode` string, then wiring that string into runtime resolution.
 
 ## Choose the Implementation Path
 
@@ -58,31 +62,64 @@ Note: `hermes_cli/setup.py` does not need changes -- the setup wizard delegates 
 
 Choose a single provider id and use it everywhere (e.g. `openai-codex`, `kimi-coding`, `minimax-cn`). The same id must appear in `PROVIDER_REGISTRY`, `_PROVIDER_LABELS`, `_PROVIDER_ALIASES`, CLI `--provider` choices, auxiliary-model defaults, and tests.
 
-### Step 2: Add auth metadata
+### Step 2: Pick or implement a `ProviderTransport`
+
+Decide which transport handles your provider's wire protocol **before** wiring runtime resolution. Most providers reuse one of the four shipped transports — only invent a new one if the protocol is genuinely new.
+
+| Wire protocol | `api_mode` | Transport (in `agent/transports/`) |
+|---------------|-----------|-----------------------------------|
+| OpenAI Chat Completions | `chat_completions` | `ChatCompletionsTransport` (`chat_completions.py`) |
+| OpenAI Responses API | `codex_responses` | `ResponsesApiTransport` (`codex.py`) |
+| Anthropic Messages | `anthropic_messages` | `AnthropicTransport` (`anthropic.py`) |
+| AWS Bedrock Converse | `bedrock_converse` | `BedrockTransport` (`bedrock.py`) |
+
+If your provider speaks one of these protocols, just record the matching `api_mode` string — you do not need a new transport. If your provider needs a brand-new protocol, subclass `ProviderTransport`, implement the four required methods (`convert_messages`, `convert_tools`, `build_kwargs`, `normalize_response`), override the optional hooks (`validate_response`, `extract_cache_stats`, `map_finish_reason`) when behavior differs, and register at module import:
+
+```python
+# agent/transports/myproto.py
+from agent.transports import register_transport
+from agent.transports.base import ProviderTransport
+
+class MyProtoTransport(ProviderTransport):
+    @property
+    def api_mode(self) -> str:
+        return "myproto"
+    # ... implement the four required methods ...
+
+register_transport("myproto", MyProtoTransport)
+```
+
+Add a guarded import for the new module to `_discover_transports()` in `agent/transports/__init__.py` so the registry can lazy-import it.
+
+`BedrockTransport` is a worked example of a non-OpenAI transport: it uses its own boto3 client (not the OpenAI SDK), owns format conversion via `agent/bedrock_adapter.py`, and leaves client construction + `converse()` invocation on `AIAgent`. The transport class itself is a thin façade over the adapter — about 150 lines.
+
+See [Transport Layer](./transport-layer.md) for the full ABC contract and testing checklist.
+
+### Step 3: Add auth metadata
 
 Add a `ProviderConfig` entry to `PROVIDER_REGISTRY` in `hermes_cli/auth.py` with id, name, auth_type, inference_base_url, api_key_env_vars. Also add aliases.
 
-### Step 3: Add model catalog and aliases
+### Step 4: Add model catalog and aliases
 
 Update `_PROVIDER_MODELS`, `_PROVIDER_LABELS`, `_PROVIDER_ALIASES`, provider display order in `list_available_providers()`, and `provider_model_ids()` if the provider supports a live `/models` fetch.
 
-### Step 4: Resolve runtime data
+### Step 5: Resolve runtime data
 
-Add a branch in `resolve_runtime_provider()` that returns provider, api_mode, base_url, api_key, and source. Be careful with API-key precedence.
+Add a branch in `resolve_runtime_provider()` that returns provider, **the `api_mode` you picked in Step 2**, base_url, api_key, and source. Be careful with API-key precedence. The agent loop uses `api_mode` to look up the transport via `agent.transports.get_transport(api_mode)`, so the string must match a registered transport.
 
-### Step 5: Wire the CLI
+### Step 6: Wire the CLI
 
 Update `hermes_cli/main.py`: provider_labels dict, providers list, provider dispatch, `--provider` argument choices, login/logout choices.
 
-### Step 6: Keep auxiliary calls working
+### Step 7: Keep auxiliary calls working
 
 Add a cheap/fast default aux model to `_API_KEY_PROVIDER_AUX_MODELS` in `agent/auxiliary_client.py`. Add context lengths in `agent/model_metadata.py`.
 
-### Step 7: Native provider adapter (if needed)
+### Step 8: Native provider adapter (if needed)
 
-Isolate provider-specific logic in `agent/<provider>_adapter.py`. In `run_agent.py`, search for `api_mode` and audit every switch point: `__init__`, client construction, `_build_api_kwargs()`, `_api_call_with_interrupt()`, response validation, finish-reason extraction, token-usage extraction, fallback-model activation.
+If you implemented a new transport in Step 2, the provider-specific format conversion logic typically lives in a sibling adapter module (`agent/<provider>_adapter.py`) that the transport delegates to — `agent/anthropic_adapter.py`, `agent/codex_responses_adapter.py`, and `agent/bedrock_adapter.py` are the in-tree examples. Keep `run_agent.py` free of provider branches; the transport is the only place that should know about the protocol shape.
 
-### Step 8: Tests
+### Step 9: Tests
 
 Common test files to update:
 - `tests/test_runtime_provider_resolution.py`
@@ -92,14 +129,14 @@ Common test files to update:
 - `tests/test_provider_parity.py`
 - `tests/test_run_agent.py`
 
-### Step 9: Live verification
+### Step 10: Live verification
 
 ```bash
 source venv/bin/activate
 python -m hermes_cli.main chat -q "Say hello" --provider your-provider --model your-model
 ```
 
-### Step 10: Update user-facing docs
+### Step 11: Update user-facing docs
 
 Update quickstart, configuration, and environment variables reference docs.
 
