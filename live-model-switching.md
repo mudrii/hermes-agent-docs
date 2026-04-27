@@ -168,6 +168,22 @@ required for agent workflows.
 
 ---
 
+## v0.11.0 Additions
+
+### Auxiliary Models UI Screen
+
+The web dashboard's **Models** screen now includes a dedicated **Auxiliary Models** panel where you can configure the small/cheap models used for non-primary jobs (commit summaries, smart-approval risk scoring, title generation, sub-skill triage). Each auxiliary slot exposes the same provider + model picker as the main model and writes to `model.aux.<slot>` in `config.yaml`. Slots with no override fall back to the main model.
+
+### Main-Model-First Auto Routing (default)
+
+When no per-tool or per-slot override is set, v0.11.0 routes all auxiliary calls to the **main model** by default rather than picking an opportunistic cheap model. This makes behaviour predictable for new installs: setup is a single model selection, and you can opt into auxiliary-model routing per slot when you want it. The previous "auto-pick a cheap aux model" behaviour is still available by setting `model.aux.<slot>` explicitly or enabling `model.auto_aux_routing: true`.
+
+### Fallback to Main on 503 / 404
+
+Auxiliary calls now transparently fall back to the main model when the configured aux model returns an HTTP `503` (service unavailable / overloaded) or `404` (model not found / decommissioned). The fallback is a single retry against the main model — it is not a circuit breaker, so once the aux endpoint recovers the next call will use it again. Errors other than `503`/`404` propagate normally.
+
+---
+
 ## Implementation Notes
 
 - **Pipeline:** `hermes_cli/model_switch.py` — `switch_model()` handles flag parsing, alias resolution, aggregator detection, credential resolution, model name normalization, and result construction. The CLI and gateway share this function identically.
