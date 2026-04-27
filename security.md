@@ -732,6 +732,32 @@ See [configuration.md](configuration.md) for the full config.yaml reference.
 
 ---
 
+## v0.11.0 Security Hardening
+
+The following security additions shipped in v0.11.0 (v2026.4.23):
+
+### Repository SECURITY.md Policy ([#10532](https://github.com/NousResearch/hermes-agent/pull/10532))
+
+The repo now ships a top-level [`SECURITY.md`](https://github.com/NousResearch/hermes-agent/blob/main/SECURITY.md) defining the supported version window, the private vulnerability-disclosure channel, and what is in scope for a security report. Use that channel — not public GitHub issues — for any suspected vulnerability. The same policy is enforced by GitHub's "Report a vulnerability" workflow on the repository.
+
+### Private/Internal URL Allow-List Toggle ([#14166](https://github.com/NousResearch/hermes-agent/pull/14166))
+
+URL-fetching tools (`browser_navigate`, `vision_tools`, `web_tools`) historically blocked **all** RFC1918 / link-local / loopback addresses to prevent SSRF. v0.11.0 introduces an explicit opt-in toggle:
+
+```yaml
+# ~/.hermes/config.yaml
+security:
+  allow_private_urls: false   # default — block 10.x, 172.16-31.x, 192.168.x, 127.x, ::1
+```
+
+Set `allow_private_urls: true` only if you understand the consequences (e.g., scraping an internal staging server from a trusted network). When the toggle is off, the existing SSRF guards behave exactly as before. When it is on, requests to private/internal addresses are permitted but each tool still applies its own per-call validation, redirect handling, and timeouts.
+
+### Carry-Forward of v0.8.0 Hardening
+
+All v0.8.0 hardening (consolidated SSRF, timing-attack mitigations, tar traversal prevention, credential leakage guards, cross-session isolation, cron path traversal hardening, terminal workdir sanitization, MCP OSV malware scanning, approval session escalation prevention) remains active in v0.11.0 and is summarized below for reference.
+
+---
+
 ## v0.8.0 Security Hardening
 
 The following security improvements shipped in v0.8.0 (v2026.4.8):
@@ -799,5 +825,7 @@ Existing protections to be aware of:
 | Terminal workdir sanitization | `workdir` parameter sanitized across all terminal backends (v0.8.0, [#5629](https://github.com/NousResearch/hermes-agent/pull/5629)) |
 | MCP OSV malware scanning | stdio MCP packages scanned via OSV API before spawn; fail-open (v0.8.0, [#5305](https://github.com/NousResearch/hermes-agent/pull/5305)) |
 | Approval session escalation | `allow-once` grants strictly session-scoped; cannot be escalated to `allow-always` (v0.8.0, [#5280](https://github.com/NousResearch/hermes-agent/pull/5280)) |
+| SECURITY.md policy | Top-level `SECURITY.md` documenting supported versions and private disclosure channel (v0.11.0, [#10532](https://github.com/NousResearch/hermes-agent/pull/10532)) |
+| Private/internal URL toggle | `security.allow_private_urls` opt-in for RFC1918 / loopback hosts in URL-fetching tools (v0.11.0, [#14166](https://github.com/NousResearch/hermes-agent/pull/14166)) |
 
 If your PR affects security, note it explicitly in the PR description.

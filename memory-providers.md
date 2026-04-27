@@ -48,6 +48,10 @@ AI-native cross-session user modeling with dialectic Q&A, semantic search, and p
 
 **Tools:** `honcho_profile` (peer card), `honcho_search` (semantic search), `honcho_context` (LLM-synthesized), `honcho_conclude` (store facts)
 
+:::tip See also
+For the v0.11.0 Honcho overhaul (auto-conclude on session end, profile cache, search-tool latency improvements), see the dedicated **[Honcho Integration](./honcho.md)** page.
+:::
+
 **Setup Wizard:**
 ```bash
 hermes honcho setup        # (legacy command) 
@@ -296,6 +300,10 @@ The setup wizard installs dependencies automatically and only installs what's ne
 | `retain_async` | `true` | Process retain asynchronously on the server |
 | `tags` | — | Tags applied when storing memories |
 | `recall_tags` | — | Tags to filter on recall |
+
+:::note v0.11.0 — retain metadata
+Hindsight `retain` calls now propagate the agent's session ID, profile, and turn lineage as document metadata, so cloud and local backends can group memories per session and per profile without bespoke tagging.
+:::
 
 See [plugin README](https://github.com/NousResearch/hermes-agent/blob/main/plugins/memory/hindsight/README.md) for the full configuration reference.
 

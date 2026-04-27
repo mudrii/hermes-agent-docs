@@ -297,6 +297,22 @@ For `/v1/responses`, Hermes currently returns a single JSON response (no streami
 
 ---
 
+## v0.11.0 Streaming Improvements
+
+### Cursor Sanitization
+
+The CLI streaming consumer now strips ANSI cursor-movement and clear-line escape sequences from streamed deltas before rendering. Some providers (and some MCP-driven tools that re-emit upstream tokens) leak raw `ESC [ A`, `ESC [ K`, and `ESC [ 2J` sequences inside content chunks; these previously could rewrite the prompt area or erase the user's input rule. v0.11.0 sanitizes these before they reach `prompt_toolkit`, so the input area, spinner, and tool-prefix gutter stay intact during long streams.
+
+The same sanitization is applied to gateway stream previews so platform-side progressive edits don't accidentally embed terminal escapes in chat messages.
+
+### Transport-Layer Normalization
+
+Streaming deltas are now normalized at the transport boundary (`AnthropicTransport`, `ChatCompletionsTransport`, `ResponsesApiTransport`, `BedrockTransport`) before reaching the agent loop. Each transport converts its provider-specific event shapes — Anthropic's `content_block_delta`, OpenAI's `choices[0].delta`, the Responses API's `response.output_text.delta`, and Bedrock's `chunk.bytes` — into a single canonical `StreamDelta` shape. `_fire_stream_delta()` and the gateway preview consumer no longer need provider-specific branches.
+
+For details on the transport ABC and how to add a new transport, see the **[Developer Guide → Transport Layer](./developer-guide/transport-layer.md)**.
+
+---
+
 ## Related Docs
 
 - [Architecture](./architecture.md) -- agent loop, API modes, concurrent tool execution

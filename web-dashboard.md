@@ -361,3 +361,38 @@ Refresh the dashboard after creating the file. Custom themes appear in the theme
 |----------|--------|-------------|
 | `/api/dashboard/themes` | GET | List available themes + active name |
 | `/api/dashboard/theme` | PUT | Set active theme. Body: `{"name": "midnight"}` |
+
+---
+
+## v0.11.0 Dashboard Polish
+
+### React-Router Sidebar Layout
+
+The dashboard's flat top-bar tab strip is replaced with a persistent left **sidebar** powered by `react-router`. Pages (Status, Config, API Keys, Sessions, Logs, Analytics, Cron, Skills) keep their state across navigation, deep links work for every page (`/sessions/<id>`, `/logs?level=ERROR`), and back/forward buttons behave correctly. The sidebar collapses to an icon rail on narrow widths.
+
+### Mobile-Responsive Layout
+
+The dashboard now renders cleanly down to ~375px wide. The sidebar collapses to a slide-out drawer behind a hamburger button, the analytics charts and per-day tables become horizontally scrollable, and form-heavy pages (Config, API Keys) stack their two-column layouts vertically. Nothing about the desktop experience changes — only the breakpoints below `md`.
+
+### EN + ZH Language Switcher
+
+A language switcher in the header toggles all dashboard chrome between **English** and **简体中文 (Simplified Chinese)**. The selection is persisted to `dashboard.language` in `config.yaml` and applied immediately via i18n string tables — no reload. Translations cover navigation labels, button text, page descriptions, table headers, status badges, and toast messages. Free-form data (session titles, user messages, log lines, custom skill names) is unchanged.
+
+### Vercel Deployment
+
+The frontend can now be built and deployed as a static site to Vercel (or any static host) and pointed at a remote Hermes Agent backend via `VITE_API_BASE_URL`. The Vercel build skips the FastAPI bundling step and emits only `dist/` for the SPA. Use this when you want a public URL for a self-hosted agent — but remember the **Security** warning above: the dashboard has no built-in authentication, so put it behind your own auth proxy if it leaves localhost.
+
+### One-Click Update + Gateway Restart
+
+The Status page gains two buttons:
+
+- **Update Hermes Agent** — runs `pip install -U hermes-agent` (or the equivalent for your install method) and rebuilds the frontend if `npm` is available. Progress streams into a modal log view; the button is disabled until the update finishes.
+- **Restart Gateway** — sends `SIGTERM` to the gateway process (PID shown in the Status panel), waits for it to exit, then re-spawns it with the same arguments. The gateway state pill turns yellow (restarting) then green (running) without a page reload.
+
+### Per-Session API Call Tracking
+
+The Sessions list and the Analytics page now show real per-session **API call counts** sourced from the agent's request ledger, not estimated from message counts. This lets you see, e.g., that a session with 12 user turns issued 47 model API calls because of tool-use loops. The breakdown is exposed via `/api/sessions/{id}` (new `api_calls` field) and aggregated in `/api/analytics/usage`.
+
+### Expanded Theme System
+
+The dashboard's live theme switcher (see **[Themes](#themes)** above) is broadened in v0.11.0 to switch **colors, fonts, layout density, and ambient overlays** in place via CSS custom properties — no reload, no flicker. Custom theme YAML files in `~/.hermes/dashboard-themes/` may now also set `font.body`, `font.mono`, `density: compact|comfortable|cozy`, and the existing `overlay` block. CLI skins (which only style the terminal) remain a separate system; see [Skins → Dashboard Themes vs CLI Skins](./skins.md#dashboard-themes-vs-cli-skins-v0110) for the distinction.

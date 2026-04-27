@@ -296,14 +296,32 @@ Holographic prompt rendering and trust score display in the system prompt were p
 
 A bug was fixed in v0.8.0 ([#5645](https://github.com/NousResearch/hermes-agent/pull/5645)) where `hermes doctor` used the field name `memory_mode` instead of the correct `recall_mode` when validating Honcho configuration. If you saw Honcho flagged as misconfigured in `hermes doctor` output despite having a valid `recallMode` setting, this fix resolves it. The correct field to check and set is `recallMode` (camelCase in JSON, `recall_mode` in doctor output).
 
+## v0.11.0 Changes
+
+### Source moved to `honcho_integration/`
+
+In v0.11.0 the active Honcho integration lives in [`honcho_integration/`](https://github.com/NousResearch/hermes-agent/tree/main/honcho_integration) (top-level package), not `plugins/memory/honcho/`. The plugins-side directory is preserved for backwards compatibility but the canonical source — including the four memory tools — is now in `honcho_integration/cli.py` and sibling modules.
+
+### Auto-conclude on session end
+
+When a session ends (CLI exit, gateway disconnect, cron job completion), pending high-confidence facts are now automatically flushed to Honcho via `honcho_conclude` instead of waiting for the next prompt. This avoids losing observations when the agent process exits before the next turn.
+
+### Profile cache
+
+A per-process profile cache (`honcho_profile`) keeps the synthesized peer card warm between turns of the same session. Repeated context injection no longer round-trips to the Honcho API every turn — the cache invalidates on `honcho_conclude` writes and on session boundaries.
+
+### Search-tool latency improvements
+
+`honcho_search` now batches retrieval against the workspace's vector index and trims the synthesized envelope before returning to the agent. End-to-end latency for typical recall calls is meaningfully lower; cold-cache calls fall back to the prior behaviour.
+
 ## Implementation
 
-The Honcho integration lives in `plugins/memory/honcho/` with four modules:
+The Honcho integration lives in `honcho_integration/` with four modules:
 
 - `__init__.py` -- provider class and plugin registration
 - `client.py` -- Honcho API client wrapper
 - `session.py` -- session management and lifecycle
-- `cli.py` -- CLI command implementations
+- `cli.py` -- CLI command implementations and the four memory tools (`honcho_context`, `honcho_search`, `honcho_profile`, `honcho_conclude`)
 
 The `register(ctx)` function calls `ctx.register_memory_provider(HonchoMemoryProvider())` and registers the `honcho` CLI subcommand via `ctx.register_cli_command()`.
 
