@@ -38,11 +38,15 @@ Creative content generation -- ASCII art, hand-drawn style diagrams, visual desi
 
 | Skill | Description | Path |
 |-------|-------------|------|
+| `architecture-diagram` | Dark-themed SVG architecture/cloud/infra diagrams rendered as HTML. Added in v0.11.0. | `creative/architecture-diagram` |
 | `ascii-art` | Generate ASCII art using pyfiglet (571 fonts), cowsay, boxes, toilet, image-to-ascii, remote APIs, and LLM fallback. No API keys required. | `creative/ascii-art` |
 | `ascii-video` | Production pipeline for ASCII art video -- any format. Converts video/audio/images/generative input into colored ASCII character video output (MP4, GIF, image sequence). | `creative/ascii-video` |
+| `baoyu-comic` | Knowledge comics (知识漫画) -- educational, biography, and tutorial styles. Added in v0.11.0. | `creative/baoyu-comic` |
+| `baoyu-infographic` | Infographics: 21 layouts x 21 styles (信息图, 可视化). Added in v0.11.0. | `creative/baoyu-infographic` |
 | `excalidraw` | Create hand-drawn style diagrams using Excalidraw JSON format. Generate .excalidraw files for architecture diagrams, flowcharts, sequence diagrams, concept maps, and more. | `creative/excalidraw` |
 | `manim-video` | Produce mathematical animations and explainer videos with Manim Community Edition. Added in v0.8.0. | `creative/manim-video` |
 | `p5js` | Create generative art, visualizations, and interactive sketches using p5.js. Covers canvas drawing, animations, interaction, and exporting. Added in v0.8.0. | `creative/p5js` |
+| `pixel-art` | Pixel art generation with era-specific palettes (NES, Game Boy, PICO-8). Added in v0.11.0. | `creative/pixel-art` |
 | `popular-web-designs` | Recreate and adapt popular website UI/UX patterns and design systems using HTML, CSS, and JavaScript. Added in v0.8.0. | `creative/popular-web-designs` |
 | `songwriting-and-ai-music` | Songwriting craft and AI music generation -- chord progressions, lyric structure, song sections, and prompting for Suno and Udio. | `creative/songwriting-and-ai-music` |
 
@@ -271,7 +275,7 @@ Skills for LLM red-teaming, jailbreaking, and safety filter bypass research.
 
 | Skill | Description | Path |
 |-------|-------------|------|
-| `xitter` | Interact with X/Twitter via the x-cli terminal client using official X API credentials. | `social-media/xitter` |
+| `xurl` | Interact with X/Twitter via the xurl CLI: post, search, DM, media, and v2 API access using official X API credentials. Renamed from `xitter` in v0.11.0. | `social-media/xurl` |
 
 ## software-development
 
