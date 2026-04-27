@@ -127,6 +127,43 @@ The gateway starts the WhatsApp bridge automatically using the saved session.
 
 ---
 
+## DM and Group Policies
+
+WhatsApp supports the same `dm_policy` / `group_policy` access-control model as WeCom, Weixin, and QQ. Configure it in `~/.hermes/config.yaml` under `platforms.whatsapp.extra`:
+
+```yaml
+platforms:
+  whatsapp:
+    enabled: true
+    extra:
+      dm_policy: open                # open | allowlist | disabled
+      allow_from:
+        - "15551234567"              # WhatsApp ID (country code, no +)
+      group_policy: open             # open | allowlist | disabled
+      group_allow_from:
+        - "1234567890-1234567890@g.us"
+```
+
+| Policy | Value | Behavior |
+|--------|-------|----------|
+| **`dm_policy`** | `open` (default) | Any sender can DM the bot (subject to `WHATSAPP_ALLOWED_USERS` if set). |
+| | `allowlist` | Only IDs in `allow_from` can DM the bot. |
+| | `disabled` | Bot ignores all DMs. |
+| **`group_policy`** | `open` (default) | Bot processes any group it has been added to. |
+| | `allowlist` | Only groups in `group_allow_from` are processed. |
+| | `disabled` | Bot ignores all group messages. |
+
+Equivalent env vars are also supported for the policy values themselves:
+
+```bash
+WHATSAPP_DM_POLICY=allowlist
+WHATSAPP_GROUP_POLICY=disabled
+```
+
+`allow_from` / `group_allow_from` lists must be configured via `config.yaml`.
+
+---
+
 ## Session Persistence
 
 The Baileys bridge saves its session under `~/.hermes/platforms/whatsapp/session`. This means:
@@ -156,8 +193,9 @@ with reconnection logic.
 
 Hermes supports voice on WhatsApp:
 
-- **Incoming:** Voice messages (`.ogg` opus) are automatically transcribed using the configured STT provider: local `faster-whisper`, Groq Whisper (`GROQ_API_KEY`), or OpenAI Whisper (`VOICE_TOOLS_OPENAI_KEY`)
-- **Outgoing:** TTS responses are sent as MP3 audio file attachments
+- **Incoming:** Voice messages (`.ogg` opus) are automatically transcribed using the configured STT provider: local `faster-whisper`, Groq Whisper (`GROQ_API_KEY`), or OpenAI Whisper (`VOICE_TOOLS_OPENAI_KEY`).
+- **Outgoing TTS as native voice notes (`send_voice`):** When the agent calls `send_voice`, the bridge uploads the clip as a **PTT (push-to-talk) voice note** so it shows up as a native WhatsApp voice bubble with a waveform and tap-to-play, instead of an attached file. The clip is transcoded to Opus/OGG on the fly when needed.
+- **Outgoing TTS as a regular file:** TTS responses generated via `send_message`-style flows still ride along as MP3 audio attachments — use `send_voice` explicitly when you want the native voice-bubble UX.
 - Agent responses are prefixed with "⚕ **Hermes Agent**" by default. You can customize or disable this in `config.yaml`:
 
 ```yaml
