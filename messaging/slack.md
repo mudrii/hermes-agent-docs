@@ -283,8 +283,36 @@ slack:
 ```
 
 :::info
-Unlike Discord and Telegram, Slack does not have a `free_response_channels` equivalent. The Slack adapter requires `@mention` to start a conversation in channels. However, once the bot has an active session in a thread, subsequent thread replies do not require a mention. In DMs, the bot always responds without needing a mention.
+Slack supports both patterns: `@mention` is required to start a conversation in channels by default, but you can opt **specific channels** out via `SLACK_FREE_RESPONSE_CHANNELS` (comma-separated channel IDs) or `slack.free_response_channels` in `config.yaml` — the bot then answers every message in those channels, just like Discord and Telegram. Once the bot has an active session in a thread, subsequent thread replies do not require a mention. In DMs the bot always responds without needing a mention.
 :::
+
+```yaml
+slack:
+  # Channels where the bot responds to every message (no @mention required)
+  free_response_channels:
+    - C01234567890
+    - C09876543210
+```
+
+```bash
+# Equivalent env var (comma-separated)
+SLACK_FREE_RESPONSE_CHANNELS=C01234567890,C09876543210
+```
+
+### Per-Thread Sessions in DMs
+
+Starting in v0.11.0, **each top-level DM thread is its own Hermes session by default** — matching the per-thread behavior that channels have always had. If you start three separate threads in a DM with the bot (each one rooted on a different top-level message), each gets its own conversation history, memory, and context window. This is almost always what you want: it lets you keep multiple unrelated conversations in flight without them bleeding into one another.
+
+If you preferred the legacy behavior where every top-level DM shared one continuous session, opt out per-platform in `~/.hermes/config.yaml`:
+
+```yaml
+platforms:
+  slack:
+    extra:
+      dm_top_level_threads_as_sessions: false   # default: true
+```
+
+This setting only affects DMs — channel threads remain isolated regardless.
 
 ### Unauthorized User Handling
 
