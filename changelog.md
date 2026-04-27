@@ -2,7 +2,47 @@
 
 All notable changes to Hermes Agent are documented here.
 
-**Current stable release: v0.10.0** (v2026.4.16, April 16, 2026)
+**Current stable release: v0.11.0** (v2026.4.23, April 23, 2026)
+
+---
+
+## v0.11.0 -- April 23, 2026
+
+> The Interface release — a full React/Ink rewrite of the interactive CLI, a pluggable transport architecture under every provider, native AWS Bedrock support, five new inference paths, a 17th messaging platform (QQBot), a dramatically expanded plugin surface, and GPT-5.5 via Codex OAuth. This release also folds in the highlights deferred from v0.10.0, covering roughly two weeks of work across the whole stack.
+
+### Highlights
+
+- **New Ink-based TUI** — `hermes --tui` (or `HERMES_TUI=1`) is now a full React/Ink rewrite of the interactive CLI, backed by a Python JSON-RPC `tui_gateway`. Sticky composer, live streaming with OSC-52 clipboard, stable picker keys, status bar with per-turn stopwatch and git branch, `/clear` confirm, light-theme preset, and a subagent spawn observability overlay.
+- **Transport ABC + Native AWS Bedrock** — Format conversion and HTTP transport were extracted from `run_agent.py` into a pluggable `agent/transports/` layer. `AnthropicTransport`, `ChatCompletionsTransport`, `ResponsesApiTransport`, and `BedrockTransport` each own their format conversion. Native AWS Bedrock support via the Converse API ships on top of the new abstraction with IAM auth, region-aware discovery, inference profiles (`us.` / `global.` prefixes), and Guardrails.
+- **Five new inference paths** — Native NVIDIA NIM, Arcee AI, Step Plan, Google Gemini CLI OAuth, and Vercel ai-gateway with pricing + dynamic discovery. Plus Gemini routed through the native AI Studio API for better performance, and GMI Cloud added as an OpenAI-compatible target.
+- **GPT-5.5 over Codex OAuth** — OpenAI's new GPT-5.5 reasoning model is now available through ChatGPT Codex OAuth, with live model discovery wired into the picker so new OpenAI releases show up without catalog updates.
+- **QQBot — 17th supported platform** — Native QQBot adapter via QQ Official API v2 with QR scan-to-configure setup wizard, streaming cursor, emoji reactions, and DM/group policy gating that matches the WeCom/Weixin parity.
+- **Plugin surface expanded** — Plugins can now register slash commands (`register_command`), dispatch tools directly (`dispatch_tool`), block tool execution from hooks (`pre_tool_call` can veto), rewrite tool results (`transform_tool_result`), transform terminal output (`transform_terminal_output`), ship `image_gen` backends, and add custom dashboard tabs. The bundled disk-cleanup plugin is opt-in by default as a reference implementation.
+- **`/steer` — mid-run agent nudges** — `/steer <prompt>` injects a note that the running agent sees after its next tool call without interrupting the turn or breaking prompt cache.
+- **Shell hooks** — Wire any shell script as a Hermes lifecycle hook (`pre_tool_call`, `post_tool_call`, `on_session_start`, etc.) without writing a Python plugin.
+- **Webhook direct-delivery mode** — Webhook subscriptions can forward payloads straight to a platform chat without going through the agent — zero-LLM push notifications for alerting, uptime checks, and event streams.
+- **Smarter delegation** — Subagents now have an explicit `orchestrator` role that can spawn their own workers, gated by `delegation.max_spawn_depth` (default 1, range 1-3). Concurrent sibling subagents share filesystem state through a file-coordination layer so they don't clobber each other's edits. Orchestrator delegation is also disable-able with `delegation.orchestrator_enabled: false`.
+- **Auxiliary models — configurable UI + main-model-first** — `hermes model` has a dedicated "Configure auxiliary models" screen for per-task overrides (compression, vision, session_search, title_generation), and `auto` routing now defaults to the main model for side tasks across all users.
+- **Dashboard plugin system + live theme switching** — The web dashboard is now extensible. Third-party plugins can add custom tabs, widgets, and views without forking. Live-switching theme system controls colors, fonts, layout, and density.
+- **Dashboard polish** — i18n (English + Chinese), react-router sidebar layout, mobile-responsive, Vercel deployment, real per-session API call tracking, and one-click update + gateway restart buttons.
+- **Cron `wakeAgent` gate** — Cron scripts can now skip the agent entirely for pure script execution, eliminating LLM token spend for deterministic jobs.
+- **Cron per-job `enabled_toolsets`** — Cap token overhead and cost per scheduled job by restricting which toolsets that job's agent can see.
+- **Dynamic shell completion** — Bash, zsh, and fish completion for `hermes` commands and flags.
+- **CLI: `--ignore-user-config` and `--ignore-rules` flags** — Run isolated against built-in defaults; useful for CI, reproduction, and third-party integrations.
+- **Light-mode skins** — New light-theme presets and skin-aware completion menus.
+- **`hermes skills reset`** — Un-stick bundled skills back to defaults.
+- **Doctor "Command Installation" check** — Validates the `hermes` binary symlink so PATH issues surface early.
+- **New skills** — `concept-diagrams`, `architecture-diagram`, `pixel-art` (with hardware palettes and video animation), `baoyu-comic`, `baoyu-infographic` (21 layouts × 21 styles), `page-agent`, `drug-discovery` (ChEMBL, PubChem, OpenFDA, ADMET), `touchdesigner-mcp`, and `adversarial-ux-test`.
+- **`xitter` → `xurl`** — The X/Twitter skill now uses `xurl`, the official X API CLI.
+
+### Delivery notes
+
+- 1,556 commits, 761 merged PRs, 1,314 files changed, 224,174 insertions since v0.9.0.
+- 29 community contributors (290 including co-authors). Top community contributors this window: @kshitijk4poor (Transport refactor, Step Plan, Xiaomi MiMo, Kimi K2.5), @OutThisLife (TUI polish), @helix4u (voice + MCP interrupt), @austinpickett (dashboard polish + Vercel), @alt-glitch (PLATFORM_HINTS for Matrix/Mattermost/Feishu), @jerilynzheng (ai-gateway pricing), @JimLiu (baoyu-comic skill).
+- The upstream source tree includes a `RELEASE_v0.11.0.md` artifact and the `v2026.4.23` tag.
+- v2026.4.23 / v0.11.0 is published on GitHub Releases.
+
+**Full Changelog:** [v2026.4.16...v2026.4.23](https://github.com/NousResearch/hermes-agent/compare/v2026.4.16...v2026.4.23)
 
 ---
 
