@@ -2,12 +2,13 @@
 
 The hooks system lets you run custom code at key points in the agent lifecycle. Hooks fire automatically during gateway operation without blocking the main agent pipeline. A broken hook is logged and skipped — it never crashes the agent.
 
-Hooks exist in two separate forms in Hermes:
+Hooks exist in three separate forms in Hermes:
 
-1. **Gateway hooks** — standalone directories under `~/.hermes/hooks/`, each with a `HOOK.yaml` and `handler.py`. These fire during gateway operation (Telegram, Discord, Slack, WhatsApp).
+1. **Gateway hooks** — standalone directories under `~/.hermes/hooks/`, each with a `HOOK.yaml` and `handler.py`. These fire during gateway operation (Telegram, Discord, Slack, WhatsApp, and the other 13 platforms).
 2. **Plugin hooks** — registered via `ctx.register_hook()` inside a plugin's `register()` function. These fire during any Hermes session.
+3. **Shell hooks (v0.11.0)** — pre/post hooks attached to specific shell commands (e.g. wrap every `git push`, every `kubectl apply`). They run as ordinary subprocesses outside the agent loop and never modify the agent's view of the world.
 
-This document covers both.
+This document covers all three.
 
 ## Gateway Hooks
 
@@ -191,7 +192,7 @@ async def handle(event_type: str, context: dict):
 
 ## Plugin Hooks
 
-Plugin hooks were activated in v0.5.0 (PR [#3542](https://github.com/NousResearch/hermes-agent/pull/3542)). Prior to v0.5.0, only `pre_tool_call` and `post_tool_call` fired. As of v0.5.0 all six hooks fire in the CLI, gateway, and cron sessions. v0.8.0 added four more hooks: `pre_api_request`, `post_api_request` (per-individual-API-call), `on_session_finalize` (session permanently closed), and `on_session_reset` (new session after reset).
+Plugin hooks were activated in v0.5.0 (PR [#3542](https://github.com/NousResearch/hermes-agent/pull/3542)). Prior to v0.5.0, only `pre_tool_call` and `post_tool_call` fired. As of v0.5.0 all six hooks fire in the CLI, gateway, and cron sessions. v0.8.0 added four more hooks: `pre_api_request`, `post_api_request` (per-individual-API-call), `on_session_finalize` (session permanently closed), and `on_session_reset` (new session after reset). v0.11.0 added four further hooks (`transform_tool_result`, `transform_terminal_output`, `subagent_stop`, `pre_gateway_dispatch`) and gave `pre_tool_call` the ability to **veto** a tool call by returning `{"block": True, "reason": "..."}`.
 
 Plugin hooks are registered inside a plugin's `register(ctx)` function. They fire during any Hermes session (CLI, gateway, or cron), not just the gateway.
 
@@ -209,8 +210,10 @@ Available plugin hooks and their exact keyword arguments (from `hermes_cli/plugi
 
 | Hook | When fires | Keyword arguments |
 |------|------------|-------------------|
-| `pre_tool_call` | Before any tool runs | `tool_name`, `args`, `task_id` |
+| `pre_tool_call` | Before any tool runs — **v0.11.0:** return `{"block": True, "reason": "..."}` to veto the call | `tool_name`, `args`, `task_id` |
 | `post_tool_call` | After any tool returns | `tool_name`, `args`, `result`, `task_id` |
+| `transform_tool_result` (v0.11.0) | After `post_tool_call`; the return value (a string) replaces the result the model sees | `tool_name`, `args`, `result`, `task_id` |
+| `transform_terminal_output` (v0.11.0) | After raw terminal stdout/stderr is captured; the return value replaces what the model reads | `command`, `stdout`, `stderr`, `exit_code` |
 | `pre_llm_call` | Once per user turn, before the tool-calling loop | `session_id`, `user_message`, `conversation_history`, `is_first_turn`, `model`, `platform` |
 | `post_llm_call` | Once per user turn, after the tool-calling loop | `session_id`, `user_message`, `assistant_response`, `conversation_history`, `model`, `platform` |
 | `pre_api_request` | Before each individual LLM API request | `session_id`, `message_count`, `tool_count`, `model`, `platform` |
@@ -219,6 +222,8 @@ Available plugin hooks and their exact keyword arguments (from `hermes_cli/plugi
 | `on_session_end` | At the end of every `run_conversation` call | `session_id`, `completed`, `interrupted`, `model`, `platform` |
 | `on_session_finalize` | Session permanently closed (`/new`, `/reset`, or process exit) | `session_id`, `platform` |
 | `on_session_reset` | New session created after a `/new` or `/reset` | `session_id`, `platform` |
+| `subagent_stop` (v0.11.0) | A delegated subagent finishes (success or failure) | `parent_session_id`, `child_session_id`, `goal`, `summary`, `completed` |
+| `pre_gateway_dispatch` (v0.11.0) | Gateway received a message and is about to dispatch it to the agent — return `{"block": True}` to drop the message | `platform`, `user_id`, `session_key`, `message` |
 
 Plugin hook handlers receive keyword arguments. Always use `**kwargs` to stay forward-compatible:
 
@@ -227,7 +232,14 @@ def _on_post_tool_call(tool_name, args, result, task_id, **kwargs):
     print(f"Tool {tool_name} returned {len(result)} bytes")
 ```
 
-Plugin hooks are observers only. They cannot modify tool arguments or return values.
+Most plugin hooks are observers only and cannot modify tool arguments or return values. The exceptions, all introduced in v0.11.0, are:
+
+- `pre_tool_call` — return `{"block": True, "reason": "..."}` to short-circuit a tool call.
+- `transform_tool_result` — the return value (a string) replaces the result string the model sees.
+- `transform_terminal_output` — the return value replaces the captured stdout/stderr.
+- `pre_gateway_dispatch` — return `{"block": True}` to drop a gateway message before it reaches the agent.
+
+All other hooks remain pure observers.
 
 ### pre_llm_call: injecting ephemeral context
 
@@ -275,6 +287,38 @@ def register(ctx):
     ctx.register_hook("pre_llm_call", _pre_llm)
     ctx.register_hook("post_llm_call", _post_llm)
 ```
+
+## Shell Hooks (v0.11.0)
+
+Shell hooks attach to specific shell commands and run as ordinary subprocesses around the command. They are **separate** from gateway and plugin hooks — they do not see the LLM, the session DB, or any agent state, and they cannot block or alter the agent's view of the result. Their purpose is to integrate with external tooling: send a notification before `git push`, take a snapshot before `kubectl apply`, log every `ssh` invocation.
+
+### Configuration
+
+Shell hooks live in `~/.hermes/shell_hooks.yaml`:
+
+```yaml
+shell_hooks:
+  - command: "git push"          # matched as a prefix of the command line
+    pre: "~/scripts/git-push-pre.sh"
+    post: "~/scripts/git-push-post.sh"
+  - command: "kubectl apply"
+    pre: "~/scripts/k8s-snapshot.sh"
+```
+
+### Behaviour
+
+- `pre` runs before the command. A non-zero exit code aborts the command.
+- `post` runs after the command and receives the command's exit code as `$1`.
+- Both scripts run in the same working directory and environment as the command.
+- Errors in the hook scripts are logged but never raised to the LLM.
+- Shell hooks fire for terminal-tool invocations only — not for tool calls that bypass the shell (e.g. direct `read_file`).
+
+### Use cases
+
+- Recording an immutable audit trail for sensitive commands.
+- Pulling a snapshot of cluster state before `terraform apply` / `kubectl apply`.
+- Pushing a desktop notification before long-running operations.
+- Authenticating with short-lived credentials before specific commands.
 
 ## Hook Lifecycle Summary
 
