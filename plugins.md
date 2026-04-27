@@ -79,9 +79,17 @@ Project-local plugins under `./.hermes/plugins/` are disabled by default. Enable
 | Add hooks | `ctx.register_hook("post_tool_call", callback)` |
 | Add slash commands | `ctx.register_command(name, handler, description)` — adds `/name` in CLI and gateway sessions |
 | Add CLI commands | `ctx.register_cli_command(name, help, setup_fn, handler_fn)` — adds `hermes <plugin> <subcommand>` |
+| Dispatch a tool from a hook | `ctx.dispatch_tool(name, params)` — programmatically invoke another registered tool from inside a hook or command (v0.11.0) |
+| Veto a tool call | Return `{"block": True, "reason": "..."}` from `pre_tool_call` to short-circuit the call (v0.11.0) |
+| Rewrite a tool result | `ctx.register_hook("transform_tool_result", fn)` — fn returns a replacement result string (v0.11.0) |
+| Rewrite terminal output | `ctx.register_hook("transform_terminal_output", fn)` — fn rewrites stdout/stderr before the model sees it (v0.11.0) |
+| Provide an image_gen backend | `ctx.register_image_gen(name, handler)` — backs the `image_gen` tool (v0.11.0) |
+| Add a dashboard tab | `ctx.register_dashboard_tab(name, render_fn)` — adds a custom panel to `hermes dashboard` (v0.11.0) |
+| React to subagent finishing | `ctx.register_hook("subagent_stop", fn)` — fires when a delegated child completes (v0.11.0) |
+| Intercept gateway dispatch | `ctx.register_hook("pre_gateway_dispatch", fn)` — runs before a gateway message is routed to the agent (v0.11.0) |
 | Inject messages | `ctx.inject_message(content, role="user")` — see [Injecting Messages](#injecting-messages) |
 | Ship data files | `Path(__file__).parent / "data" / "file.yaml"` |
-| Bundle skills | Copy `skill.md` to `~/.hermes/skills/` at load time |
+| Bundle skills | Copy `skill.md` to `~/.hermes/skills/` at load time, namespaced under the plugin (v0.11.0) |
 | Gate on env vars | `requires_env: [API_KEY]` in plugin.yaml — prompted during `hermes plugins install` |
 | Distribute via pip | `[project.entry-points."hermes_agent.plugins"]` |
 
@@ -99,24 +107,33 @@ Plugins can register callbacks for these lifecycle events. See the **[Event Hook
 
 | Hook | Fires when |
 |------|-----------|
-| [`pre_tool_call`](/docs/user-guide/features/hooks#pre_tool_call) | Before any tool executes |
+| [`pre_tool_call`](/docs/user-guide/features/hooks#pre_tool_call) | Before any tool executes — return `{"block": True, "reason": "..."}` to veto the call (v0.11.0) |
 | [`post_tool_call`](/docs/user-guide/features/hooks#post_tool_call) | After any tool returns |
+| [`transform_tool_result`](/docs/user-guide/features/hooks#transform_tool_result) | After `post_tool_call`; rewrite the tool result the model sees (v0.11.0) |
+| [`transform_terminal_output`](/docs/user-guide/features/hooks#transform_terminal_output) | Rewrite raw terminal stdout/stderr before it is added to the conversation (v0.11.0) |
 | [`pre_llm_call`](/docs/user-guide/features/hooks#pre_llm_call) | Once per turn, before the LLM loop — can return `{"context": "..."}` to [inject context into the user message](/docs/user-guide/features/hooks#pre_llm_call) |
 | [`post_llm_call`](/docs/user-guide/features/hooks#post_llm_call) | Once per turn, after the LLM loop (successful turns only) |
 | [`on_session_start`](/docs/user-guide/features/hooks#on_session_start) | New session created (first turn only) |
 | [`on_session_end`](/docs/user-guide/features/hooks#on_session_end) | End of every `run_conversation` call + CLI exit handler |
+| [`subagent_stop`](/docs/user-guide/features/hooks#subagent_stop) | A delegated subagent completes (v0.11.0) |
+| [`pre_gateway_dispatch`](/docs/user-guide/features/hooks#pre_gateway_dispatch) | Gateway message before it is routed to the agent (v0.11.0) |
 
 ## Plugin types
 
-Hermes has three kinds of plugins:
+Hermes has four kinds of plugins:
 
 | Type | What it does | Selection | Location |
 |------|-------------|-----------|----------|
-| **General plugins** | Add tools, hooks, CLI commands | Multi-select (enable/disable) | `~/.hermes/plugins/` |
+| **General plugins** | Add tools, hooks, slash commands, CLI commands, dashboard tabs, namespaced skills | Multi-select (enable/disable) | `~/.hermes/plugins/` |
 | **Memory providers** | Replace or augment built-in memory | Single-select (one active) | `plugins/memory/` |
 | **Context engines** | Replace the built-in context compressor | Single-select (one active) | `plugins/context_engine/` |
+| **Image generation backends (v0.11.0)** | Provide a backend for the `image_gen` tool (FAL, Recraft, Nano Banana, GPT Image, Grok Imagine, openai-codex, custom) | Single-select (one active) | `plugins/image_gen/` |
 
-Memory providers and context engines are **provider plugins** — only one of each type can be active at a time. General plugins can be enabled in any combination.
+Memory providers, context engines, and image-gen backends are **provider plugins** — only one of each type can be active at a time. General plugins can be enabled in any combination.
+
+### Namespaced skills (v0.11.0)
+
+A general plugin can ship one or more `skill.md` files under a `skills/` subdirectory. At load time these are surfaced as namespaced skills under the plugin name (e.g. `my-plugin:do-thing`) rather than dumped into the global `~/.hermes/skills/` directory. This prevents naming collisions across plugins and lets skills be enabled or disabled together with their owning plugin.
 
 ## Managing plugins
 
