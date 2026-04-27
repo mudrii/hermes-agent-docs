@@ -1,3 +1,7 @@
+---
+title: "Migrate from OpenClaw"
+description: "Import your OpenClaw, Clawdbot, or Moldbot setup into Hermes with hermes claw migrate."
+---
 
 # Migrate from OpenClaw
 

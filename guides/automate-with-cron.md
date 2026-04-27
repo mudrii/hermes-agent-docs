@@ -1,3 +1,7 @@
+---
+title: "Automate Anything with Cron"
+description: "Five real-world cron automation patterns for Hermes — daily briefings, log audits, system checks, content monitoring, and more."
+---
 
 # Automate Anything with Cron
 
