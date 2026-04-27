@@ -282,13 +282,77 @@ If the Feishu API rejects the post payload (e.g., due to unsupported markdown co
 
 Plain text messages (no markdown detected) are sent as the simple `text` message type.
 
-## ACK Emoji Reactions
+## Processing Status Reactions
 
-When the adapter receives an inbound message, it immediately adds an ✅ (OK) emoji reaction to signal that the message was received and is being processed. This provides visual feedback before the agent completes its response.
+Hermes uses two emoji reactions on the inbound message to signal the bot's processing state:
 
-The reaction is persistent — it remains on the message after the response is sent, serving as a receipt marker.
+| Reaction | When |
+|----------|------|
+| **`Typing`** | Added when the adapter starts handling the message (the agent is "thinking"). |
+| **`CrossMark`** | Added if processing fails (network error, tool failure, denied approval, etc.). The Typing reaction is cleared when the response is delivered successfully. |
 
-User reactions on bot messages are also tracked. If a user adds or removes an emoji reaction on a message sent by the bot, it is routed as a synthetic text event (`reaction:added:EMOJI_TYPE` or `reaction:removed:EMOJI_TYPE`) so the agent can respond to feedback.
+This replaces the older "always-on ✅" ACK behavior — reactions now reflect real lifecycle state instead of a static receipt marker.
+
+You can disable reactions entirely if they clutter the chat:
+
+```bash
+FEISHU_REACTIONS=false        # default: true
+```
+
+User reactions on bot messages are still tracked: if a user adds or removes an emoji reaction on a message sent by the bot, it is routed as a synthetic text event (`reaction:added:EMOJI_TYPE` or `reaction:removed:EMOJI_TYPE`) so the agent can respond to feedback.
+
+## Document Comment Intelligent Reply
+
+Hermes can also act on **comments left in Feishu/Lark documents** (Docs, Sheets, Bitable, etc.), not just chat messages. When the bot is `@mentioned` inside a document comment, the gateway receives the `drive.notice.comment_add_v1` event and routes the comment text into the agent the same way it would route a chat DM. The agent's reply is posted back as a comment reply on the document.
+
+### Required permissions
+
+Grant the following permission scopes to your Feishu / Lark app, in addition to the standard messaging permissions:
+
+- `drive.notice:read` — receive comment-added events
+- `docx:document` (and the equivalent scopes for Sheets, Bitable, etc.) — read the surrounding document context
+- `docx:document.comment:write` — post the reply back as a comment
+
+### Three-tier access control
+
+Comment reply is gated by a **three-tier rule list** so you can keep the bot scoped to a small set of documents or owners. Rules are evaluated in priority order — the first match wins.
+
+| Tier | Rule shape | Example |
+|------|-----------|---------|
+| **Exact** | One specific `document_token` | `document_token: doxcnAbC123` |
+| **Wildcard** | Glob over document tokens | `document_token: doxcn*` |
+| **Top-level** | Owner / tenant default | `owner: ou_admin_open_id` |
+
+Each rule then declares one of two policies:
+
+- **`allowlist`** — only the listed open_ids can trigger the bot in that document scope.
+- **`pairing`** — unknown senders receive a one-time pairing prompt before being authorized; useful for onboarding new collaborators without manual config edits.
+
+### CLI tools
+
+Inspect, validate, and manage rules from the command line:
+
+```bash
+# List currently active rules
+python -m gateway.platforms.feishu_comment_rules list
+
+# Test which rule would match a given (document_token, open_id) pair
+python -m gateway.platforms.feishu_comment_rules match \
+  --document doxcnAbC123 \
+  --user ou_xxxxxxxx
+
+# Add an allowlist rule
+python -m gateway.platforms.feishu_comment_rules add \
+  --document "doxcn*" \
+  --policy allowlist \
+  --users ou_a,ou_b
+```
+
+The rules file lives in `~/.hermes/feishu_comment_rules.yaml` and is hot-reloaded by the gateway on edit.
+
+## @Mention Preservation
+
+When forwarding a chat message or document comment to the agent, Hermes preserves `@mentions` in their canonical form (e.g. `@_user_1`, `@bot`) instead of stripping them. This lets the agent reason about *who was addressed* — useful when triaging group messages, deciding whether a question is for the bot or for a human, or threading replies that reference specific people.
 
 ## Burst Protection and Batching
 
@@ -408,6 +472,7 @@ Inbound messages are deduplicated using message IDs with a 24-hour TTL. The dedu
 | `FEISHU_ENCRYPT_KEY` | — | _(empty)_ | Encrypt key for webhook signature verification |
 | `FEISHU_VERIFICATION_TOKEN` | — | _(empty)_ | Verification token for webhook payload auth |
 | `FEISHU_GROUP_POLICY` | — | `allowlist` | Group message policy: `open`, `allowlist`, `disabled` |
+| `FEISHU_REACTIONS` | — | `true` | When `false`, disables `Typing` / `CrossMark` processing-status reactions on inbound messages. |
 | `FEISHU_BOT_OPEN_ID` | — | _(empty)_ | Bot's open_id (for @mention detection) |
 | `FEISHU_BOT_USER_ID` | — | _(empty)_ | Bot's user_id (for @mention detection) |
 | `FEISHU_BOT_NAME` | — | _(empty)_ | Bot's display name (for @mention detection) |

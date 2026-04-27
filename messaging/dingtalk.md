@@ -2,7 +2,7 @@
 
 Hermes Agent integrates with DingTalk (钉钉) as a chatbot, letting you chat with your AI assistant through direct messages or group chats. The bot connects via DingTalk's Stream Mode — a long-lived WebSocket connection that requires no public URL or webhook server — and replies using markdown-formatted messages through DingTalk's session webhook API.
 
-This document covers v0.2.0 through v0.8.0 (v2026.4.8). No DingTalk-specific changes were made after v0.5.0.
+Current as of Hermes Agent **v0.11.0** (`v2026.4.23`). Highlights since v0.8.0: a QR-code device-flow that prints the auth URL in your terminal, AI Cards with streaming updates, emoji reactions for processing status, and the `alibabacloud-dingtalk` SDK for media downloads.
 
 ---
 
@@ -34,14 +34,21 @@ Set to `false` only if you explicitly want one shared conversation for the entir
 
 ## Prerequisites
 
-Install the required Python packages:
+Install the required Python packages. The simplest path uses the bundled extra:
 
 ```bash
-pip install dingtalk-stream httpx
+pip install "hermes-agent[dingtalk]"
+```
+
+Or install them individually if you prefer:
+
+```bash
+pip install dingtalk-stream httpx alibabacloud-dingtalk
 ```
 
 - `dingtalk-stream` — DingTalk's official SDK for Stream Mode (WebSocket-based real-time messaging)
 - `httpx` — async HTTP client used for sending replies via session webhooks
+- `alibabacloud-dingtalk` — DingTalk OpenAPI SDK for AI Cards, emoji reactions, and media downloads
 
 ---
 
@@ -85,7 +92,14 @@ To find yours:
 hermes gateway setup
 ```
 
-Select **DingTalk** when prompted, then paste your Client ID, Client Secret, and allowed user IDs.
+Select **DingTalk** when prompted. The setup wizard authorizes via one of two paths:
+
+- **QR-code device flow (recommended).** Scan the QR that prints in your terminal with the DingTalk mobile app — your Client ID and Client Secret are returned automatically and written to `~/.hermes/.env`. No developer-console trip needed.
+- **Manual paste.** If you already have credentials (or QR scanning isn't convenient), paste your Client ID, Client Secret, and allowed user IDs when prompted.
+
+:::note openClaw branding disclosure
+DingTalk's `verification_uri_complete` is hardcoded to the **openClaw** identity at the API layer, so the QR currently authorizes under an `openClaw` source string until Alibaba / DingTalk-Real-AI registers a Hermes-specific template server-side. This is purely how DingTalk presents the consent screen — the bot you create is fully yours and private to your tenant.
+:::
 
 ### Option B: Manual Configuration
 
@@ -141,6 +155,8 @@ group_sessions_per_user: true
 unauthorized_dm_behavior: pair    # pair | ignore
 ```
 
+`group_sessions_per_user: true` (the default) keeps each participant's context isolated inside shared group chats. Set it to `false` only if you explicitly want one shared conversation for the entire group.
+
 ---
 
 ## Environment Variables Reference
@@ -149,8 +165,10 @@ unauthorized_dm_behavior: pair    # pair | ignore
 |----------|----------|-------------|
 | `DINGTALK_CLIENT_ID` | Yes | Client ID (AppKey) from the DingTalk Developer Console |
 | `DINGTALK_CLIENT_SECRET` | Yes | Client Secret (AppSecret) from the DingTalk Developer Console |
-| `DINGTALK_ALLOWED_USERS` | Recommended | Comma-separated DingTalk User IDs |
-| `DINGTALK_ALLOW_ALL_USERS` | No | Allow all users (not recommended) |
+| `DINGTALK_ALLOWED_USERS` | Recommended | Comma-separated DingTalk User IDs authorized to talk to the bot |
+| `DINGTALK_ALLOW_ALL_USERS` | No | Allow all users (not recommended — anyone in your tenant can talk to the bot) |
+| `DINGTALK_REQUIRE_MENTION` | No | When `true` (default), the bot only responds in group chats when directly `@mentioned`. DMs always get a response. |
+| `DINGTALK_CARD_TEMPLATE_ID` | No | AI Card template ID for streaming card replies; falls back to plain markdown when unset. |
 
 ---
 
@@ -159,6 +177,63 @@ unauthorized_dm_behavior: pair    # pair | ignore
 ### Stream Mode
 
 No public URL, domain name, or webhook server is needed. The connection is initiated from your machine via WebSocket, so it works behind NAT and firewalls.
+
+### Mention Gating
+
+In group chats, Hermes only replies when directly `@mentioned` (controlled by `DINGTALK_REQUIRE_MENTION`, default `true`). DMs always get a response. Combine with `DINGTALK_ALLOWED_USERS` to limit who is even allowed to mention the bot — unauthorized senders are silently ignored.
+
+### AI Cards
+
+Hermes can reply using DingTalk AI Cards instead of plain markdown messages. Cards provide a richer, more structured display and support streaming updates as the agent generates its response.
+
+To enable AI Cards, configure a card template ID in `~/.hermes/config.yaml`:
+
+```yaml
+platforms:
+  dingtalk:
+    enabled: true
+    extra:
+      card_template_id: "your-card-template-id"
+```
+
+You can find your card template ID in the DingTalk Developer Console under your app's AI Card settings. When AI Cards are enabled, all replies are sent as cards with streaming text updates.
+
+### Emoji Reactions
+
+Hermes automatically adds emoji reactions to your messages to show processing status:
+
+- **🤔 Thinking** — added when the bot starts processing your message.
+- **🥳 Done** — added when the response is complete (replaces the Thinking reaction).
+
+These reactions work in both DMs and group chats and require the `alibabacloud-dingtalk` SDK.
+
+### Media Handling
+
+Images and files in incoming messages are automatically downloaded via the DingTalk OpenAPI and made available to vision tools and other media-aware tools. No special configuration is required beyond installing the `alibabacloud-dingtalk` SDK.
+
+### Display Settings
+
+You can customize DingTalk's display behavior independently from other platforms:
+
+```yaml
+display:
+  platforms:
+    dingtalk:
+      show_reasoning: false   # Show model reasoning/thinking in replies
+      streaming: true         # Enable streaming responses (works with AI Cards)
+      tool_progress: all      # Show tool execution progress (all/new/off)
+      interim_assistant_messages: true  # Show intermediate commentary messages
+```
+
+To disable tool progress and intermediate messages for a cleaner experience:
+
+```yaml
+display:
+  platforms:
+    dingtalk:
+      tool_progress: off
+      interim_assistant_messages: false
+```
 
 ### Markdown Responses
 
@@ -204,3 +279,4 @@ Always set `DINGTALK_ALLOWED_USERS` to restrict who can interact with the bot. W
 
 - **v0.4.0:** DingTalk adapter added ([PR #1685](https://github.com/NousResearch/hermes-agent/pull/1685), [#1690](https://github.com/NousResearch/hermes-agent/pull/1690), [#1692](https://github.com/NousResearch/hermes-agent/pull/1692)).
 - **v0.5.0:** Request timeouts added to keep the adapter responsive during network issues ([PR #3258](https://github.com/NousResearch/hermes-agent/pull/3258)).
+- **v0.11.0:** QR-code device-flow setup, AI Cards with streaming updates, emoji reactions for processing status, media downloads via `alibabacloud-dingtalk`, and `require_mention` gating for group chats.

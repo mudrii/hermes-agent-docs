@@ -6,7 +6,7 @@ Signal is the most privacy-focused mainstream messenger — end-to-end encrypted
 
 The Signal adapter uses `httpx` (already a core Hermes dependency) for all communication. No additional Python packages are required beyond `signal-cli` itself.
 
-This document covers the released Signal adapter surface through v0.8.0 (`v2026.4.8`).
+Current as of Hermes Agent **v0.11.0** (`v2026.4.23`).
 
 ---
 
@@ -20,29 +20,22 @@ This document covers the released Signal adapter surface through v0.8.0 (`v2026.
 
 ## Installing signal-cli
 
-```bash
-# Linux (Debian/Ubuntu)
-sudo apt install signal-cli
+The recommended path is the upstream **signal-cli** binary direct from its GitHub releases. The `apt`/`snap` packages on most distros lag several major versions behind and have repeatedly broken compatibility with Signal's protocol updates.
 
-# macOS
+```bash
+# macOS — Homebrew tracks upstream releases closely
 brew install signal-cli
 
-# Manual install (any platform)
-# Download from https://github.com/AsamK/signal-cli/releases
-# Extract and add to PATH
+# Any platform — download a pinned release from the source
+#   https://github.com/AsamK/signal-cli/releases
+# Extract the tarball and put `signal-cli` on your PATH.
 ```
 
-### Alternative: Docker (signal-cli-rest-api)
+Verify with `signal-cli --version`. You need a recent build (≥ 0.13.x at the time of writing) for v0.11.0 of the Hermes adapter to negotiate cleanly.
 
-```bash
-docker run -d --name signal-cli \
-  -p 8080:8080 \
-  -v $HOME/.local/share/signal-cli:/home/.local/share/signal-cli \
-  -e MODE=json-rpc \
-  bbernhard/signal-cli-rest-api
-```
-
-Use `MODE=json-rpc` for best performance. The `normal` mode spawns a JVM per request and is much slower.
+:::note signal-cli-rest-api removed
+Earlier docs described running `bbernhard/signal-cli-rest-api` in Docker as an alternative transport. The Hermes adapter now talks to signal-cli's **built-in HTTP daemon** directly, so that container is no longer used or supported. Run `signal-cli daemon --http=...` (see [Step 2](#step-2-start-signal-cli-as-an-http-daemon)) instead.
+:::
 
 ---
 
@@ -177,13 +170,17 @@ Attachment size limit: 100 MB.
 
 ### MEDIA: Tag Delivery (v0.8.0)
 
-The Signal adapter now implements full `MEDIA:` tag delivery. When the agent produces a response containing `MEDIA:/path/to/file`, the file is sent natively:
+The Signal adapter implements full `MEDIA:` tag delivery. When the agent produces a response containing `MEDIA:/path/to/file`, the file is sent natively:
 
 - **Images** — via `send_image_file`
 - **Voice/audio** — via `send_voice`
 - **Video** — via `send_video`
 
 Previously these fell back to sending the file path as text. ([PR #5602](https://github.com/NousResearch/hermes-agent/pull/5602))
+
+### Media Delivery via `send_message`
+
+`send_message` accepts a list of file paths in addition to text. Hermes attaches each path directly to the outgoing Signal message — images render inline, audio files are delivered as voice notes, video files use Signal's native video player, and arbitrary file types appear as downloadable attachments. This complements the `MEDIA:` tag flow when you want to send a mixed batch (e.g., text caption + photo + PDF) in a single message rather than a sequence of `send_image` / `send_document` calls.
 
 ### Message Length Limit
 

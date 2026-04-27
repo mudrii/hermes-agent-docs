@@ -10,15 +10,18 @@ This adapter is for **personal WeChat accounts** (微信). If you need enterpris
 ## Prerequisites
 
 - A personal WeChat account
-- Python packages: `aiohttp` and `cryptography`
-- The `qrcode` package is optional (for terminal QR rendering during setup)
+- Python packages: `aiohttp`, `cryptography`, and `qrcode` (terminal QR rendering during setup)
 
-Install the required dependencies:
+The simplest path is the `[messaging]` extra, which now bundles `qrcode` alongside the other messaging dependencies:
 
 ```bash
-pip install aiohttp cryptography
-# Optional: for terminal QR code display
-pip install qrcode
+pip install "hermes-agent[messaging]"
+```
+
+Or install the WeChat-specific pieces individually:
+
+```bash
+pip install aiohttp cryptography qrcode
 ```
 
 ## Setup
@@ -46,6 +49,10 @@ Once confirmed, you'll see a message like:
 ```
 
 The wizard stores the `account_id`, `token`, and `base_url` so you don't need to configure them manually.
+
+:::tip Same wizard handles WeCom
+`hermes gateway setup` is also the **Scan-to-Create** entry point for [WeCom](./wecom.md) — the unified wizard detects which Tencent product you're connecting to from your QR scan and writes credentials into the right env-var namespace. If you run a personal WeChat *and* a corporate WeCom bot from the same machine, run the wizard once per platform.
+:::
 
 ### 2. Configure Environment Variables
 
@@ -201,12 +208,16 @@ This ensures reply continuity even after gateway restarts.
 
 ## Markdown Formatting
 
-WeChat's personal chat does not natively render full Markdown. The adapter reformats content for better readability:
+WeChat's personal chat does not natively render full Markdown, but as of v0.11.0 the adapter **preserves** the original Markdown source instead of rewriting it into 【Title】 / labeled-list approximations. The agent's output is delivered verbatim — the WeChat client renders what it can (bold, code fences, inline backticks) and shows the rest as plain text.
 
-- **Headers** (`# Title`) → converted to `【Title】` (level 1) or `**Title**` (level 2+)
-- **Tables** → reformatted as labeled key-value lists (e.g., `- Column: Value`)
-- **Code fences** → preserved as-is (WeChat renders these adequately)
-- **Excessive blank lines** → collapsed to double newlines
+In practice that means:
+
+- **Headers** (`# Title`, `## Section`) ride through as-is. They appear as bolded lines in WeChat's renderer rather than being rewritten to `【Title】`.
+- **Tables** are sent as the original Markdown table syntax — readable in monospace contexts and copy-pasteable elsewhere.
+- **Code fences** and inline code remain untouched (WeChat renders these adequately).
+- **Excessive blank lines** are still collapsed to double newlines for compact display.
+
+This makes responses consistent with what other platforms (Slack, Discord, Telegram) see, which avoids surprises when the same agent talks to mixed audiences. If you specifically want the legacy multi-line splitting behavior, set `WEIXIN_SPLIT_MULTILINE_MESSAGES=true` (see Configuration Options).
 
 ## Message Chunking
 

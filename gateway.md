@@ -2,7 +2,7 @@
 
 The Hermes gateway is the long-running background process that connects Hermes Agent to external messaging platforms. It manages incoming messages, session state, platform authentication, cron scheduling, and outbound delivery — all through a single unified pipeline.
 
-This document covers the released gateway surface through v0.10.0 (v2026.4.16).
+This document covers the released gateway surface through v0.11.0 (v2026.4.23).
 
 ---
 
@@ -56,6 +56,10 @@ flowchart TB
             dt[DingTalk]
             fs[Feishu/Lark]
             wc[WeCom]
+            wcb[WeCom Callback]
+            wx[Weixin]
+            bb[BlueBubbles]
+            qq[QQ]
             api["API Server (OpenAI-compatible)"]
             wh[Webhook]
         end
@@ -78,6 +82,10 @@ flowchart TB
     dt --> store
     fs --> store
     wc --> store
+    wcb --> store
+    wx --> store
+    bb --> store
+    qq --> store
     api --> store
     wh --> store
     store --> agent
@@ -555,12 +563,12 @@ These commands are available in any connected messaging platform:
 |---------|-------------|
 | `/new` or `/reset` | Start a fresh conversation |
 | `/model [provider:model]` | Show or change the model (supports `provider:model` syntax) |
-| `/provider` | Show available providers with auth status |
 | `/personality [name]` | Set a personality |
 | `/retry` | Retry the last message |
 | `/undo` | Remove the last exchange |
 | `/status` | Show session info |
 | `/stop` | Stop the running agent |
+| `/steer <prompt>` | Inject a mid-run nudge that the agent sees after its next tool call without breaking the turn or prompt cache (v0.11.0) |
 | `/approve` | Approve a pending dangerous-command request (v0.4.0, PR #2002) |
 | `/deny` | Deny a pending dangerous-command request (v0.4.0, PR #2002) |
 | `/cost` | Show live pricing and usage for this session (v0.4.0, PR #2180) |
@@ -579,6 +587,9 @@ These commands are available in any connected messaging platform:
 | `/update` | Update Hermes Agent to the latest version |
 | `/help` | Show available commands |
 | `/<skill-name>` | Invoke any installed skill |
+| `/skill ...` | Discord-only command group with category subcommands for browsing and launching installed skills (v0.11.0) |
+
+In v0.11.0 plugins can register their own slash commands via `register_command()` and these are surfaced natively on every messaging platform — they appear in `/help` and run with the same permission gating as built-in commands.
 
 ---
 
@@ -600,6 +611,12 @@ Each platform has its own named toolset. The toolset name determines which tools
 | Mattermost | `hermes-mattermost` | Full tools including terminal |
 | Matrix | `hermes-matrix` | Full tools including terminal |
 | DingTalk | `hermes-dingtalk` | Full tools including terminal |
+| Feishu/Lark | `hermes-feishu` | Full tools including terminal |
+| WeCom | `hermes-wecom` | Full tools including terminal |
+| WeCom Callback | `hermes-wecom-callback` | Full tools including terminal |
+| Weixin | `hermes-weixin` | Full tools including terminal |
+| BlueBubbles | `hermes-bluebubbles` | Full tools including terminal |
+| QQBot | `hermes-qqbot` | Full tools including terminal |
 | Webhook | `hermes-webhook` | Full tools including terminal |
 | API Server | `hermes-api-server` | Full tools including terminal |
 
@@ -805,7 +822,116 @@ When a message is delivered to a platform via `send_message` or cron delivery, t
 
 ---
 
+## Gateway Proxy Mode
+
+A gateway can forward inbound platform messages to a remote Hermes API server instead of running the agent locally ([PR #9787](https://github.com/NousResearch/hermes-agent/pull/9787)). This is useful when the agent runs in a beefier environment (a workstation or VPS) and the gateway needs to live closer to the network — for example, on a small always-on box that holds the messaging credentials.
+
+```yaml
+gateway:
+  proxy:
+    enabled: true
+    api_url: https://hermes.example.internal
+    api_key: ${REMOTE_HERMES_KEY}
+```
+
+In proxy mode the local gateway only handles platform I/O, session keying, and delivery — every turn is dispatched over HTTPS to the configured `api_url`.
+
+## Per-Channel Ephemeral Prompts
+
+Discord, Telegram, Slack, and Mattermost can carry per-channel ephemeral prompts that are layered on top of the base system prompt for the duration of a single channel ([PR #10564](https://github.com/NousResearch/hermes-agent/pull/10564)). Use `/sethome` or platform-specific tooling to attach a prompt; remove it with the same command. Ephemeral prompts persist across restarts but are scoped to that one chat — they do not leak into other sessions.
+
+## MEDIA: Tag File Types
+
+The `MEDIA:<path>` extractor that runs on every gateway message now recognises documents and archives in addition to images, audio, and video ([PR #14307](https://github.com/NousResearch/hermes-agent/pull/14307)). `.pdf` is also detected explicitly ([PR #13683](https://github.com/NousResearch/hermes-agent/pull/13683)).
+
+Recognised extensions:
+
+- Images: `.png`, `.jpg`, `.jpeg`, `.webp`, `.gif`
+- Audio/voice: `.mp3`, `.wav`, `.ogg`, `.opus`, `.m4a`
+- Video: `.mp4`, `.mov`, `.webm`
+- Documents: `.pdf`, `.txt`, `.md`, `.docx`, `.xlsx`, `.pptx`
+- Archives: `.zip`, `.tar`, `.tar.gz`, `.tgz`, `.7z`, `.rar`
+
+When the agent emits `MEDIA:/tmp/report.pdf` (or any of the above), the platform adapter sends the file as a native attachment instead of as plain text.
+
+## `--all` Flag for Gateway Service Commands
+
+`hermes gateway start` and `hermes gateway restart` accept `--all` to act on every installed gateway service unit on the host ([PR #10043](https://github.com/NousResearch/hermes-agent/pull/10043)) — useful when multiple `HERMES_HOME` profiles each install their own service.
+
+```bash
+hermes gateway start --all       # start every installed gateway profile
+hermes gateway restart --all     # restart all installed gateway services
+```
+
+## Notify Active Sessions on Shutdown
+
+When the gateway is asked to stop while sessions are running, it now posts a heads-up message into each active chat before shutting down ([PR #9850](https://github.com/NousResearch/hermes-agent/pull/9850)). The shutdown notification reuses the busy-ack channel, so users get a single status line ("Gateway is shutting down — your task will be auto-resumed when the gateway is back") instead of a silent disconnect. The same code path updates `gateway_state.json` so external health checks see the transition cleanly.
+
+## Block Agent Self-Destruct
+
+The terminal tool now blocks the agent from killing the gateway process by name (`pkill hermes`, `kill <gateway_pid>`, `systemctl stop hermes-gateway`, `launchctl unload ai.hermes.gateway`, etc.) — closing [#6666](https://github.com/NousResearch/hermes-agent/issues/6666) ([PR #9895](https://github.com/NousResearch/hermes-agent/pull/9895)). The block runs at the gateway level via terminal-output transformation, so even creative shell wrappers can't get around it.
+
+## Busy-Input Mode (Interrupt / Queue / Steer)
+
+Messaging a busy agent has three modes (default `interrupt`):
+
+```yaml
+display:
+  busy_input_mode: steer   # interrupt | queue | steer
+```
+
+- `interrupt` — current behavior. Cancel the running turn and queue the new prompt as the next message.
+- `queue` — buffer the new message and run it as the next turn after the current one finishes.
+- `steer` — inject the new message via `/steer`, so the agent sees it after its next tool call without breaking the turn or prompt cache. Falls back to `queue` if the agent hasn't started yet.
+
+The first time a user messages a busy agent on any platform, Hermes appends a one-line tip to the busy ack explaining the knob (`💡 First-time tip — set display.busy_input_mode to queue or steer …`). The tip latches via `onboarding.seen.busy_input_prompt` and fires once per install.
+
+## Auto-Continue and Activity Heartbeats
+
+If the gateway is restarted while an agent run is in flight, Hermes now resumes the interrupted work on next start instead of dropping it on the floor ([PR #9934](https://github.com/NousResearch/hermes-agent/pull/9934)). Sessions with pending agent activity are flagged in `state.db`; when the gateway comes back up the sessions are rehydrated and a continuation prompt is sent so the agent picks up where it left off.
+
+To prevent false inactivity timeouts on long-running tools, the agent loop now emits **activity heartbeats** while waiting on synchronous operations ([PR #10501](https://github.com/NousResearch/hermes-agent/pull/10501)). The inactivity timer only fires when the agent is genuinely idle, never during an in-flight tool call.
+
+## PLATFORM_HINTS
+
+A new `PLATFORM_HINTS` block injected into the system prompt teaches the model how to format output for the active platform — Markdown variant, line-break handling, code block flavor, mention syntax, and which media tags are honored. v0.11.0 added hints for **Matrix, Mattermost, and Feishu** ([PR #14428](https://github.com/NousResearch/hermes-agent/pull/14428)). Existing hints for Telegram, Discord, Slack, WhatsApp, Signal, DingTalk, WeCom, Weixin, BlueBubbles, and QQBot are unchanged.
+
 ## Changelog
+
+### v0.11.0 (v2026.4.23)
+
+- **QQBot — 17th supported platform** — QR scan-to-configure setup, streaming cursor, emoji reactions, DM/group policy gating ([PR #9364](https://github.com/NousResearch/hermes-agent/pull/9364), [#11831](https://github.com/NousResearch/hermes-agent/pull/11831)).
+- **`/steer` mid-run nudges** — inject a note the agent sees after its next tool call without breaking prompt cache ([PR #12116](https://github.com/NousResearch/hermes-agent/pull/12116)).
+- **Webhook direct-delivery mode** — `deliver_only: true` skips the agent for zero-LLM push notifications ([PR #12473](https://github.com/NousResearch/hermes-agent/pull/12473)).
+- **Gateway proxy mode** — forward platform messages to a remote API server ([PR #9787](https://github.com/NousResearch/hermes-agent/pull/9787)).
+- **Per-channel ephemeral prompts** for Discord/Telegram/Slack/Mattermost ([PR #10564](https://github.com/NousResearch/hermes-agent/pull/10564)).
+- **Plugin slash commands surfaced natively** on every messaging platform with a decision-capable command hook ([PR #14175](https://github.com/NousResearch/hermes-agent/pull/14175)).
+- **MEDIA: tag** now recognises documents/archives/`.pdf` ([PR #14307](https://github.com/NousResearch/hermes-agent/pull/14307), [#13683](https://github.com/NousResearch/hermes-agent/pull/13683)).
+- **`--all` flag** for `gateway start`/`restart` ([PR #10043](https://github.com/NousResearch/hermes-agent/pull/10043)).
+- **Notify active sessions on shutdown** + health-check update ([PR #9850](https://github.com/NousResearch/hermes-agent/pull/9850)).
+- **Block agent self-destructing the gateway** via terminal (closes #6666) ([PR #9895](https://github.com/NousResearch/hermes-agent/pull/9895)).
+- **Busy-input mode** (interrupt/queue/steer) with onboarding tip.
+- **Auto-continue interrupted work** after gateway restart ([PR #9934](https://github.com/NousResearch/hermes-agent/pull/9934)).
+- **Activity heartbeats** prevent false inactivity timeouts ([PR #10501](https://github.com/NousResearch/hermes-agent/pull/10501)).
+- **PLATFORM_HINTS** for Matrix, Mattermost, Feishu ([PR #14428](https://github.com/NousResearch/hermes-agent/pull/14428)).
+- **Discord** — `DISCORD_ALLOWED_ROLES`, `DISCORD_COMMAND_SYNC_POLICY`, `DISCORD_ALLOWED_CHANNELS`, mention control, `DISCORD_PROXY`, batch-delay knobs, Forum Channels, `send_animation`, `send_message` media, `/skill` group.
+- **Telegram** — `TELEGRAM_PROXY`, `ignored_threads`, link-preview disable, markdown-table autowrap, Docker MEDIA host-path guidance.
+- **Slack** — `SLACK_FREE_RESPONSE_CHANNELS`, per-thread sessions for DMs by default + `slack.extra.dm_top_level_threads_as_sessions` knob.
+- **Feishu** — Document Comment Intelligent Reply with 3-tier access control, processing-status reactions (`Typing`/`CrossMark`), `FEISHU_REACTIONS=false`, @mention preservation.
+- **DingTalk** — `require_mention` + `allowed_users`, QR device-flow setup with openClaw branding disclosure, AI Cards streaming, emoji reactions, media handling.
+- **WhatsApp** — `send_voice` native audio, `dm_policy` / `group_policy` gating.
+- **WeCom / Weixin** — Scan-to-Create QR wizard, Markdown preservation in Weixin.
+- **Signal** — `send_message` media delivery; install path modernised (brew or GitHub release).
+- **Matrix** — `MATRIX_REACTIONS` knob, expanded crypto-store recovery procedure.
+- **BlueBubbles** — group-chat session separation, webhook auth fixes.
+
+### v0.10.0 (v2026.4.16)
+
+- **Nous Tool Gateway** — gateway-side tool execution surface for sharing toolsets across multiple Hermes instances. Most other v0.10 highlights were deferred and shipped under v0.11.0.
+
+### v0.9.0 (v2026.4.13)
+
+- Documentation-only release; rolled into v0.10/v0.11 in practice.
 
 ### v0.8.0 (v2026.4.8)
 

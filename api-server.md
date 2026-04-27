@@ -82,6 +82,24 @@ Standard OpenAI Chat Completions format. Stateless — the full conversation is 
 
 **Tool progress in streams**: When the agent calls tools during a streaming request, brief progress indicators are injected into the content stream as the tools start executing (e.g. `` `💻 pwd` ``, `` `🔍 Python docs` ``). These appear as inline markdown before the agent's response text, giving frontends like Open WebUI real-time visibility into tool execution.
 
+In addition to the inline markdown, streaming responses now emit structured **`event: hermes.tool.progress`** SSE frames alongside the regular `data:` chunks. Each frame carries a JSON payload describing the tool name, phase (`start` / `end`), arguments preview, and a duration on completion — frontends that understand the event can render rich tool-call UI (collapsible cards, spinners, transcripts) without parsing the inline markdown. Clients that only handle standard `data:` chunks ignore these events automatically.
+
+**Inline image inputs** — `chat/completions` accepts the OpenAI multimodal content schema, so messages can include `image_url` parts (data URLs or remote URLs) alongside text:
+
+```json
+{
+  "model": "hermes-agent",
+  "messages": [
+    {"role": "user", "content": [
+      {"type": "text", "text": "What's in this screenshot?"},
+      {"type": "image_url", "image_url": {"url": "data:image/png;base64,iVBORw0K..."}}
+    ]}
+  ]
+}
+```
+
+Images are routed through the agent's vision pipeline; both inline base64 data URLs and `https://` URLs are supported.
+
 ### POST /v1/responses
 
 OpenAI Responses API format. Supports server-side conversation state via `previous_response_id` — the server stores full conversation history (including tool calls and results) so multi-turn context is preserved without the client managing it.
@@ -125,6 +143,14 @@ Chain responses to maintain full context (including tool calls) across turns:
 
 The server reconstructs the full conversation from the stored response chain — all previous tool calls and results are preserved.
 
+The `output` array uses the OpenAI item schema with three item types:
+
+- **`function_call`** — the agent invoked a tool, with `name`, `arguments` (JSON string), and `call_id`.
+- **`function_call_output`** — the matching tool result, keyed by `call_id`.
+- **`message`** — the assistant's natural-language reply (one or more `output_text` parts).
+
+Because tool calls and outputs are stored as first-class items in the chain, follow-up requests that reference `previous_response_id` (or use a named `conversation`) get the **full** history — including which tools ran and what they returned — without the client having to re-send anything. This is the key difference from `chat/completions`, which is stateless and requires the client to replay the entire `messages` array on every turn.
+
 #### Named conversations
 
 Use the `conversation` parameter instead of tracking response IDs:
@@ -147,11 +173,52 @@ Delete a stored response.
 
 ### GET /v1/models
 
-Lists the agent as an available model. The advertised model name defaults to the [profile](/docs/user-guide/features/profiles) name (or `hermes-agent` for the default profile). Required by most frontends for model discovery.
+Lists the agent as an available model. The advertised model name defaults to the [profile](/docs/user-guide/profiles) name (or `hermes-agent` for the default profile). Required by most frontends for model discovery.
 
 ### GET /health
 
 Health check. Returns `{"status": "ok"}`. Also available at **GET /v1/health** for OpenAI-compatible clients that expect the `/v1/` prefix.
+
+### GET /health/detailed
+
+Extended health check. Returns the gateway's connected platforms, current LLM provider/model, profile name, uptime, and the status of each background subsystem (scheduler, memory, webhook server, etc.). Useful for monitoring and dashboards:
+
+```json
+{
+  "status": "ok",
+  "profile": "default",
+  "model": "hermes-agent",
+  "platforms": {"telegram": "connected", "matrix": "connected"},
+  "subsystems": {"scheduler": "running", "memory": "ok", "webhooks": "listening"},
+  "uptime_seconds": 12345
+}
+```
+
+### Runs API
+
+The Runs API exposes long-running agent invocations as first-class objects, similar to OpenAI's Assistants/Runs surface. Useful when a single request will dispatch tools, stream partial output, and may take minutes to complete — instead of holding a streaming HTTP connection open, a client can submit the work, poll for status, and pull the final result and event stream when it's done.
+
+| Endpoint | Description |
+|----------|-------------|
+| `POST /v1/runs` | Submit a new agent run. Body mirrors `POST /v1/responses` (input, instructions, conversation, etc.) plus optional metadata. Returns a run object with `id` and `status: "queued"`. |
+| `GET /v1/runs/{id}` | Fetch the current state of a run. Status transitions: `queued` → `in_progress` → `completed` / `failed` / `cancelled`. The completed object includes the final `output` items and usage. |
+| `GET /v1/runs/{id}/events` | SSE stream of run events — token deltas, tool-progress frames, and the terminal `run.completed` / `run.failed` event. Safe to reconnect mid-run; events are replayed from the beginning. |
+| `POST /v1/runs/{id}/cancel` | Cancel an in-progress run. The agent stops at the next safe point and the run transitions to `cancelled`. |
+
+Runs are persisted alongside stored responses, so they survive gateway restarts.
+
+### Jobs API
+
+The Jobs API is the scheduling counterpart to Runs — it lets a client register an agent invocation that should fire on a cron expression or one-shot delay, and inspect/cancel it later. Internally it's the same machinery that backs the gateway's `/cron` slash command.
+
+| Endpoint | Description |
+|----------|-------------|
+| `POST /v1/jobs` | Create a scheduled job. Body: `{schedule, input, conversation?, deliver?}`. `schedule` is either a 5-field cron string (`"0 9 * * 1"`) or an ISO-8601 timestamp for a one-shot. Returns a job object with `id` and `next_run_at`. |
+| `GET /v1/jobs` | List all jobs for the current key, with their cron expressions, last/next run timestamps, and last status. |
+| `GET /v1/jobs/{id}` | Fetch a single job, including its full history of past run IDs. |
+| `DELETE /v1/jobs/{id}` | Cancel and remove a scheduled job. |
+
+When a job fires, it dispatches a Run; the resulting run ID is recorded on the job's history list and (if `deliver` was set) the final response is also pushed to the configured platform/channel.
 
 ## System Prompt Handling
 
@@ -240,7 +307,7 @@ Any frontend that supports the OpenAI API format works. Tested/documented integr
 
 ## Multi-User Setup with Profiles
 
-To give multiple users their own isolated Hermes instance (separate config, memory, skills), use [profiles](/docs/user-guide/features/profiles):
+To give multiple users their own isolated Hermes instance (separate config, memory, skills), use [profiles](/docs/user-guide/profiles):
 
 ```bash
 # Create a profile per user
@@ -271,5 +338,4 @@ In Open WebUI, add each as a separate connection. The model dropdown shows `alic
 ## Limitations
 
 - **Response storage** — stored responses (for `previous_response_id`) are persisted in SQLite and survive gateway restarts. Max 100 stored responses (LRU eviction).
-- **No file upload** — vision/document analysis via uploaded files is not yet supported through the API.
 - **Model field is cosmetic** — the `model` field in requests is accepted but the actual LLM model used is configured server-side in config.yaml.
