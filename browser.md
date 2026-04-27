@@ -144,8 +144,9 @@ CAMOFOX_URL=http://localhost:9377
 Hermes then routes `browser_navigate`, `browser_snapshot`, `browser_click`, `browser_type`, `browser_vision`, and related browser tools through the Camofox REST service. The integration supports:
 
 - persistent browser sessions keyed to the current task
-- optional managed persistence via `browser.camofox.managed_persistence`
-- VNC URL discovery returned from Camofox health/status so you can inspect the live browser visually
+- optional managed persistence via `browser.camofox.managed_persistence` — Hermes manages the persistent profile lifecycle (create on first navigate, reuse across sessions, prune on cleanup) so you don't need to mount profile volumes manually
+- VNC URL discovery polished in v0.11.0 — Camofox health/status responses now expose the VNC URL on a stable field so the CLI can surface a clickable link without polling the container directly
+- v0.11.0 connection-stability hardening across the window (reconnect on transient WebSocket drops, tighter timeouts on health checks)
 
 The upstream service can be run from the published Camofox browser image:
 
@@ -305,6 +306,28 @@ The screenshot is saved persistently and the file path is returned alongside the
 Screenshots are stored in `~/.hermes/browser_screenshots/` and automatically cleaned up after 24 hours.
 
 The vision model used for analysis is controlled by the `AUXILIARY_VISION_MODEL` environment variable. For page snapshot text summarization, the `AUXILIARY_WEB_EXTRACT_MODEL` variable is used.
+
+### browser_cdp (v0.11.0)
+
+Raw Chrome DevTools Protocol passthrough — invoke any CDP method on the active browser session for behaviors not covered by the higher-level browser tools.
+
+```
+Use browser_cdp to call Page.printToPDF and save the current page as a PDF
+```
+
+Typical use cases:
+- `Page.printToPDF` for high-fidelity PDF export
+- `Network.setUserAgentOverride` / `Emulation.setUserAgentOverride`
+- `Emulation.setGeolocationOverride`
+- `Network.setExtraHTTPHeaders`
+- `Page.captureScreenshot` with custom clipping/scale
+- `DOM.querySelectorAll` / `Runtime.evaluate` for direct DOM inspection
+
+Parameters:
+- **`method`** (required): CDP method name (e.g. `Page.printToPDF`).
+- **`params`** (optional, dict): Method-specific parameter object.
+
+Returns the JSON result of the CDP call. Requires `browser_navigate` first so a session exists. Available across the local Chromium, `/browser connect` CDP, and Camofox backends; cloud backends pass through their own CDP bridges.
 
 ### browser_console
 
