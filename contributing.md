@@ -438,6 +438,28 @@ Gateway and messaging sessions never collect secrets in-band; they instruct the 
 
 ---
 
+## Plugin Extension Points (v0.11.0)
+
+Plugins are the recommended path for cross-cutting capabilities that should not ship as built-in tools or skills (custom slash commands, custom approval flows, image-gen backends, dashboard surfaces). v0.11.0 expanded the plugin surface significantly. Key extension points:
+
+| Extension point | Purpose |
+|-----------------|---------|
+| `ctx.register_command()` | Register a custom slash command from a plugin. Surfaces natively across CLI and all gateway platforms. |
+| `ctx.dispatch_tool()` | Programmatically invoke an existing tool from inside a plugin (e.g. fire `web_extract` from a slash-command handler). |
+| `pre_tool_call` (veto) | Block a tool call before it runs by returning `{"action": "block", "message": "..."}`. The agent sees the rejection message as the tool result. |
+| `post_tool_call` | Observe completed tool calls; signature includes `duration_ms: int`. |
+| `transform_tool_result` | Rewrite a tool result before it lands in conversation history (e.g. truncate, redact, reformat). |
+| `transform_terminal_output` | Rewrite terminal command output before it is shown to the user or fed back to the model. |
+| `subagent_stop` | Fire when a `delegate_task` child finishes; receives the child's final result. |
+| `pre_gateway_dispatch` | Inspect or veto messages before the gateway routes them to a session. |
+| `on_session_finalize` / `on_session_reset` | Lifecycle hooks for session end and explicit `/reset`. |
+| Image-gen backend plugins | Drop-in backends under `plugins/image_gen/{openai,openai-codex,xai}/` add new image generation providers without modifying core. |
+| Dashboard tabs / widgets | Plugins can register additional tabs and widgets in the web dashboard. |
+
+For the full hook contracts (signatures, return shapes, ordering guarantees) see the [Plugins guide](../plugins.md) and [Hooks guide](../hooks.md). The bundled `plugins/disk-cleanup/` reference plugin in the source tree is a small worked example of registering a slash command, a tool, and a `post_tool_call` hook from one package.
+
+---
+
 ## Adding a Skin / Theme
 
 Hermes uses a data-driven skin system -- no code changes needed to add a new skin.
