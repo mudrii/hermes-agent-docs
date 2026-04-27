@@ -1,98 +1,119 @@
 # Image Generation
 
-Hermes Agent can generate images from text prompts using FAL.ai's **FLUX 2 Pro** model with automatic 2x upscaling via the **Clarity Upscaler** for enhanced quality.
+Hermes Agent generates images through the `image_gen` tool. As of **v0.11.0**, `image_gen` is a pluggable surface — Hermes ships several backends out of the box and plugins can register their own. The selected backend is the only thing that changes; the tool name, schema, and call site are stable.
 
-Available since v0.2.0. You can use a direct `FAL_KEY` or route image generation through the [Nous Tool Gateway](tool-gateway.md) if you have a paid Nous Portal subscription.
+Available since v0.2.0 (FAL FLUX). Backend plugin architecture introduced in v0.11.0.
 
-## Setup
+## Backends
 
-### Use the Nous Tool Gateway
+v0.11.0 ships these built-in backends. All but `fal` are new in v0.11.0.
 
-If you have a paid Nous Portal subscription, enable image generation through:
+| Backend | Provider | Best for | Credentials |
+|---------|----------|----------|-------------|
+| `fal` (default) | FAL.ai | General-purpose photoreal / illustration; multi-model — FLUX 2 Pro, Recraft V4 Pro, Nano Banana Pro, etc. all selectable per call | `FAL_KEY` or Nous Tool Gateway |
+| `recraft` | Recraft V4 Pro (direct) | Vector-friendly graphics, logo/icon work, controllable styles | `RECRAFT_API_KEY` |
+| `nano_banana_pro` | Nano Banana Pro (direct) | Fast, low-cost generations | `NANO_BANANA_API_KEY` |
+| `gpt_image_2` | OpenAI GPT Image 2 | Strong instruction following, text rendering | `OPENAI_API_KEY` |
+| `xai_grok_imagine` | xAI grok-imagine | Stylised generations via xAI | `XAI_API_KEY` |
+| `openai_codex` | GPT-5.5 image generation over Codex OAuth | Use a ChatGPT subscription instead of a separate API key | Codex OAuth login |
 
-```bash
-hermes model
+A plugin can add additional backends by calling `ctx.register_image_gen(name, handler)` in its `register()` function — see [Plugins](./plugins.md). Only one backend is active at a time; selection is configured under `image_gen.backend` in `~/.hermes/config.yaml` or interactively via `hermes tools` and `hermes plugins`.
+
+## Selecting a Backend
+
+```yaml
+# ~/.hermes/config.yaml
+image_gen:
+  backend: fal           # fal | recraft | nano_banana_pro | gpt_image_2 | xai_grok_imagine | openai_codex | <plugin name>
+  use_gateway: false     # fal-only: route through Nous Tool Gateway instead of a direct key
 ```
 
-or:
+Or interactively:
 
 ```bash
-hermes tools
+hermes tools     # toggle the image_gen tool and pick a backend
+hermes plugins   # if you want to use a third-party image_gen backend plugin
 ```
 
-This sets `image_gen.use_gateway: true` in `config.yaml` and routes requests through your Nous subscription instead of a direct FAL key.
+## Setup per Backend
 
-### Get a FAL API Key
-
-1. Sign up at [fal.ai](https://fal.ai/)
-2. Generate an API key from your dashboard
-
-### Configure the Key
+### FAL (default)
 
 ```bash
-# Add to ~/.hermes/.env
-FAL_KEY=your-fal-api-key-here
-```
-
-### Install the Client Library
-
-```bash
+# Either: direct key
+echo "FAL_KEY=your-fal-api-key-here" >> ~/.hermes/.env
 pip install fal-client
+
+# Or: paid Nous Portal subscription (no FAL key needed)
+hermes model     # pick Nous Portal, follow tool prompts
+# This sets image_gen.use_gateway: true
 ```
 
-The image generation tool is automatically available when `FAL_KEY` is set. No additional toolset configuration is needed. The tool gates on `FAL_KEY` via its check function.
+The FAL backend is the only one that uses the Nous Tool Gateway path. All other backends require a direct API key.
 
-## How It Works
+### Recraft V4 Pro
 
-When you ask Hermes to generate an image:
+```bash
+echo "RECRAFT_API_KEY=..." >> ~/.hermes/.env
+```
 
-1. **Generation** -- your prompt is sent to the FLUX 2 Pro model (`fal-ai/flux-2-pro`)
-2. **Upscaling** -- the generated image is automatically upscaled 2x using the Clarity Upscaler (`fal-ai/clarity-upscaler`)
-3. **Delivery** -- the upscaled image URL is returned
+### Nano Banana Pro
 
-If upscaling fails for any reason, the original image is returned as a fallback.
+```bash
+echo "NANO_BANANA_API_KEY=..." >> ~/.hermes/.env
+```
+
+### GPT Image 2
+
+```bash
+echo "OPENAI_API_KEY=..." >> ~/.hermes/.env
+```
+
+### xAI grok-imagine
+
+```bash
+echo "XAI_API_KEY=..." >> ~/.hermes/.env
+```
+
+### Codex OAuth (GPT-5.5 image)
+
+```bash
+hermes login codex      # browser OAuth flow against ChatGPT account
+```
+
+No API key is required — generations are billed against the ChatGPT subscription. See [Provider Authentication](./provider-runtime.md) for OAuth details.
 
 ## Usage
 
-Simply ask Hermes to create an image:
+The tool name and surface are identical across backends. The active backend handles the call.
 
-```
+```text
 Generate an image of a serene mountain landscape with cherry blossoms
 ```
 
-```
+```text
 Create a portrait of a wise old owl perched on an ancient tree branch
 ```
 
 ## Parameters
 
-The `image_generate` tool accepts these parameters:
+| Parameter | Default | Notes |
+|-----------|---------|-------|
+| `prompt` | *(required)* | Text description |
+| `aspect_ratio` | `landscape` | `landscape`, `square`, `portrait` (FAL also accepts raw size presets) |
+| `num_images` | 1 | 1-4 |
+| `output_format` | `png` | `png`, `jpeg` |
+| `seed` | *(random)* | Reproducible runs |
 
-| Parameter | Default | Range | Description |
-|-----------|---------|-------|-------------|
-| `prompt` | *(required)* | -- | Text description of the desired image |
-| `aspect_ratio` | `"landscape"` | `landscape`, `square`, `portrait` | Image aspect ratio |
-| `num_inference_steps` | `50` | 1-100 | Number of denoising steps (more = higher quality, slower) |
-| `guidance_scale` | `4.5` | 0.1-20.0 | How closely to follow the prompt |
-| `num_images` | `1` | 1-4 | Number of images to generate |
-| `output_format` | `"png"` | `png`, `jpeg` | Image file format |
-| `seed` | *(random)* | any integer | Random seed for reproducible results |
+Backends accept additional backend-specific parameters; the tool schema documents what each backend exposes. Unknown parameters are passed through to the backend's API.
 
-## Aspect Ratios
+### FAL-specific parameters
 
-The tool uses simplified aspect ratio names that map to FLUX 2 Pro image sizes:
+`num_inference_steps` (1-100, default 50), `guidance_scale` (0.1-20.0, default 4.5). FAL also supports raw size presets `square_hd`, `square`, `portrait_4_3`, `portrait_16_9`, `landscape_4_3`, `landscape_16_9`, and custom sizes up to 2048x2048.
 
-| Aspect Ratio | Maps To | Best For |
-|-------------|---------|----------|
-| `landscape` | `landscape_16_9` | Wallpapers, banners, scenes |
-| `square` | `square_hd` | Profile pictures, social media posts |
-| `portrait` | `portrait_16_9` | Character art, phone wallpapers |
+## Automatic Upscaling (FAL only)
 
-You can also use the raw FLUX 2 Pro size presets directly: `square_hd`, `square`, `portrait_4_3`, `portrait_16_9`, `landscape_4_3`, `landscape_16_9`. Custom sizes up to 2048x2048 are also supported.
-
-## Automatic Upscaling
-
-Every generated image is automatically upscaled 2x using FAL.ai's Clarity Upscaler with these settings:
+The FAL backend automatically 2x-upscales every result with the Clarity Upscaler. Other backends return the model's native resolution and do not chain a second pass — pick a backend whose default resolution already meets your need, or upscale separately.
 
 | Setting | Value |
 |---------|-------|
@@ -104,39 +125,62 @@ Every generated image is automatically upscaled 2x using FAL.ai's Clarity Upscal
 | Positive Prompt | `"masterpiece, best quality, highres"` + your original prompt |
 | Negative Prompt | `"(worst quality, low quality, normal quality:2)"` |
 
-The upscaler enhances detail and resolution while preserving the original composition. If the upscaler fails (network issue, rate limit), the original resolution image is returned automatically.
+If upscaling fails (network issue, rate limit), the original resolution image is returned automatically.
 
 ## Debugging
-
-Enable debug logging for image generation:
 
 ```bash
 export IMAGE_TOOLS_DEBUG=true
 ```
 
-Debug logs are saved to `./logs/image_tools_debug_<session_id>.json` with details about each generation request, parameters, timing, and any errors.
+Debug logs are saved to `./logs/image_tools_debug_<session_id>.json` with the active backend name, request parameters, timing, and any errors.
 
 ## Safety Settings
 
-The image generation tool runs with safety checks disabled by default (`safety_tolerance: 5`, the most permissive setting). This is configured at the code level (`SAFETY_TOLERANCE = "5"` and `ENABLE_SAFETY_CHECKER = False` in `tools/image_generation_tool.py`).
+For backends that expose a safety toggle (currently FAL via `safety_tolerance` and `ENABLE_SAFETY_CHECKER`), Hermes runs with the most permissive setting. Other backends use their provider's default safety filtering. Backend-specific safety knobs are documented at the call site in source.
 
-## Limitations
+## Nous Tool Gateway (FAL only)
 
-- **Requires either a FAL key or a paid Nous Portal subscription** -- direct routing uses your FAL account, while `use_gateway: true` uses the Nous Tool Gateway
-- **No image editing** -- this is text-to-image only, no inpainting or img2img
-- **URL-based delivery** -- images are returned as temporary FAL.ai URLs, not saved locally
-- **Upscaling adds latency** -- the automatic 2x upscale step adds processing time
-- **Max 4 images per request** -- `num_images` is capped at 4
-
-## Alternative: Nous Tool Gateway
-
-Paid [Nous Portal](https://portal.nousresearch.com) subscribers (non-free tier) can use image generation without a `FAL_KEY`. Set `use_gateway: true` in your `~/.hermes/config.yaml`:
+Paid [Nous Portal](https://portal.nousresearch.com) subscribers can use the FAL backend without a `FAL_KEY`:
 
 ```yaml
 image_gen:
+  backend: fal
   use_gateway: true
 ```
 
-The gateway routes generation through FAL using your Nous subscription credentials stored in `~/.hermes/auth.json`. When `use_gateway: true`, the gateway is used even if `FAL_KEY` is also set. For setup, run `hermes model` → Nous Portal → follow tool prompts.
+The gateway routes generation through FAL using your Nous subscription credentials stored in `~/.hermes/auth.json`. When `use_gateway: true`, the gateway is used even if `FAL_KEY` is also set. For setup, run `hermes model` → Nous Portal → follow tool prompts. See [Nous Tool Gateway](/docs/nous-tool-gateway) for the full guide.
 
-See [Nous Tool Gateway](/docs/nous-tool-gateway) for the full guide.
+The gateway path is only available for the FAL backend. Other backends always go directly to their provider.
+
+## Limitations
+
+- **Backend selection is single-active** — only one image_gen backend is enabled at a time.
+- **No image editing** — `image_gen` is text-to-image; inpainting and img2img are backend-specific extensions if exposed at all.
+- **URL-based delivery** — most backends return temporary URLs rather than saving files locally.
+- **Backend feature parity is not guaranteed** — parameters supported by FAL (e.g. `num_inference_steps`, exact `guidance_scale` ranges) may not exist on other backends.
+
+## Adding a Backend (v0.11.0)
+
+A plugin can register a new image_gen backend. Minimal example:
+
+```python
+# ~/.hermes/plugins/my-image-backend/__init__.py
+def register(ctx):
+    def handler(prompt, aspect_ratio="landscape", num_images=1, **kwargs):
+        # call your model, return a list of dicts: [{"url": "...", "width": ..., "height": ...}]
+        return [{"url": "https://example.com/img.png", "width": 1024, "height": 1024}]
+
+    ctx.register_image_gen("my-backend", handler)
+```
+
+The user then selects it via:
+
+```bash
+hermes plugins        # enable my-image-backend
+# then in config.yaml:
+# image_gen:
+#   backend: my-backend
+```
+
+See [Plugins](./plugins.md) and the [plugin guide](/docs/guides/build-a-hermes-plugin) for the full plugin contract.
