@@ -283,6 +283,16 @@ Discord behavior is controlled through two files: **`~/.hermes/.env`** for crede
 | `DISCORD_IGNORED_CHANNELS` | No | — | Comma-separated channel IDs where the bot **never** responds, even when `@mentioned`. Takes priority over all other channel settings. |
 | `DISCORD_NO_THREAD_CHANNELS` | No | — | Comma-separated channel IDs where the bot responds directly in the channel instead of creating a thread. Only relevant when `DISCORD_AUTO_THREAD` is `true`. |
 | `DISCORD_REPLY_TO_MODE` | No | `"first"` | Controls reply-reference behavior: `"off"` — never reply to the original message, `"first"` — reply-reference on the first message chunk only (default), `"all"` — reply-reference on every chunk. |
+| `DISCORD_ALLOWED_ROLES` | No | — | Comma-separated Discord role IDs whose members are authorized to interact with the bot. Members of any listed role pass authorization in addition to `DISCORD_ALLOWED_USERS`. Useful for granting access to a whole `@team` without enumerating every user ID. (v0.11.0) |
+| `DISCORD_ALLOWED_CHANNELS` | No | — | Comma-separated channel IDs the bot is allowed to operate in. When set, the bot ignores messages from any channel not in the list (DMs are still subject to user/role allowlists). (v0.11.0) |
+| `DISCORD_COMMAND_SYNC_POLICY` | No | `safe` | How Hermes registers slash commands at startup. `safe` — additive sync that only adds new commands and warns about conflicts. `bulk` — overwrite the server's command set with Hermes's commands (fastest, replaces everything). `off` — never register slash commands. Replaces the older `discord.slash_commands` boolean. (v0.11.0) |
+| `DISCORD_PROXY` | No | — | HTTP/HTTPS proxy URL the Discord gateway uses for outbound connections (e.g. `http://user:pass@proxy:8080`). (v0.11.0) |
+| `DISCORD_ALLOW_MENTION_EVERYONE` | No | `false` | When `false`, suppresses `@everyone` and `@here` mention payloads even if the agent emits them. (v0.11.0) |
+| `DISCORD_ALLOW_MENTION_ROLES` | No | `false` | When `false`, suppresses role mentions in agent output. (v0.11.0) |
+| `DISCORD_ALLOW_MENTION_USERS` | No | `true` | When `false`, suppresses user mentions in agent output. (v0.11.0) |
+| `DISCORD_ALLOW_MENTION_REPLIED_USER` | No | `true` | When `false`, suppresses the implicit ping that Discord adds when a message is sent as a reply. (v0.11.0) |
+| `HERMES_DISCORD_TEXT_BATCH_DELAY_SECONDS` | No | `0.6` | How long the adapter waits to coalesce successive text chunks before flushing a Discord message. Lower values send sooner; higher values batch more aggressively. (v0.11.0) |
+| `HERMES_DISCORD_TEXT_SPLIT_DELAY_SECONDS` | No | `0.4` | How long the adapter pauses between sub-chunks when splitting an oversized Discord message into multiple posts. (v0.11.0) |
 
 ### Config File (`config.yaml`)
 
@@ -298,7 +308,15 @@ discord:
   ignored_channels: []            # Channel IDs where bot never responds
   no_thread_channels: []          # Channel IDs where bot responds without threading
   channel_prompts: {}             # Per-channel ephemeral system prompts
-  slash_commands: true            # Set false to prevent registering /hermes slash commands in this server
+  command_sync_policy: safe       # safe | bulk | off — replaces the v0.10 slash_commands boolean
+  allowed_roles: []               # Role IDs allowed to use the bot (v0.11.0)
+  allowed_channels: []            # Channel IDs the bot is allowed to operate in (v0.11.0)
+  proxy: ""                       # HTTP/HTTPS proxy URL (v0.11.0)
+  allow_mentions:
+    everyone: false               # Suppress @everyone / @here
+    roles: false                  # Suppress role mentions
+    users: true                   # User mentions allowed
+    replied_user: true            # Allow the reply-to ping
 
 # Session isolation (applies to all gateway platforms, not just Discord)
 group_sessions_per_user: true     # Isolate sessions per user in shared channels
@@ -330,13 +348,15 @@ discord:
 
 If a thread's parent channel is in this list, the thread also becomes mention-free.
 
+Free-response channels also **skip auto-threading** — the bot replies inline rather than spinning off a new thread per message. This keeps the channel usable as a lightweight chat surface. If you want threading behavior, don't list the channel as free-response (use normal `@mention` flow instead).
+
 #### `discord.auto_thread`
 
 **Type:** boolean — **Default:** `true`
 
 When enabled, every `@mention` in a regular text channel automatically creates a new thread for the conversation. This keeps the main channel clean and gives each conversation its own isolated session history. Once a thread is created, subsequent messages in that thread don't require `@mention` — the bot knows it's already participating.
 
-Messages sent in existing threads or DMs are unaffected by this setting.
+Messages sent in existing threads or DMs are unaffected by this setting. Channels listed in `discord.free_response_channels` or `discord.no_thread_channels` also bypass auto-threading and get inline replies instead.
 
 #### `discord.reactions`
 
@@ -405,18 +425,77 @@ Behavior:
 - If a message arrives inside a thread or forum post and that thread has no explicit entry, Hermes falls back to the parent channel/forum ID.
 - Prompts are applied ephemerally at runtime, so changing them affects future turns immediately without rewriting past session history.
 
-#### `discord.slash_commands`
+#### `discord.command_sync_policy`
 
-**Type:** boolean — **Default:** `true`
+**Type:** string — **Default:** `"safe"` — **Values:** `safe`, `bulk`, `off`
 
-Controls whether Hermes registers its slash commands (e.g. `/model`, `/reset`, `/background`, and any installed skills) as Discord Application Commands when the gateway starts.
+Controls how Hermes registers slash commands (`/model`, `/reset`, `/background`, plugin commands, and installed skills) as Discord Application Commands at startup. Introduced in v0.11.0 ([PR #14315](https://github.com/NousResearch/hermes-agent/pull/14315)) as a replacement for the older `discord.slash_commands` boolean.
 
-Set `discord.slash_commands: false` if Hermes slash commands conflict with other bots in the server, or if you prefer @mention-only interaction and want to keep the `/` menu clean.
+- `safe` (default) — additive sync. Hermes only adds commands it owns and never deletes commands installed by other bots. If a name collides, Hermes logs a warning and skips that command.
+- `bulk` — overwrite. Hermes replaces the server's full command set with its own. Fastest path for clean Hermes-only servers; use this if `safe` is leaving stale commands behind.
+- `off` — Hermes does not register or refresh any slash commands. Useful when you want to keep the `/` menu clean or are managing commands externally.
 
 ```yaml
 discord:
-  slash_commands: false
+  command_sync_policy: safe   # or bulk, or off
 ```
+
+Equivalent env var: `DISCORD_COMMAND_SYNC_POLICY`.
+
+#### `discord.allowed_roles`
+
+**Type:** string or list — **Default:** `[]`
+
+Discord role IDs whose members are authorized to interact with the bot. Anyone holding any of these roles passes authorization in addition to the user IDs listed in `DISCORD_ALLOWED_USERS` ([PR #11608](https://github.com/NousResearch/hermes-agent/pull/11608)). Use this to grant access to a `@team` or `@trusted` role without enumerating individual users.
+
+```yaml
+discord:
+  allowed_roles:
+    - "1199900000000000001"   # @team-engineering
+    - "1199900000000000002"   # @team-product
+```
+
+Equivalent env var: `DISCORD_ALLOWED_ROLES`.
+
+#### `discord.allowed_channels`
+
+**Type:** string or list — **Default:** `[]`
+
+When set, the bot only responds in the listed channels (and threads under them). Useful for keeping the bot scoped to specific channels even if it has access to the whole server. Empty list means "no channel restriction"; DMs are unaffected.
+
+```yaml
+discord:
+  allowed_channels:
+    - "1234567890"
+    - "9876543210"
+```
+
+Equivalent env var: `DISCORD_ALLOWED_CHANNELS`.
+
+#### `discord.allow_mentions`
+
+**Type:** mapping — **Default:** `{everyone: false, roles: false, users: true, replied_user: true}`
+
+Controls which mention payloads Discord renders when the agent's reply contains them. The defaults block `@everyone` and role pings to keep the bot from spamming a server, while still allowing direct user mentions and the implicit reply-to ping.
+
+```yaml
+discord:
+  allow_mentions:
+    everyone: false
+    roles: false
+    users: true
+    replied_user: true
+```
+
+Equivalent env vars: `DISCORD_ALLOW_MENTION_EVERYONE`, `DISCORD_ALLOW_MENTION_ROLES`, `DISCORD_ALLOW_MENTION_USERS`, `DISCORD_ALLOW_MENTION_REPLIED_USER`.
+
+#### `discord.proxy`
+
+**Type:** string — **Default:** `""`
+
+HTTP/HTTPS proxy URL for the Discord client (e.g. `http://user:pass@proxy.example.com:8080`). Mostly useful for running the gateway behind a corporate proxy or in a region where the Discord gateway needs to be reached via a tunnel.
+
+Equivalent env var: `DISCORD_PROXY`.
 
 
 #### `group_sessions_per_user`
@@ -471,14 +550,14 @@ The picker times out after 120 seconds. Only authorized users (those in `DISCORD
 
 ## Native Slash Commands for Skills
 
-Hermes automatically registers installed skills as **native Discord Application Commands**. This means skills appear in Discord's autocomplete `/` menu alongside built-in commands.
+Hermes registers installed skills as **native Discord Application Commands** under a single grouped command tree, so skills appear in Discord's autocomplete `/` menu alongside built-in commands.
 
-- Each skill becomes a Discord slash command (e.g., `/code-review`, `/ascii-art`)
-- Skills accept an optional `args` string parameter
-- Discord has a limit of 100 application commands per bot — if you have more skills than available slots, extra skills are skipped with a warning in the logs
-- Skills are registered during bot startup alongside built-in commands like `/model`, `/reset`, and `/background`
+- All skills live under the `/skill` command group — for example `/skill run name:code-review`, `/skill list`. This keeps skill names out of the top-level command namespace and avoids collisions with built-ins like `/model`, `/reset`, or `/background`.
+- Each skill exposes an optional `args` string parameter for free-form input.
+- Discord has a hard limit of 100 application commands per bot — extra skills past the limit are skipped with a warning in the logs.
+- Sync behaviour is controlled by `DISCORD_COMMAND_SYNC_POLICY` (`safe` / `bulk` / `off`); see [Configuration Reference](#discordcommand_sync_policy).
 
-No extra configuration is needed — any skill installed via `hermes skills install` is automatically registered as a Discord slash command on the next gateway restart.
+No extra configuration is needed beyond installing skills via `hermes skills install` — they appear under `/skill` on the next gateway restart (or sooner, depending on policy).
 
 ## Home Channel
 
@@ -499,9 +578,11 @@ DISCORD_HOME_CHANNEL_NAME="#bot-updates"
 
 Replace the ID with the actual channel ID (right-click → Copy Channel ID with Developer Mode on).
 
-## Voice Messages
+## Rich Media
 
-Hermes Agent supports Discord voice messages:
+Discord supports rich media beyond plain text. Hermes exposes these through normal tool calls, so the agent can send media inline without any extra configuration.
+
+### Voice Messages
 
 - **Incoming voice messages** are automatically transcribed using the configured STT provider: local `faster-whisper` (no key), Groq Whisper (`GROQ_API_KEY`), or OpenAI Whisper (`VOICE_TOOLS_OPENAI_KEY`).
 - **Text-to-speech**: Use `/voice tts` to have the bot send spoken audio responses alongside text replies.
@@ -510,6 +591,25 @@ Hermes Agent supports Discord voice messages:
 For the full setup and operational guide, see:
 - [Voice Mode](/docs/user-guide/features/voice-mode)
 - [Use Voice Mode with Hermes](/docs/guides/use-voice-mode-with-hermes)
+
+### Animated GIFs (`send_animation`)
+
+The agent can post animated GIFs natively via the `send_animation` tool. The file is uploaded as a real Discord attachment so the GIF auto-plays inline (Tenor links work too, but uploads guarantee playback regardless of client settings). Use this for reaction GIFs, demo loops, or screen recordings exported as GIF.
+
+### Media Attachments (`send_message`)
+
+`send_message` accepts a list of file paths in addition to text. Hermes uploads each path as a Discord attachment in a single API call — images render as native previews, audio/video files use Discord's built-in players, and arbitrary files appear as downloadable attachments. This bypasses the per-tool helpers (`send_image`, `send_voice`, etc.) when you want to send a mixed batch in one message.
+
+## Forum Channels
+
+Discord forum channels (type 15) don't accept direct messages — every post in a forum must be a thread. Hermes auto-detects forum channels and creates a new thread post whenever it needs to send there, so `send_message`, TTS, images, voice messages, and file attachments all work without special handling from the agent.
+
+- **Thread name** is derived from the first line of the message (markdown heading prefix stripped, capped at 100 chars). When the message is attachment-only, the filename is used as the fallback thread name.
+- **Attachments** ride along on the starter message of the new thread — no separate upload step, no partial sends.
+- **One call, one thread**: each forum send creates a new thread. Successive sends to the same forum will therefore produce separate threads.
+- **Detection is three-layered**: the channel directory cache first, a process-local probe cache second, and a live `GET /channels/{id}` probe as a last resort (whose result is then memoized for the life of the process).
+
+Refreshing the directory (`/channels refresh` on platforms that expose it, or a gateway restart) populates the cache with any forum channels created after the bot started.
 
 ## Troubleshooting
 
@@ -564,7 +664,53 @@ If you intentionally want a shared room conversation, leave it off — just expe
 ## Security
 
 :::warning
-Always set `DISCORD_ALLOWED_USERS` to restrict who can interact with the bot. Without it, the gateway denies all users by default as a safety measure. Only add User IDs of people you trust — authorized users have full access to the agent's capabilities, including tool use and system access.
+Always set `DISCORD_ALLOWED_USERS` (or `DISCORD_ALLOWED_ROLES`) to restrict who can interact with the bot. Without either, the gateway denies all users by default as a safety measure. Only authorize people you trust — authorized users have full access to the agent's capabilities, including tool use and system access.
+:::
+
+### Role-Based Access Control
+
+For servers where access is managed by roles instead of individual user lists (moderator teams, support staff, internal tooling), use `DISCORD_ALLOWED_ROLES` — a comma-separated list of role IDs. Any member with one of those roles is authorized.
+
+```bash
+# ~/.hermes/.env — works alongside or instead of DISCORD_ALLOWED_USERS
+DISCORD_ALLOWED_ROLES=987654321098765432,876543210987654321
+```
+
+Semantics:
+
+- **OR with user allowlist.** A user is authorized if their ID is in `DISCORD_ALLOWED_USERS` **or** they have any role in `DISCORD_ALLOWED_ROLES`.
+- **Server Members Intent auto-enabled.** When `DISCORD_ALLOWED_ROLES` is set, the bot enables the Members intent on connect — required for Discord to send role information with member records.
+- **Role IDs, not names.** Grab them from Discord: **User Settings → Advanced → Developer Mode ON**, then right-click any role → **Copy Role ID**.
+- **DM fallback.** In DMs the role check scans mutual guilds; a user with an allowed role in any shared server is authorized in DMs too.
+
+This is the preferred pattern when the moderation team churns — new moderators get access the moment the role is granted, with no `.env` edit or gateway restart.
+
+### Mention Control
+
+By default, Hermes blocks the bot from pinging `@everyone`, `@here`, and role mentions, even if its reply contains those tokens. This prevents a poorly-worded prompt or echoed user content from spamming a whole server. Individual `@user` pings and reply-reference pings (the little "replying to…" chip) stay enabled so normal conversation still works.
+
+You can relax these defaults via either env vars or `config.yaml`:
+
+```yaml
+# ~/.hermes/config.yaml
+discord:
+  allow_mentions:
+    everyone: false      # allow the bot to ping @everyone / @here
+    roles: false         # allow the bot to ping @role mentions
+    users: true          # allow the bot to ping individual @users
+    replied_user: true   # ping the author when replying to their message
+```
+
+```bash
+# ~/.hermes/.env — env vars win over config.yaml
+DISCORD_ALLOW_MENTION_EVERYONE=false
+DISCORD_ALLOW_MENTION_ROLES=false
+DISCORD_ALLOW_MENTION_USERS=true
+DISCORD_ALLOW_MENTION_REPLIED_USER=true
+```
+
+:::tip
+Leave `everyone` and `roles` at `false` unless you know exactly why you need them. It is very easy for an LLM to produce the string `@everyone` inside a normal-looking response; without this protection, that would notify every member of your server.
 :::
 
 For more information on securing your Hermes Agent deployment, see the [Security Guide](../security.md).
