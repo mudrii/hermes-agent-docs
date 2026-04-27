@@ -61,6 +61,11 @@ Tool calls may execute sequentially or concurrently depending on the tool mix an
 
 Paid Nous Portal subscribers can route web search, image generation, text-to-speech, and browser automation through the [Tool Gateway](tool-gateway.md). This is controlled per tool with `use_gateway: true` in `config.yaml`.
 
+## Webhook and API server delivery paths
+
+- **Webhook direct-delivery mode** (v0.11.0) — Webhook subscriptions can forward payloads straight to a platform chat without invoking the agent (zero-LLM push notifications for alerts, uptime checks, and event streams). See [messaging/webhooks.md](./messaging/webhooks.md).
+- **API server SSE tool events + inline images** (v0.11.0) — `/v1/responses` streams tool events as SSE; both `/v1/chat/completions` and `/v1/responses` accept inline image inputs. See [api-server.md](./api-server.md).
+
 ## All Built-in Tools by Toolset
 
 ### `browser` toolset
@@ -70,6 +75,7 @@ Browser automation for web interaction. Requires browser automation infrastructu
 | Tool | Description |
 |------|-------------|
 | `browser_back` | Navigate back to the previous page in browser history. Requires `browser_navigate` to be called first. |
+| `browser_cdp` | Raw Chrome DevTools Protocol passthrough — invoke any CDP method (e.g., `Page.printToPDF`, `Network.setUserAgentOverride`, `Emulation.setGeolocationOverride`) on the active browser session for behaviors not covered by the higher-level browser tools. Requires `browser_navigate` first. (v0.11.0) |
 | `browser_click` | Click on an element identified by its ref ID from the snapshot (e.g., `@e5`). Ref IDs are shown in square brackets in snapshot output. Requires `browser_navigate` and `browser_snapshot` first. |
 | `browser_close` | Close the browser session and release resources. Call when done with browser tasks to free up session quota. |
 | `browser_console` | Get browser console output and JavaScript errors from the current page. Returns console.log/warn/error/info messages and uncaught JS exceptions. Useful for detecting silent JavaScript errors and failed API calls. |
@@ -97,11 +103,13 @@ The `browser` toolset also includes `web_search` so the agent can find URLs befo
 
 The Python sandbox provides a restricted execution environment. Available tools inside the sandbox include `terminal()`, `read_file()`, `write_file()`, `patch()`, `search_files()`, `web_search()`, `web_extract()`, and `vision_analyze()`. API keys are stripped from the child process environment -- code running in the sandbox cannot read host API keys even if it inspects `os.environ`.
 
+v0.11.0 adds `code_execution.mode: project | strict` (default `project`). In `project` mode the sandbox starts in the agent's current working directory and can read/write project files. In `strict` mode the sandbox runs in an ephemeral temp directory with no project access — use for untrusted scripts or one-off computation. See [code-execution.md](./code-execution.md).
+
 ### `cronjob` toolset
 
 | Tool | Description |
 |------|-------------|
-| `cronjob` | Unified scheduled-task manager. Use `action="create"`, `"list"`, `"update"`, `"pause"`, `"resume"`, `"run"`, or `"remove"` to manage jobs. Supports skill-backed jobs with one or more attached skills. `skills=[]` on update clears attached skills. Cron runs happen in fresh sessions with no current-chat context. |
+| `cronjob` | Unified scheduled-task manager. Use `action="create"`, `"list"`, `"update"`, `"pause"`, `"resume"`, `"run"`, or `"remove"` to manage jobs. Supports skill-backed jobs with one or more attached skills. `skills=[]` on update clears attached skills. Cron runs happen in fresh sessions with no current-chat context. v0.11.0 adds `wakeAgent: true|false` (set `false` for zero-LLM script-only runs) and per-job `enabled_toolsets` to cap token overhead and cost. See [cron.md](./cron.md). |
 
 ### `delegation` toolset
 
@@ -109,13 +117,13 @@ The Python sandbox provides a restricted execution environment. Available tools 
 |------|-------------|
 | `delegate_task` | Spawn one or more subagents to work on tasks in isolated contexts. Each subagent gets its own conversation, terminal session, and toolset. Only the final summary is returned -- intermediate tool results never enter your context window. |
 
-Delegation limits: maximum 3 concurrent subagents, maximum nesting depth of 2 (a subagent can delegate once more, but its child cannot), and each subagent is capped at 50 iterations before it must return a summary.
+Delegation in v0.11.0 introduces an explicit `role` (`worker` | `orchestrator`). Orchestrators retain `delegate_task` when `delegation.max_spawn_depth > 1` (range 1-3, default `1`); leaf workers cannot delegate. Set `delegation.orchestrator_enabled: false` to disable nested spawning entirely. The default `delegation.max_concurrent_children` is 3, and each subagent is capped at 50 iterations. Concurrent sibling subagents share filesystem state through a cross-agent file-coordination layer so they don't clobber each other's edits. See [delegation.md](./delegation.md).
 
 ### `file` toolset
 
 | Tool | Description |
 |------|-------------|
-| `patch` | Targeted find-and-replace edits in files. Use instead of sed/awk in terminal. Uses fuzzy matching (9 strategies) so minor whitespace/indentation differences do not break it. Returns a unified diff. Runs syntax checks automatically after editing Python and JavaScript files. |
+| `patch` | Targeted find-and-replace edits in files. Use instead of sed/awk in terminal. Uses fuzzy matching (9 strategies) so minor whitespace/indentation differences do not break it. Returns a unified diff. Runs syntax checks automatically after editing Python and JavaScript files. v0.11.0: when no fuzzy strategy matches, the error response includes a "did you mean?" suggestion showing the closest candidate text in the file so the agent can correct the search string on the next call. |
 | `read_file` | Read a text file with line numbers and pagination. Use instead of cat/head/tail in terminal. Output format: `LINE_NUM|CONTENT`. Suggests similar filenames if not found. Use `offset` and `limit` for large files. Cannot read images or binary files. |
 | `search_files` | Search file contents or find files by name. Use instead of grep/rg/find/ls in terminal. Ripgrep-backed, faster than shell equivalents. Content search (`target='content'`): regex search inside files. File search: find by name pattern. |
 | `write_file` | Write content to a file, completely replacing existing content. Use instead of echo/cat heredoc in terminal. Creates parent directories automatically. Overwrites the entire file — use `patch` for targeted edits. |
@@ -139,9 +147,9 @@ The standalone `honcho` toolset and its four tools (`honcho_conclude`, `honcho_c
 
 | Tool | Description | Requires |
 |------|-------------|---------|
-| `image_generate` | Generate high-quality images from text prompts using FLUX 2 Pro model with automatic 2x upscaling. Returns a single upscaled image URL. | `FAL_KEY` or Nous Tool Gateway |
+| `image_generate` | Generate images from text prompts via a pluggable backend. v0.11.0 ships three first-party plugins under `plugins/image_gen/`: `openai` (GPT Image 2 via OpenAI API key), `openai-codex` (GPT Image 2 via Codex OAuth), and `xai` (grok-imagine). The legacy FAL backend remains as the default route (FLUX 2 Pro plus a multi-model picker covering Recraft V4 Pro, Nano Banana Pro, GPT Image 2, etc.) and is also reachable through the Nous Tool Gateway. See [image-generation.md](./image-generation.md). | `FAL_KEY`, `OPENAI_API_KEY`, Codex OAuth, `XAI_API_KEY`, or Nous Tool Gateway |
 
-Supported parameters:
+FAL backend supported parameters:
 
 | Parameter | Options |
 |-----------|---------|
@@ -150,7 +158,7 @@ Supported parameters:
 | **Acceleration** | 3 modes (quality, balanced, speed) |
 | **Guidance scale** | Default `4.5` |
 
-> **Nous Tool Gateway:** Also available without `FAL_KEY` when `image_gen.use_gateway: true` (paid Nous Portal subscription). See [Nous Tool Gateway](/docs/nous-tool-gateway).
+> **Nous Tool Gateway:** The FAL backend is also available without `FAL_KEY` when `image_gen.use_gateway: true` (paid Nous Portal subscription). The other backends (`openai`, `openai-codex`, `xai`) require their own credentials. See [Nous Tool Gateway](/docs/nous-tool-gateway).
 
 ### `memory` toolset
 
@@ -222,7 +230,9 @@ RL training tools for running reinforcement learning on Tinker-Atropos. Requires
 
 | Tool | Description |
 |------|-------------|
-| `text_to_speech` | Convert text to speech audio. Supports Edge TTS, ElevenLabs, OpenAI TTS, MiniMax TTS, Mistral Voxtral TTS, and NeuTTS. Returns a MEDIA: path that the platform delivers as a voice message. On Telegram it plays as a voice bubble; on Discord/WhatsApp as an audio attachment; in CLI mode, saves to `~/voice-memos/`. Voice and provider are configurable, and OpenAI TTS can also be routed through the Nous Tool Gateway. |
+| `text_to_speech` | Convert text to speech audio. Supports Edge TTS, ElevenLabs, OpenAI TTS, MiniMax TTS, Mistral Voxtral TTS, NeuTTS, **Google Gemini TTS** (v0.11.0), **KittenTTS** local provider (v0.11.0), and **xAI TTS** (v0.11.0). Returns a MEDIA: path that the platform delivers as a voice message. On Telegram it plays as a voice bubble; on Discord/WhatsApp as an audio attachment; in CLI mode, saves to `~/voice-memos/`. Voice and provider are configurable, and OpenAI TTS can also be routed through the Nous Tool Gateway. |
+
+STT auto-detect chain (used by `/voice` and live voice mode) gained an **xAI Grok STT** provider in v0.11.0 alongside the existing Whisper / OpenAI / Mistral / Edge entries. The CLI also adds a `voice.beep_enabled` toggle (default `true`) to silence the record-start beep — see [tts.md](./tts.md) and [voice-mode.md](./voice-mode.md).
 
 > **Nous Tool Gateway:** Also available without `OPENAI_API_KEY` when `tts.use_gateway: true` (paid Nous Portal subscription). See [Nous Tool Gateway](/docs/nous-tool-gateway).
 

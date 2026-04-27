@@ -22,14 +22,14 @@ Three kinds of toolsets exist:
 
 | Toolset | Tools | Description |
 |---------|-------|-------------|
-| `browser` | `browser_back`, `browser_click`, `browser_close`, `browser_console`, `browser_get_images`, `browser_navigate`, `browser_press`, `browser_scroll`, `browser_snapshot`, `browser_type`, `browser_vision`, `web_search` | Browser automation for web interaction (navigate, click, type, scroll, iframes, hold-click) with web search for finding URLs |
+| `browser` | `browser_back`, `browser_cdp`, `browser_click`, `browser_close`, `browser_console`, `browser_get_images`, `browser_navigate`, `browser_press`, `browser_scroll`, `browser_snapshot`, `browser_type`, `browser_vision`, `web_search` | Browser automation for web interaction (navigate, click, type, scroll, iframes, hold-click) with web search for finding URLs. v0.11.0 adds `browser_cdp` for raw Chrome DevTools Protocol passthrough. |
 | `clarify` | `clarify` | Ask the user clarifying questions (multiple-choice or open-ended) |
 | `code_execution` | `execute_code` | Run Python scripts that call tools programmatically (reduces LLM round trips) |
-| `cronjob` | `cronjob` | Cronjob management — create, list, update, pause, resume, remove, and trigger scheduled tasks |
+| `cronjob` | `cronjob` | Cronjob management — create, list, update, pause, resume, remove, and trigger scheduled tasks. v0.11.0 jobs accept `wakeAgent: true|false` and per-job `enabled_toolsets` to bound token overhead. See [cron.md](./cron.md). |
 | `delegation` | `delegate_task` | Spawn subagents with isolated context for complex subtasks |
 | `file` | `patch`, `read_file`, `search_files`, `write_file` | File manipulation — read, write, patch (with fuzzy matching), and search (content + files) |
 | `homeassistant` | `ha_call_service`, `ha_get_state`, `ha_list_entities`, `ha_list_services` | Home Assistant smart home control and monitoring |
-| `image_gen` | `image_generate` | Creative generation tools (images via FLUX 2 Pro) |
+| `image_gen` | `image_generate` | Creative image generation. v0.11.0 makes the backend pluggable: ships `openai`, `openai-codex`, and `xai` plugins under `plugins/image_gen/` alongside the legacy FAL backend (FLUX 2 Pro plus Recraft V4 Pro, Nano Banana Pro, GPT Image 2, etc., via the multi-model picker). |
 | `memory` | `memory` | Persistent memory across sessions (personal notes and user profile) |
 | `messaging` | `send_message` | Cross-platform messaging — send messages to Telegram, Discord, Slack, SMS, etc. |
 | `moa` | `mixture_of_agents` | Advanced reasoning via multiple frontier LLMs collaborating |
@@ -39,7 +39,7 @@ Three kinds of toolsets exist:
 | `skills` | `skill_manage`, `skill_view`, `skills_list` | Access, create, edit, and manage skill documents |
 | `terminal` | `process`, `terminal` | Terminal/command execution and process management |
 | `todo` | `todo` | Task planning and tracking for multi-step work |
-| `tts` | `text_to_speech` | Text-to-speech — convert text to audio with Edge TTS (free), ElevenLabs, OpenAI, or NeuTTS (local, free) |
+| `tts` | `text_to_speech` | Text-to-speech — convert text to audio. Providers: Edge TTS (free), ElevenLabs, OpenAI, MiniMax, **Mistral Voxtral**, **Google Gemini TTS** (v0.11.0), **KittenTTS** local (v0.11.0), **xAI TTS** (v0.11.0), and NeuTTS (local, free) |
 | `vision` | `vision_analyze` | Image analysis and vision tools |
 | `web` | `web_extract`, `web_search` | Web research and content extraction tools |
 
@@ -92,12 +92,13 @@ Tools gated on environment variables or runtime conditions (`send_message`, `ha_
 | `hermes-discord` | platform | Discord bot toolset — full access with dangerous command approval. Same tools as `hermes-cli`. |
 | `hermes-email` | platform | Email bot toolset (IMAP/SMTP). Same tools as `hermes-cli`. |
 | `hermes-homeassistant` | platform | Home Assistant bot toolset — smart home event monitoring and control. Same tools as `hermes-cli`. |
+| `hermes-qqbot` | platform | QQBot toolset (17th supported messaging platform, v0.11.0) — QQ Official API v2 adapter. Same tools as `hermes-cli`. |
 | `hermes-signal` | platform | Signal bot toolset — encrypted messaging, full access. Same tools as `hermes-cli`. |
 | `hermes-slack` | platform | Slack bot toolset — full access for workspace use. Same tools as `hermes-cli`. |
 | `hermes-sms` | platform | SMS bot toolset via Twilio. Same tools as `hermes-cli`. |
 | `hermes-telegram` | platform | Telegram bot toolset — full access for personal use. Same tools as `hermes-cli`. |
 | `hermes-whatsapp` | platform | WhatsApp bot toolset. Same tools as `hermes-cli`. |
-| `hermes-gateway` | composite | Union of all messaging platform toolsets (includes `hermes-telegram`, `hermes-discord`, `hermes-whatsapp`, `hermes-slack`, `hermes-signal`, `hermes-homeassistant`, `hermes-email`, `hermes-sms`). |
+| `hermes-gateway` | composite | Union of all messaging platform toolsets (includes `hermes-telegram`, `hermes-discord`, `hermes-whatsapp`, `hermes-slack`, `hermes-signal`, `hermes-homeassistant`, `hermes-email`, `hermes-sms`, `hermes-qqbot`). |
 
 ## Plugin Toolsets (v0.5.0)
 
@@ -300,7 +301,7 @@ Composite:
 
 Platform:
   hermes-acp, hermes-api-server, hermes-cli, hermes-discord, hermes-email,
-  hermes-gateway, hermes-homeassistant, hermes-signal, hermes-slack,
+  hermes-gateway, hermes-homeassistant, hermes-qqbot, hermes-signal, hermes-slack,
   hermes-sms, hermes-telegram, hermes-whatsapp
 
 Dynamic (created at runtime):

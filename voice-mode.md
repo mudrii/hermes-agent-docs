@@ -230,20 +230,27 @@ voice:
   record_key: "ctrl+b"            # Key to start/stop recording
   max_recording_seconds: 120       # Maximum recording length
   auto_tts: false                  # Auto-enable TTS when voice mode starts
+  beep_enabled: true               # Play start/stop beeps (set false to mute) — v0.11.0
   silence_threshold: 200           # RMS level (0-32767) below which counts as silence
   silence_duration: 3.0            # Seconds of silence before auto-stop
 
 # Speech-to-Text
 stt:
   enabled: true                      # Set to false to disable STT entirely
-  provider: "local"                  # "local" (free) | "local_command" | "groq" | "openai"
+  provider: "local"                  # "local" (free) | "local_command" | "groq" | "openai" | "mistral" | "xai"
   local:
     model: "base"                    # tiny, base, small, medium, large-v3
     language: ""                     # Force language code (e.g. "en", "es", "fr"); empty = auto-detect
+  mistral:
+    model: "voxtral-mini-latest"     # Voxtral Transcribe; needs MISTRAL_API_KEY
+  xai:
+    language: ""                     # auto-detect; or "en", "es", "fr", ... — needs XAI_API_KEY
+    format: true                     # Inverse Text Normalization (punctuation/casing/numerals)
+    diarize: false                   # Speaker diarization
 
 # Text-to-Speech
 tts:
-  provider: "edge"                 # "edge" (free) | "elevenlabs" | "openai" | "minimax" | "neutts"
+  provider: "edge"                 # "edge" (free) | "elevenlabs" | "openai" | "xai" | "minimax" | "mistral" | "gemini" | "neutts" | "kittentts"
   edge:
     voice: "en-US-AriaNeural"      # 322 voices, 74 languages
   elevenlabs:
@@ -253,17 +260,30 @@ tts:
   openai:
     model: "gpt-4o-mini-tts"
     voice: "alloy"                 # alloy, echo, fable, onyx, nova, shimmer
+  xai:
+    voice_id: "eve"                # See https://docs.x.ai/docs/models#text-to-speech
+    language: "en"
+    sample_rate: 24000
+    bit_rate: 128000
   minimax:
     model: "speech-2.8-hd"        # speech-2.8-hd (default) or speech-2.8-turbo
     voice_id: "English_Graceful_Lady"
     speed: 1
     vol: 1
     pitch: 0
+  mistral:
+    model: "voxtral-mini-tts-2603"
+    voice_id: "c69964a6-ab8b-4f8a-9465-ec0925096ec8"  # Paul - Neutral
+  gemini:
+    model: "gemini-2.5-flash-preview-tts"
+    voice: "Kore"                  # Prebuilt voice (Kore, Puck, Charon, ...)
   neutts:
     ref_audio: ''
     ref_text: ''
     model: neuphonic/neutts-air-q4-gguf
     device: cpu
+  kittentts:
+    model: "KittenML/kitten-tts-nano-0.8-int8"  # ~25 MB local model
 ```
 
 ### API keys (.env)
@@ -307,7 +327,7 @@ DISCORD_ALLOWED_USERS=...
 | **OpenAI** | `gpt-4o-mini-transcribe` | Fast | Good | Paid | Yes |
 | **OpenAI** | `gpt-4o-transcribe` | Medium (~2s) | Best | Paid | Yes |
 
-Provider auto-detection priority (when `stt.provider` is not explicitly set): **local** (faster-whisper) > **local_command** (system whisper CLI) > **groq** > **openai**
+Provider auto-detection priority (when `stt.provider` is not explicitly set): **local** (faster-whisper) > **local_command** (system whisper CLI) > **groq** > **openai** > **mistral** > **xai**
 
 When `stt.provider` is explicitly set in config.yaml, that choice is respected -- no silent cloud fallback occurs. If the chosen provider is unavailable, STT is disabled rather than falling back.
 
@@ -320,8 +340,12 @@ If `faster-whisper` is installed, voice mode works with zero API keys for STT. T
 | **Edge TTS** | Good | Free | ~1s | No |
 | **ElevenLabs** | Excellent | Paid | ~2s | Yes |
 | **OpenAI TTS** | Good | Paid | ~1.5s | Yes |
+| **xAI TTS** | Excellent | Paid | ~1.5s | Yes (`XAI_API_KEY`) |
 | **MiniMax TTS** | High | Paid | ~1.5s | Yes (`MINIMAX_API_KEY`) |
+| **Mistral (Voxtral) TTS** | Excellent | Paid | ~1.5s | Yes (`MISTRAL_API_KEY`) |
+| **Google Gemini TTS** | Excellent | Paid | ~1.5s | Yes (`GEMINI_API_KEY`) |
 | **NeuTTS** | Good | Free | Depends on CPU/GPU | No |
+| **KittenTTS** | Good | Free | Depends on CPU (~25 MB local) | No |
 
 Edge TTS default voice is `en-US-AriaNeural` (322 voices, 74 languages available). NeuTTS is a local on-device provider run via subprocess from `tools/neutts_synth.py` using the `neuphonic/neutts-air-q4-gguf` model by default. In v0.4.0 NeuTTS was promoted from an optional skill to a first-class built-in TTS provider with a setup flow ([#1657](https://github.com/NousResearch/hermes-agent/pull/1657), [#1664](https://github.com/NousResearch/hermes-agent/pull/1664)). The `neutts` provider is now available in `tts.provider` without installing a separate skill. In v0.8.0, MiniMax TTS was added as a fifth provider with voice cloning support ([#4963](https://github.com/NousResearch/hermes-agent/pull/4963)).
 
@@ -345,6 +369,14 @@ Text is automatically cleaned before TTS: markdown formatting, code blocks, URLs
 
 - STT: local (install `faster-whisper`)
 - TTS: Edge TTS (no key required)
+
+## v0.11.0 Changes
+
+- **Google Gemini TTS provider** -- New built-in `gemini` provider using Google's `gemini-2.5-flash-preview-tts` model with prebuilt voices (Kore, Puck, Charon, ...). Requires `GEMINI_API_KEY` (or `GOOGLE_API_KEY`) ([#11229](https://github.com/NousResearch/hermes-agent/pull/11229)).
+- **xAI TTS provider** -- New built-in `xai` provider using xAI's `/v1/tts` endpoint (default voice `eve`). Requires `XAI_API_KEY` ([#10783](https://github.com/NousResearch/hermes-agent/pull/10783)).
+- **KittenTTS local provider** -- New built-in `kittentts` provider using the ~25 MB `KittenML/kitten-tts-nano-0.8-int8` model. Local, free, no API key. Install with `pip install https://github.com/KittenML/KittenTTS/releases/download/0.8.1/kittentts-0.8.1-py3-none-any.whl` ([#13395](https://github.com/NousResearch/hermes-agent/pull/13395)).
+- **xAI Grok STT provider** -- New built-in `xai` STT provider using `POST /v1/stt` (`grok-stt` model). Supports 21 languages, Inverse Text Normalization (`format: true`), and speaker diarization (`diarize: true`). Requires `XAI_API_KEY` ([#14473](https://github.com/NousResearch/hermes-agent/pull/14473)).
+- **CLI record beep toggle** -- New `voice.beep_enabled` config flag (default `true`) lets you mute the CLI start/stop beeps without disabling voice mode ([#13247](https://github.com/NousResearch/hermes-agent/pull/13247)).
 
 ## v0.8.0 Changes
 
