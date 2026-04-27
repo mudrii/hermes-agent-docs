@@ -25,16 +25,26 @@ That ordering matters because Hermes treats the saved model/provider choice as t
 
 Current provider families include:
 
-- AI Gateway (Vercel)
+- AI Gateway (Vercel) -- with pricing, attribution, and dynamic model discovery (v0.11.0)
 - OpenRouter
 - Nous Portal
-- OpenAI Codex
+- OpenAI Codex (Responses API; GPT-5 and GPT-5.5 over Codex OAuth in v0.11.0)
 - Anthropic (native)
 - Google AI Studio (`gemini`) -- added v0.8.0
+- Google Gemini CLI OAuth (`google-gemini-cli`) -- added v0.11.0; uses `HERMES_GEMINI_PROJECT_ID`
+- AWS Bedrock (`bedrock`) -- native Converse API path, IAM auth, region-aware discovery, inference profiles, Guardrails (v0.11.0)
+- NVIDIA NIM (`nvidia`) -- added v0.11.0
+- Step Plan -- added v0.11.0
+- Arcee AI -- added v0.11.0
+- Azure Foundry (`azure-foundry`) -- v0.11.0 flavor
+- Qwen Portal OAuth (`qwen-oauth`) -- v0.11.0 flavor
 - Z.AI
 - Kimi / Moonshot
 - MiniMax
 - MiniMax China
+- xAI / Grok (Responses API)
+- Mistral
+- Ollama Cloud (`ollama-cloud`)
 - Custom (`provider: custom`) -- first-class provider for any OpenAI-compatible endpoint
 - Named custom providers (`custom_providers` list in config.yaml)
 
@@ -43,20 +53,24 @@ Current provider families include:
 The runtime resolver returns a dict with:
 
 - `provider` -- canonical provider id
-- `api_mode` -- `"chat_completions"`, `"codex_responses"`, or `"anthropic_messages"`
+- `api_mode` -- `"chat_completions"`, `"codex_responses"`, `"anthropic_messages"`, or `"bedrock_converse"`
 - `base_url` -- target endpoint
-- `api_key` -- resolved credential
+- `api_key` -- resolved credential (or IAM-scoped boto3 session for Bedrock)
 - `source` -- where the credential came from (`env`, `portal`, `auth-store`, `explicit`)
 - Provider-specific metadata like expiry/refresh info
 
 ## API Modes
 
-The important abstraction is `api_mode`:
+The important abstraction is `api_mode`. In v0.11.0 each `api_mode` is owned by a class under `agent/transports/` (see [Transport Layer](./transport-layer.md)):
 
-- Most providers use `chat_completions`
-- Codex uses `codex_responses`
-- Anthropic uses `anthropic_messages`
-- A new non-OpenAI protocol means adding a new adapter and a new `api_mode` branch
+| `api_mode` | Used by | Transport class |
+|------------|---------|-----------------|
+| `chat_completions` | OpenRouter, Nous Portal, NVIDIA NIM, Step Plan, Arcee, Vercel ai-gateway, xAI (chat mode), Ollama Cloud, Mistral, Qwen, MiniMax, DeepSeek, Z.AI, Kimi, custom OpenAI-compatible endpoints | `ChatCompletionsTransport` |
+| `codex_responses` | OpenAI Codex (GPT-5 and GPT-5.5 over Codex OAuth), xAI Grok in Responses mode | `ResponsesApiTransport` |
+| `anthropic_messages` | Native Anthropic | `AnthropicTransport` |
+| `bedrock_converse` | AWS Bedrock | `BedrockTransport` |
+
+Adding a new non-OpenAI protocol means adding a new transport subclass and a new `api_mode` string. See [Transport Layer](./transport-layer.md) for the ABC contract and [Adding Providers](./adding-providers.md) for the full provider-side checklist.
 
 ## API Key Scoping
 
@@ -68,11 +82,39 @@ Hermes contains logic to avoid leaking the wrong API key to a custom endpoint wh
 
 ## Native Anthropic Path
 
-When provider resolution selects `anthropic`, Hermes uses the native Anthropic Messages API via `agent/anthropic_adapter.py`. Credential resolution prefers refreshable Claude Code credentials over copied env tokens when both are present.
+When provider resolution selects `anthropic`, Hermes uses the native Anthropic Messages API via `agent/anthropic_adapter.py`, dispatched through `AnthropicTransport`. Credential resolution prefers refreshable Claude Code credentials over copied env tokens when both are present.
 
-## OpenAI Codex Path
+## OpenAI Codex / Responses API Path
 
-Codex uses a separate Responses API path with `api_mode = codex_responses` and dedicated credential resolution.
+Codex uses the OpenAI Responses API with `api_mode = codex_responses`, dispatched through `ResponsesApiTransport`. v0.11.0 adds GPT-5.5 over Codex OAuth and live model discovery. xAI Grok in Responses mode shares this transport.
+
+## AWS Bedrock Path (v0.11.0)
+
+Native AWS Bedrock support ships in v0.11.0 with `api_mode = bedrock_converse`, dispatched through `BedrockTransport`. The transport wraps the boto3 Converse API; runtime resolution returns IAM-scoped credentials (env vars, `AWS_PROFILE`, or instance metadata) rather than a plain `api_key`. Region-aware model discovery picks the right inference profile prefix (`us.` for US-region profiles, `global.` for global profiles), and Bedrock Guardrails are configured per-call. Boto3 timeouts are set explicitly to avoid the default 60s socket timeout silently truncating long completions.
+
+## NVIDIA NIM Path (v0.11.0)
+
+`nvidia` uses `NVIDIA_API_KEY` (env) and `NVIDIA_BASE_URL` (override; defaults to NVIDIA's hosted NIM). It is OpenAI-compatible, so it dispatches through `ChatCompletionsTransport`. No new transport is required.
+
+## Step Plan Path (v0.11.0)
+
+Step Plan is added as an OpenAI-compatible provider; it dispatches through `ChatCompletionsTransport`.
+
+## Google Gemini CLI OAuth Path (v0.11.0)
+
+`google-gemini-cli` reuses Gemini CLI's locally cached OAuth credentials. Runtime resolution requires `HERMES_GEMINI_PROJECT_ID` and falls back to chat-completions dispatch. (Google AI Studio via API key continues to use the OpenAI-compatible `/v1beta/openai` endpoint.)
+
+## Vercel ai-gateway Path (v0.11.0)
+
+`ai-gateway` dispatches through `ChatCompletionsTransport` and additionally pulls live pricing, attribution metadata, and dynamic model discovery from the gateway's catalog endpoint. Aggregator-aware `/model` resolution stays on `ai-gateway` when the requested model is available there.
+
+## Azure Foundry Path (v0.11.0)
+
+`azure-foundry` is the v0.11.0 flavor for Azure-hosted OpenAI-compatible deployments. It uses `AZURE_FOUNDRY_*` env vars and dispatches through `ChatCompletionsTransport`.
+
+## Qwen Portal OAuth Path (v0.11.0)
+
+`qwen-oauth` reuses Qwen Portal OAuth credentials with `HERMES_QWEN_BASE_URL` for endpoint override. Dispatch is via `ChatCompletionsTransport`.
 
 ## Auxiliary Model Routing
 
