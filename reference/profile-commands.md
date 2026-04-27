@@ -1,3 +1,8 @@
+---
+sidebar_position: 6
+title: "Profile Commands Reference"
+description: "Reference for hermes profile commands — list, create, delete, export, import, and more"
+---
 
 # Profile Commands Reference
 
@@ -94,6 +99,10 @@ hermes profile create backup --clone-all
 hermes profile create work2 --clone --clone-from work
 ```
 
+:::note
+Creating a profile does **not** make that profile directory the default project/workspace directory for terminal commands. If you want a profile to start in a specific project, set `terminal.cwd` in that profile's `config.yaml`.
+:::
+
 ## `hermes profile delete`
 
 ```bash
@@ -143,6 +152,10 @@ Skills:  12
 SOUL.md: exists
 Alias:   ~/.local/bin/work
 ```
+
+:::note
+This shows the profile's Hermes home directory, not the terminal working directory. Terminal commands start from `terminal.cwd` (or the launch directory on the local backend when `cwd: "."`).
+:::
 
 ## `hermes profile alias`
 
