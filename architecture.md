@@ -103,7 +103,7 @@ The core orchestration engine is `AIAgent` in `run_agent.py`. It is the single c
 | `api_key` | str | None | API key for authentication |
 | `provider` | str | `"openrouter"` | Provider identifier |
 | `api_mode` | str | auto-detected | `"chat_completions"`, `"codex_responses"`, or `"anthropic_messages"` |
-| `model` | str | `"anthropic/claude-opus-4.6"` | Model name (OpenRouter format) |
+| `model` | str | `"anthropic/claude-opus-4.7"` | Model name (OpenRouter format) |
 | `max_iterations` | int | 90 | Maximum tool-calling iterations (shared with subagents via `IterationBudget`) |
 | `tool_delay` | float | 1.0 | Delay between tool calls in seconds |
 | `stream_delta_callback` | callable | None | Callback fired with each text token during streaming |
@@ -566,7 +566,7 @@ Trajectories are saved as JSONL files. Each line is a JSON object:
 {
   "conversations": [...],
   "timestamp": "2026-03-17T12:34:56.789012",
-  "model": "anthropic/claude-opus-4.6",
+  "model": "anthropic/claude-opus-4.7",
   "completed": true
 }
 ```
@@ -605,7 +605,8 @@ The auxiliary client is a shared routing layer that handles all side-task LLM ca
 | `tools/vision_tools.py` | `vision` | Analyze images |
 | `tools/browser_tool.py` | `vision` | Analyze browser screenshots |
 | `tools/skills_tool.py` | `skills_hub` | Skills Hub assistance |
-| `tools/memory_tool.py` | `flush_memories` | Flush memories before compression |
+| `tools/memory_tool.py` | `approval` | Memory approval gating |
+| `tools/title_generator.py` | `title_generation` | Auto-title sessions |
 | `trajectory_compressor.py` | Provider-direct | Summarize trajectory regions |
 
 ### Centralized API: call_llm() and async_call_llm()

@@ -29,7 +29,7 @@ With no arguments, `/model` shows the current model and provider. On Telegram an
 ```
 /model sonnet
 /model gemini-3.1-pro-preview
-/model gpt-5.4
+/model gpt-5.5
 ```
 
 Aliases like `sonnet`, `opus`, `grok`, `gemini`, `gpt5`, `codex` are resolved dynamically against the live models.dev catalog and map to the latest matching model.
@@ -37,15 +37,15 @@ Aliases like `sonnet`, `opus`, `grok`, `gemini`, `gpt5`, `codex` are resolved dy
 **Switch provider and model:**
 
 ```
-/model claude-sonnet-4-6 --provider anthropic
+/model claude-sonnet-4-7 --provider anthropic
 /model gemini-3.1-pro-preview --provider gemini
-/model gpt-5.4 --provider openrouter
+/model gpt-5.5 --provider openrouter
 ```
 
 **Persist a switch globally:**
 
 ```
-/model claude-sonnet-4-6 --provider anthropic --global
+/model claude-sonnet-4-7 --provider anthropic --global
 ```
 
 `--global` writes `model.default` and `model.provider` to `~/.hermes/config.yaml` so the switch survives session restarts.
@@ -95,7 +95,7 @@ The switch pipeline uses the current provider context to minimize unnecessary pr
 2. When the model is not available on OpenRouter or Nous Portal, Hermes searches authenticated providers in order and falls back to the first one that has the model.
 3. When `--provider` is given explicitly, that provider is used directly.
 
-This means `/model gpt-5.4` while on OpenRouter stays on OpenRouter as `openai/gpt-5.4`, but `/model claude-sonnet-4-6 --provider anthropic` switches to the native Anthropic endpoint.
+This means `/model gpt-5.5` while on OpenRouter stays on OpenRouter as `openai/gpt-5.5`, but `/model claude-sonnet-4-7 --provider anthropic` switches to the native Anthropic endpoint.
 
 ---
 
@@ -126,7 +126,7 @@ When `/model` is sent with no arguments, Hermes sends an embedded message with D
 When switching models on OpenRouter or Nous Portal, the confirmation message includes live pricing:
 
 ```
-Model switched to `anthropic/claude-sonnet-4.6`
+Model switched to `anthropic/claude-sonnet-4.7`
 Provider: OpenRouter
 Context: 1,000,000 tokens
 Max output: 64,000 tokens
@@ -145,10 +145,10 @@ Short aliases are resolved dynamically against the models.dev catalog. The alias
 
 | Alias | Resolves to (example) |
 |-------|-----------------------|
-| `sonnet` | `anthropic/claude-sonnet-4.6` (on aggregators) or `claude-sonnet-4-6` (on Anthropic native) |
-| `opus` | `anthropic/claude-opus-4.6` |
+| `sonnet` | `anthropic/claude-sonnet-4.7` (on aggregators) or `claude-sonnet-4-7` (on Anthropic native) |
+| `opus` | `anthropic/claude-opus-4.7` |
 | `haiku` | `anthropic/claude-haiku-4.5` |
-| `gpt5` | `openai/gpt-5.4` |
+| `gpt5` | `openai/gpt-5.5` |
 | `codex` | `openai/gpt-5.3-codex` |
 | `gemini` | `google/gemini-3.1-pro-preview` |
 | `grok` | `x-ai/grok-4.20-beta` |

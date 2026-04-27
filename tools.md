@@ -180,7 +180,7 @@ Gated via check function when gateway is running.
 |------|-------------|---------|
 | `mixture_of_agents` | Route a hard problem through multiple frontier LLMs collaboratively. Makes 5 API calls (4 reference models + 1 aggregator) with maximum reasoning effort. Use sparingly for genuinely difficult problems: complex math, advanced algorithms, multi-step reasoning. | `OPENROUTER_API_KEY` |
 
-The four reference models are `claude-opus-4.6`, `gemini-3-pro-preview`, `gpt-5.4-pro`, and `deepseek-v3.2`. Each reference model produces an independent response, then the aggregator synthesizes them into a single answer.
+The four reference models are `claude-opus-4.7`, `gemini-3-pro-preview`, `gpt-5.5-pro`, and `deepseek-v3.2`. Each reference model produces an independent response, then the aggregator synthesizes them into a single answer.
 
 ### `rl` toolset
 

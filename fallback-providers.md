@@ -104,7 +104,7 @@ Fallback is **turn-scoped**: each new user message starts with the primary model
 ```yaml
 model:
   provider: anthropic
-  default: claude-sonnet-4-6
+  default: claude-sonnet-4-7
 
 fallback_model:
   provider: openrouter

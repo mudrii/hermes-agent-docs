@@ -38,6 +38,7 @@ Type `/` in the CLI to open the autocomplete menu. Built-in commands are case-in
 | `/agents` (alias: `/tasks`) | Show active agents and running tasks across the current session. |
 | `/background <prompt>` (alias: `/bg`, `/btw`) | Run a prompt in a separate background session. The agent processes your prompt independently — your current session stays free for other work. Results appear as a panel when the task finishes. See [CLI Background Sessions](/docs/user-guide/cli#background-sessions). |
 | `/branch [name]` (alias: `/fork`) | Branch the current session (explore a different path) |
+| `/steer <prompt>` | Inject a steering message into the current run without interrupting tool execution (mid-run agent nudge, v0.11.0). |
 
 ### Configuration
 
