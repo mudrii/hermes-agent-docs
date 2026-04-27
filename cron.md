@@ -12,6 +12,8 @@ Cron jobs can:
 - attach zero, one, or multiple skills to a job
 - deliver results back to the origin chat, local files, or configured platform targets
 - run in fresh agent sessions with the normal static tool list
+- restrict each job to a specific subset of toolsets via per-job `enabled_toolsets` (v0.11.0)
+- skip the LLM entirely when a pre-run script returns `{"wakeAgent": false}` (v0.11.0)
 
 :::warning
 Cron-run sessions cannot recursively create more cron jobs. Hermes disables cron management tools inside cron executions to prevent runaway scheduling loops.
@@ -248,6 +250,66 @@ cron:
 
 Or set the `HERMES_CRON_SCRIPT_TIMEOUT` environment variable. The resolution order is: env var → config.yaml → 120s default.
 
+## Skipping the agent with `wakeAgent` (v0.11.0)
+
+A cron job's pre-run `script` can decide whether the LLM runs at all. If the **last non-empty stdout line** of the script is JSON in the form `{"wakeAgent": false}`, the scheduler skips the agent entirely — no LLM call, no tool calls, no delivery (just a local audit log entry).
+
+Any other output — non-JSON, missing flag, or `{"wakeAgent": true}` — wakes the agent normally and the script's stdout is injected into the prompt as `## Script Output` context.
+
+This is useful for high-frequency monitoring jobs that should only consume an LLM turn when something actually changed:
+
+```bash
+#!/usr/bin/env bash
+# precheck.sh — only wake the agent if there are unread alerts.
+set -euo pipefail
+
+unread=$(curl -fsS https://example.com/api/alerts/unread | jq '.count')
+if [ "$unread" -eq 0 ]; then
+  echo '{"wakeAgent": false}'
+  exit 0
+fi
+
+# Otherwise, emit the data the agent should reason over and wake it.
+curl -fsS https://example.com/api/alerts/unread > /dev/stdout
+echo '{"wakeAgent": true}'
+```
+
+Then attach the script to the job:
+
+```python
+cronjob(
+    action="create",
+    prompt="Summarize the unread alerts and post them to #ops.",
+    schedule="every 5m",
+    script="/usr/local/bin/precheck.sh",
+    delivery="slack:#ops",
+)
+```
+
+This collapses cost on idle ticks while keeping the same prompt/skill/delivery wiring for the cases that do need the agent.
+
+## Per-job toolsets (v0.11.0)
+
+By default, cron jobs inherit the toolset list configured for the **`cron` platform** in `hermes tools` (which already trims a few default-off toolsets like `moa`, `homeassistant`, and `rl` to keep idle costs down). You can override that list per job via `enabled_toolsets` to cap the system-prompt size and tool surface for individual jobs:
+
+```python
+cronjob(
+    action="create",
+    prompt="Pull the latest hourly metrics and post them to #ops.",
+    schedule="every 1h",
+    enabled_toolsets=["core", "web_research", "messaging"],
+    delivery="slack:#ops",
+)
+```
+
+Resolution precedence used by the scheduler:
+
+1. **Per-job `enabled_toolsets`** (set via `cronjob` create/update) — highest priority.
+2. **Per-platform `hermes tools` config for the `cron` platform** — applies to all jobs without an explicit override.
+3. **Full default toolset** — fallback only if both lookups fail.
+
+Use this to keep token overhead and per-tick cost predictable on jobs that only need a small tool surface (e.g. a metrics fetcher that just needs `core` + one messaging toolset).
+
 ## Provider recovery
 
 Cron jobs inherit your configured fallback providers and credential pool rotation. If the primary API key is rate-limited or the provider returns an error, the cron agent can:
@@ -327,6 +389,30 @@ cronjob(action="remove", job_id="...")
 ```
 
 For `update`, pass `skills=[]` to remove all attached skills.
+
+### Full create/update signature (v0.11.0)
+
+In addition to `prompt`, `schedule`, `name`, `skill(s)`, `script`, and `delivery`, `cronjob` accepts:
+
+```python
+cronjob(
+    action="create",
+    prompt="Summarize new feed items.",
+    schedule="every 1h",
+    name="Hourly digest",
+    skills=["blogwatcher"],
+    script="/path/to/precheck.sh",   # Pre-run script (also drives wakeAgent gate)
+    enabled_toolsets=[                # v0.11.0: restrict this job to a subset
+        "core",
+        "web_research",
+        "messaging",
+    ],
+    repeat=24,                         # Optional: cap recurrences
+    delivery="telegram",
+)
+```
+
+Pass the same arguments to `action="update"` to change them on an existing job. Pass `enabled_toolsets=[]` to clear the per-job override and fall back to the global cron toolset config.
 
 ## Job storage
 
