@@ -137,6 +137,23 @@ All limits are configurable via `config.yaml`:
 code_execution:
   timeout: 300       # Max seconds per script (default: 300)
   max_tool_calls: 50 # Max tool calls per execution (default: 50)
+  mode: project      # "project" (default) | "strict" (v0.11.0)
+```
+
+### Execution Mode (v0.11.0)
+
+`code_execution.mode` selects the working directory and filesystem isolation level for the sandbox:
+
+| Mode | Behavior |
+|------|----------|
+| `project` (default) | The sandbox starts in the agent's current working directory and can read and write project files via the in-sandbox `read_file` / `write_file` / `patch` / `search_files` tools. Use this for the common case where the script needs to inspect or modify the repo it's helping with. |
+| `strict` | The sandbox runs in an ephemeral temporary directory with no project access. The script can still call tools that don't touch the filesystem (`web_search`, `web_extract`, etc.) and write into its own temp dir, but it cannot read or modify project files. Use this for untrusted scripts, one-off computation, or to enforce a hard separation between agent code-running and the workspace. |
+
+In both modes, the child process still runs with the minimal-environment / API-key-stripping security posture described below. `strict` mode adds filesystem isolation on top of that.
+
+```yaml
+code_execution:
+  mode: strict       # opt out of project-file access
 ```
 
 ## How Tool Calls Work Inside Scripts
