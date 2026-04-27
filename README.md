@@ -4,7 +4,7 @@
 
 Hermes Agent is an autonomous AI agent with a built-in learning loop. It creates skills from experience, improves them during use, searches its own past conversations for context, and builds a deepening model of who you are across sessions. It runs on a $5 VPS, a GPU cluster, or serverless infrastructure -- not tied to your laptop.
 
-Current version: **v0.10.0 (v2026.4.16)** -- released April 16, 2026.
+Current version: **v0.11.0 (v2026.4.23)** -- released April 23, 2026.
 
 ---
 
@@ -16,7 +16,7 @@ Hermes Agent is not a coding copilot or a chatbot wrapper. It is a multi-platfor
 - Manages long-running conversations with context compression and session lineage
 - Persists memory, skills, and session history in SQLite across restarts
 - Streams responses token-by-token from the model to the user interface (v0.3.0)
-- Runs as a CLI, a messaging gateway (Telegram, Discord, Slack, WhatsApp, Signal, DingTalk, SMS, Mattermost, Matrix, Webhook, Email, Home Assistant, Feishu/Lark, WeCom), or an IDE integration (VS Code, Zed, JetBrains via ACP)
+- Runs as a CLI (with an Ink-based TUI invoked via `hermes --tui`), a messaging gateway across 17 platforms (Telegram, Discord, Slack, WhatsApp, Signal, DingTalk, SMS, Mattermost, Matrix, Webhook, Email, Home Assistant, Feishu/Lark, WeCom, Weixin, BlueBubbles iMessage, QQBot), or an IDE integration (VS Code, Zed, JetBrains via ACP)
 - Exposes an OpenAI-compatible `/v1/chat/completions` API server with REST cron job management (v0.4.0)
 - Delegates work to isolated subagents and spawns scheduled cron jobs
 - Exports training trajectories for SFT data generation and RL fine-tuning
@@ -42,11 +42,19 @@ Real-time token-by-token delivery in the CLI and all gateway platforms. Response
 
 ### Multi-Platform Messaging Gateway
 
-Telegram, Discord, Slack, WhatsApp, Signal, DingTalk, SMS (Twilio), Mattermost, Matrix, Webhook, Email (IMAP/SMTP), Home Assistant, Feishu/Lark, and WeCom -- all from a single gateway process. Six new adapters were added in v0.4.0; Feishu/Lark and WeCom were added in v0.6.0. Unified session management, media attachments, voice transcription, and per-platform tool configuration. The gateway auto-reconnects failed platforms with exponential backoff (v0.4.0).
+Telegram, Discord, Slack, WhatsApp, Signal, DingTalk, SMS (Twilio), Mattermost, Matrix, Webhook, Email (IMAP/SMTP), Home Assistant, Feishu/Lark, WeCom, Weixin, BlueBubbles (iMessage), and QQBot -- 17 platforms from a single gateway process. Six new adapters were added in v0.4.0; Feishu/Lark and WeCom were added in v0.6.0; QQBot (the 17th platform) was added in v0.11.0 via the QQ Official API v2. Unified session management, media attachments, voice transcription, and per-platform tool configuration. The gateway auto-reconnects failed platforms with exponential backoff (v0.4.0).
 
-### Plugin Architecture (v0.3.0)
+### Plugin Architecture (v0.3.0, expanded in v0.11.0)
 
-Drop Python files into `~/.hermes/plugins/` to extend Hermes with custom tools, commands, and hooks. No forking required.
+Drop Python files into `~/.hermes/plugins/` to extend Hermes with custom tools, commands, and hooks. No forking required. v0.11.0 dramatically expanded the plugin surface: plugins can now register slash commands (`register_command`), dispatch tools programmatically (`dispatch_tool`), veto execution from `pre_tool_call`, rewrite results via `transform_tool_result` and `transform_terminal_output`, ship pluggable `image_gen` backends, register namespaced skill bundles, bridge shell-script hooks, and add custom dashboard tabs.
+
+### Ink-based TUI (v0.11.0)
+
+Run `hermes --tui` (or set `HERMES_TUI=1`) to launch the new React/Ink interactive CLI backed by a Python JSON-RPC `tui_gateway` process. Sticky composer, live token streaming with OSC-52 clipboard, status bar with per-turn stopwatch and git branch, `/clear` confirm, light-theme preset, and a subagent spawn observability overlay.
+
+### Pluggable Transport Layer (v0.11.0)
+
+Format conversion and HTTP transport are abstracted into `agent/transports/` behind a `ProviderTransport` ABC. Concrete transports -- `AnthropicTransport`, `ChatCompletionsTransport`, `ResponsesApiTransport`, `BedrockTransport` -- own message conversion, tool conversion, kwargs assembly, and response normalization. Streaming, retries, prompt cache, and credential refresh remain on `AIAgent`.
 
 ### Provider Flexibility
 
@@ -57,8 +65,13 @@ Use any model without code changes. Supported providers:
 - **OpenRouter** -- 200+ models (`https://openrouter.ai/api/v1`)
 - **Anthropic** (native, v0.3.0) -- direct API with Claude Code credential auto-discovery, OAuth PKCE flows, and native prompt caching
 - **OpenAI** -- GPT-5 variants via chat completions or Codex Responses API
-- **AWS Bedrock** (v0.10.0) -- native Converse API provider with IAM authentication, model discovery, and Guardrails support
-- **Vercel AI Gateway** (v0.3.0) -- access Vercel's model catalog and infrastructure (`https://ai-gateway.vercel.sh/v1`)
+- **AWS Bedrock** (v0.10.0, expanded in v0.11.0) -- native Converse API provider built on the new transport ABC, with IAM authentication, model discovery, inference profiles (`us.` / `global.` prefixes), and Guardrails support
+- **NVIDIA NIM** (v0.11.0) -- native NIM provider for hosted and self-hosted endpoints
+- **Arcee AI** (v0.11.0) -- direct provider for Arcee's hosted models
+- **Step Plan** (v0.11.0) -- direct provider integration
+- **Google Gemini CLI OAuth** (v0.11.0) -- inference via your Google account using `HERMES_GEMINI_PROJECT_ID`
+- **Vercel ai-gateway** (v0.11.0 native path) -- pricing, attribution, and dynamic model discovery on top of Vercel's catalog
+- **Codex OAuth (GPT-5.5)** (v0.11.0) -- OpenAI's GPT-5.5 reasoning model via your ChatGPT Codex login, with live model discovery in the picker
 - **GitHub Copilot** (v0.4.0) -- OAuth auth, 400k context, token validation
 - **Alibaba Cloud / DashScope** (v0.4.0) -- DashScope v1 runtime
 - **Kilo Code** (v0.4.0) -- direct API-key provider
