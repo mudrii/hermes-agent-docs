@@ -72,11 +72,22 @@ MATRIX_REQUIRE_MENTION=true
 MATRIX_FREE_RESPONSE_ROOMS=!abc123:matrix.org,!def456:matrix.org
 MATRIX_AUTO_THREAD=true
 MATRIX_DM_MENTION_THREADS=false
+MATRIX_REACTIONS=true            # Processing-status reactions (default: true)
 ```
 
 :::note
 If you are upgrading from a version that did not have `MATRIX_REQUIRE_MENTION`, the bot previously responded to all messages in rooms. To preserve that behavior, set `MATRIX_REQUIRE_MENTION=false`.
 :::
+
+### Processing Status Reactions
+
+While the agent is working on a message, the Matrix adapter reacts to the user's message with an emoji to signal status. The reaction is updated/replaced as the run progresses and removed once the final response is sent. This gives users a clear "the bot saw my message and is thinking" signal without spamming the room with placeholder messages.
+
+Set `MATRIX_REACTIONS=false` to disable. Reactions are also suppressed automatically in rooms where the bot lacks the redact-events permission (since the adapter cannot clean them up afterwards).
+
+### Platform Hints
+
+The Matrix adapter advertises a `PLATFORM_HINTS` block to the agent at session start, telling it which formatting affordances the current channel supports (Markdown, threads, MSC3245 voice, native reactions, mentions). This lets the agent tailor its replies — e.g., prefer voice notes over file attachments in clients that support MSC3245, or skip Markdown bullets in homeservers/bridges that strip formatting. No configuration is required; the hints are computed per-room from the homeserver capabilities and the active client features.
 
 This guide walks you through the full setup process — from creating your bot account to sending your first message.
 
@@ -400,6 +411,24 @@ changed identity keys for the same device as suspicious.
    rm -f ~/.hermes/platforms/matrix/store/crypto_store.*
    ```
 
+   :::tip Easiest path — regenerate the access token
+   For most users, **steps 1 + 2 are enough**. Generating a fresh access token gives the bot a brand-new device ID, so other Matrix clients see it as a new login (which they trust by default after cross-signing) instead of a "device whose keys changed" (which they distrust). If you instead reuse the old token, continue with the deeper purge below.
+   :::
+
+   If you need to fully evict the stale device from the homeserver (e.g., the old device shows up as unverified in Element and won't go away), use the Synapse admin API to delete the orphaned device:
+
+   ```bash
+   # List devices for the bot user (Synapse admin token required)
+   curl -H "Authorization: Bearer $ADMIN_TOKEN" \
+     "https://your-server/_synapse/admin/v2/users/@hermes:your-server.org/devices"
+
+   # Delete the stale device by ID
+   curl -X DELETE -H "Authorization: Bearer $ADMIN_TOKEN" \
+     "https://your-server/_synapse/admin/v2/users/@hermes:your-server.org/devices/STALE_DEVICE_ID"
+   ```
+
+   For non-admin cleanups, you can also delete devices via the standard client API (`POST /_matrix/client/v3/delete_devices`) with the bot's own access token + interactive auth.
+
 3. **Set your recovery key** (if you use cross-signing — most Element users do). Add to `~/.hermes/.env`:
 
    ```bash
@@ -411,6 +440,10 @@ changed identity keys for the same device as suspicious.
 4. **Force your Matrix client to rotate the encryption session**. In Element,
    open the DM room with the bot and type `/discardsession`. This forces Element
    to create a new encryption session and share it with the bot's new device.
+   Repeat this in **every** room shared with the bot — Megolm sessions are
+   per-room, so a stale session in one room won't be fixed by discarding
+   another. If you can't find `/discardsession` (mobile clients hide it), leaving
+   and re-joining the room has the same effect.
 
 5. **Restart the gateway**:
 
