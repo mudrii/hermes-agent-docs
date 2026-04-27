@@ -2,7 +2,7 @@
 
 WeCom (企业微信, also known as Enterprise WeChat) is Tencent's enterprise communication platform, deeply integrated with WeChat. The Hermes gateway adapter connects to WeCom using the official AI Bot WebSocket gateway — no public URL is required.
 
-Added in **v0.6.0** ([PR #3847](https://github.com/NousResearch/hermes-agent/pull/3847)).
+Current as of Hermes Agent **v0.11.0** (`v2026.4.23`). Originally added in **v0.6.0** ([PR #3847](https://github.com/NousResearch/hermes-agent/pull/3847)); v0.11.0 introduces the **Scan-to-Create** setup wizard, which provisions a brand-new WeCom AI Bot directly from your terminal via a QR scan.
 
 ---
 
@@ -18,20 +18,56 @@ Added in **v0.6.0** ([PR #3847](https://github.com/NousResearch/hermes-agent/pul
 
 ## Prerequisites
 
-1. Log in to the [WeCom Admin Console](https://work.weixin.qq.com/wework_admin/loginpage_wx)
-2. Go to **Apps** → **Self-Built** → **Create App**
-3. Select **AI Bot** as the app type
-4. Note the **Bot ID** and **Secret** displayed after creation
-5. The adapter connects outbound to WeCom's WebSocket gateway — no callback URL setup is needed for standard operation
-
----
-
-## Installation
-
-The WeCom adapter requires `aiohttp` (already installed with Hermes by default) and optionally `httpx` for media downloads.
+- A WeCom organization account with permission to create apps
+- The Hermes Agent gateway installed (`pip install "hermes-agent[messaging]"` already pulls in `aiohttp` + `httpx`)
+- The adapter connects outbound to WeCom's WebSocket gateway, so no public URL, callback endpoint, or firewall rule is required
 
 ```bash
 pip install aiohttp httpx
+```
+
+---
+
+## Setup
+
+### Step 1: Create the AI Bot
+
+#### Recommended: Scan-to-Create (one command)
+
+In v0.11.0 the gateway can provision a brand-new WeCom AI Bot for you from a single command:
+
+```bash
+hermes gateway setup
+```
+
+Select **WeCom** and scan the QR code that prints in your terminal with the WeCom mobile app. The wizard will:
+
+1. Display a QR code in your terminal.
+2. Wait for you to scan it with the WeCom mobile app.
+3. Automatically create the AI Bot application with the correct permissions in your tenant.
+4. Retrieve the **Bot ID** and **Secret** and write them to `~/.hermes/.env`.
+5. Walk you through access-control configuration (`dm_policy`, `group_policy`, allowlists, home channel).
+
+No round-trip to the WeCom Admin Console is required — the bot exists, is named, has its credentials saved, and is ready for traffic by the time the wizard exits.
+
+#### Alternative: Manual Setup
+
+If scan-to-create is unavailable (older WeCom mobile clients, or you prefer the web console), the wizard falls back to manual input:
+
+1. Log in to the [WeCom Admin Console](https://work.weixin.qq.com/wework_admin/frame).
+2. Go to **Apps** → **Self-Built** → **Create App** and select **AI Bot** as the app type.
+3. Note the **Bot ID** and **Secret** shown after creation.
+4. Run `hermes gateway setup`, select **WeCom**, choose **Manual entry**, and paste the Bot ID and Secret when prompted.
+
+:::warning
+Keep the **Bot Secret** private — anyone with it can impersonate your bot. Store it in `~/.hermes/.env` with file permissions `600` and never commit it to Git.
+:::
+
+### Step 2: Start the gateway
+
+```bash
+hermes gateway              # Foreground
+hermes gateway install      # Install as a user service
 ```
 
 ---
@@ -69,23 +105,6 @@ gateway:
           group_id_1:
             allow_from:
               - "user_id_1"
-```
-
----
-
-## Setup
-
-```bash
-hermes gateway setup
-```
-
-Select **WeCom** when prompted, then paste your Bot ID and Secret.
-
-Start the gateway:
-
-```bash
-hermes gateway              # Foreground
-hermes gateway install      # Install as a user service
 ```
 
 ---
