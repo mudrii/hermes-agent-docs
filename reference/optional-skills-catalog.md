@@ -20,13 +20,21 @@ Official optional skills live in the repository under `optional-skills/`. Instal
 | Skill | Description | Path |
 |-------|-------------|------|
 | `blender-mcp` | Control Blender directly from Hermes via socket connection to the blender-mcp addon. Create 3D objects, materials, animations, and run arbitrary Blender Python (bpy) code. | `creative/blender-mcp` |
+| `concept-diagrams` | Generate flat, minimal light/dark-aware SVG diagrams as standalone HTML files. 9 semantic color ramps, automatic dark mode, 15 example diagrams. Best for educational/non-software visuals (physics, chemistry, anatomy, floor plans, lifecycle journeys). Added in v0.11.0. | `creative/concept-diagrams` |
 | `meme-generation` | Generate real meme images by picking a template and overlaying text with Pillow. Produces actual .png meme files. | `creative/meme-generation` |
+| `touchdesigner-mcp` | Control a running TouchDesigner instance via the twozero MCP — create operators, set parameters, wire connections, execute Python, build real-time visuals. 36 native tools. Added in v0.11.0. | `creative/touchdesigner-mcp` |
 
 ## devops
 
 | Skill | Description | Path |
 |-------|-------------|------|
 | `docker-management` | Manage Docker containers, images, volumes, networks, and Compose stacks -- lifecycle ops, debugging, cleanup, and Dockerfile optimization. | `devops/docker-management` |
+
+## dogfood
+
+| Skill | Description | Path |
+|-------|-------------|------|
+| `adversarial-ux-test` | Roleplay the most difficult, tech-resistant user for your product. Browse the app as that persona, find every UX pain point, then filter complaints through a pragmatism layer to separate real problems from noise. Creates actionable tickets from genuine issues only. Added in v0.11.0. | `dogfood/adversarial-ux-test` |
 
 ## email
 
@@ -63,6 +71,7 @@ Official optional skills live in the repository under `optional-skills/`. Instal
 | Skill | Description | Path |
 |-------|-------------|------|
 | `bioinformatics` | Gateway to 400+ bioinformatics skills from bioSkills and ClawBio. Covers genomics, transcriptomics, single-cell, variant calling, pharmacogenomics, metagenomics, structural biology, and more. | `research/bioinformatics` |
+| `drug-discovery` | Pharmaceutical research assistant for drug discovery workflows. Search bioactive compounds on ChEMBL, calculate drug-likeness (Lipinski Ro5, QED, TPSA, synthetic accessibility), and look up drug-drug interactions. Added in v0.11.0. | `research/drug-discovery` |
 | `qmd` | Search personal knowledge bases, notes, docs, and meeting transcripts locally using qmd -- a hybrid retrieval engine with BM25, vector search, and LLM reranking. Supports CLI and MCP integration. | `research/qmd` |
 
 ## security
@@ -72,6 +81,12 @@ Official optional skills live in the repository under `optional-skills/`. Instal
 | `1password` | Set up and use 1Password CLI (op). Use when installing the CLI, enabling desktop app integration, signing in, and reading/injecting secrets for commands. | `security/1password` |
 | `oss-forensics` | Supply chain investigation, evidence recovery, and forensic analysis for GitHub repositories. Covers deleted commit recovery, force-push detection, IOC extraction, multi-source evidence collection, and structured forensic reporting. | `security/oss-forensics` |
 | `sherlock` | OSINT username search across 400+ social networks. Hunt down social media accounts by username. | `security/sherlock` |
+
+## web-development
+
+| Skill | Description | Path |
+|-------|-------------|------|
+| `page-agent` | Embed alibaba/page-agent into your own web application — a pure-JavaScript in-page GUI agent that ships as a single `<script>` tag or npm package and lets end-users drive the UI with natural language. For web developers adding an AI copilot to their SaaS / admin panel. NOT for server-side browser automation (use the built-in browser tool instead). Added in v0.11.0. | `web-development/page-agent` |
 
 ## Installing optional skills
 
