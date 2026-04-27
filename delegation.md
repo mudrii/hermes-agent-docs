@@ -156,7 +156,7 @@ Toolsets that are **always blocked** for subagents regardless of what you specif
 
 | Blocked toolset | Reason |
 |----------------|--------|
-| `delegation` | No recursive delegation (prevents infinite spawning) |
+| `delegation` | No recursive delegation by default; opt in via `delegation.orchestrator_enabled` + `max_spawn_depth` |
 | `clarify` | Subagents cannot interact with the user |
 | `memory` | No writes to shared persistent memory |
 | `code_execution` | Children should reason step-by-step |
@@ -176,16 +176,21 @@ delegate_task(
 )
 ```
 
-## Depth Limit
+## Depth Limit and the Orchestrator Role (v0.11.0)
 
-Delegation has a **depth limit of 2** — a parent (depth 0) can spawn children (depth 1), but children cannot delegate further. Attempting to call `delegate_task` from a subagent returns an error.
+Delegation depth is **configurable** through `delegation.max_spawn_depth` (range `1`-`3`, default `1`). Depth `1` means a parent (depth 0) can spawn children (depth 1) but children cannot delegate further — this is the historical default and matches the pre-v0.11.0 behaviour. Depth `2` and `3` allow a parent to spawn grandchildren and great-grandchildren respectively. The cap is enforced in `tools/delegate_tool.py`; attempting to delegate beyond `max_spawn_depth` returns an error.
 
-Constant in source: `MAX_DEPTH = 2` in `tools/delegate_tool.py`.
+v0.11.0 also introduces an explicit **orchestrator role** (`delegation.orchestrator_enabled`). When enabled, the parent is told it is an orchestrator and that its children may themselves delegate, and Hermes coordinates **cross-agent file state** so that children writing to the same shared workspace see each other's writes via the session lineage. Combined with `max_spawn_depth > 1`, this turns `delegate_task` into a true multi-tier coordination primitive while preserving context isolation at each tier.
+
+| Setting | Range | Default | Effect |
+|---------|-------|---------|--------|
+| `delegation.max_spawn_depth` | 1-3 | 1 | Caps how deep recursive delegation can go |
+| `delegation.orchestrator_enabled` | bool | false | Enables orchestrator framing + cross-agent file coordination |
 
 ## Key Properties
 
 - Each subagent gets its **own terminal session** (separate from the parent's session and from other subagents)
-- **No nested delegation** — children cannot spawn grandchildren
+- **Nested delegation is opt-in (v0.11.0)** — by default children cannot spawn grandchildren; raise `delegation.max_spawn_depth` and enable `delegation.orchestrator_enabled` to permit it
 - **Interrupt propagation** — interrupting the parent interrupts all active children via the `_active_children` registry
 - Only the final summary enters the parent's context, keeping token usage efficient
 - Subagents inherit the parent's **API key and provider configuration** unless overridden in delegation config
@@ -198,6 +203,8 @@ Constant in source: `MAX_DEPTH = 2` in `tools/delegate_tool.py`.
 # In ~/.hermes/config.yaml
 delegation:
   max_iterations: 50                        # Max turns per child (default: 50). v0.5.0: each subagent gets its own independent budget.
+  max_spawn_depth: 1                        # v0.11.0: how deep recursive delegation can go (1-3, default 1)
+  orchestrator_enabled: false               # v0.11.0: enable orchestrator role + cross-agent file coordination
   default_toolsets: ["terminal", "file", "web"]  # Default toolsets
   model: "google/gemini-3-flash-preview"             # Optional model override
   provider: "openrouter"                             # Optional provider override
