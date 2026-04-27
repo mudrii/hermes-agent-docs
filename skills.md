@@ -12,6 +12,23 @@ See also:
 - [Bundled Skills Catalog](/docs/reference/skills-catalog)
 - [Official Optional Skills Catalog](/docs/reference/optional-skills-catalog)
 
+### v0.11.0 highlights
+
+- **`hermes skills reset`** — un-stick bundled skills by re-seeding `~/.hermes/skills/` from the repo (does not delete agent-created skills outside the bundled set).
+- **Opt-in skill guard** — set `config.skills.guard_agent_created: true` (default `false`) to require explicit confirmation before the agent creates new skills via `skill_manage`.
+- **Namespaced skill registration via plugins** — plugins can register skill bundles under their own namespace through the plugin context, so plugin-shipped skills appear alongside bundled and Hub-installed ones without colliding.
+- **`xitter` → `xurl`** — the bundled `xitter` skill is renamed to `xurl` and now wraps the official X API CLI (`xurl`).
+- **Fuzzy `@<skill>` completion** — typing `@partial` in the CLI returns mtime-sorted fuzzy matches against installed skill names.
+- **New bundled skills:** `concept-diagrams`, `architecture-diagram`, `pixel-art`, `baoyu-comic`, `baoyu-infographic`, `page-agent`, `drug-discovery`, `touchdesigner-mcp`, `adversarial-ux-test` (some shipped under `optional-skills/` and installable via `hermes skills install official/...`).
+- **Direct HTTPS install** — install a skill straight from a `SKILL.md` URL:
+
+```bash
+hermes skills install https://example.com/SKILL.md
+hermes skills install https://example.com/SKILL.md --name my-skill
+# Inside chat:
+/skills install https://example.com/SKILL.md --name my-skill
+```
+
 ## Using Skills
 
 Every installed skill is automatically available as a slash command:
