@@ -23,11 +23,9 @@ You need at least one way to connect to an LLM. Use `hermes model` to switch pro
 | **OpenRouter** | `OPENROUTER_API_KEY` in `~/.hermes/.env` |
 | **Vercel AI Gateway** | `AI_GATEWAY_API_KEY` in `~/.hermes/.env` (provider: `ai-gateway` — pricing + dynamic discovery) |
 | **NVIDIA NIM** | `NVIDIA_API_KEY` in `~/.hermes/.env` (provider: `nvidia`; cloud or local NIM via `NVIDIA_BASE_URL`) |
-| **Step Plan** | `STEP_API_KEY` in `~/.hermes/.env` (provider: `step`) |
+| **StepFun** | `STEPFUN_API_KEY` in `~/.hermes/.env` (provider: `stepfun`) |
 | **Ollama Cloud** | `OLLAMA_API_KEY` in `~/.hermes/.env` (provider: `ollama-cloud` — managed Ollama models) |
 | **xAI / Grok** | `XAI_API_KEY` in `~/.hermes/.env` (provider: `xai`, alias `grok` — Responses API) |
-| **Mistral** | `MISTRAL_API_KEY` in `~/.hermes/.env` (provider: `mistral`) |
-| **Azure Foundry** | `AZURE_FOUNDRY_API_KEY` + `AZURE_FOUNDRY_ENDPOINT` in `~/.hermes/.env` (provider: `azure-foundry`) |
 | **Qwen Portal (OAuth)** | `hermes model` → "Qwen OAuth (Portal)" (provider: `qwen-oauth`; override with `HERMES_QWEN_BASE_URL`) |
 | **z.ai / GLM** | `GLM_API_KEY` in `~/.hermes/.env` (provider: `zai`) |
 | **Kimi / Moonshot** | `KIMI_API_KEY` in `~/.hermes/.env` (provider: `kimi-coding`) |
@@ -59,7 +57,7 @@ The OpenAI Codex provider authenticates via device code (open a URL, enter a cod
 :::
 
 :::warning
-Even when using Nous Portal, Codex, or a custom endpoint, some tools (vision, web summarization, MoA) use a separate "auxiliary" model — by default Gemini Flash via OpenRouter. An `OPENROUTER_API_KEY` enables these tools automatically. You can also configure which model and provider these tools use — see [Auxiliary Models](/docs/user-guide/configuration#auxiliary-models). In v0.11.0, `auto` routing for auxiliary tasks defaults to the **main model** for all users.
+Even when using Nous Portal, Codex, or a custom endpoint, some background tasks use a separate "auxiliary" model. v0.11.0 ships **9 aux tasks** — `vision`, `compression`, `web_extract`, `session_search`, `approval`, `mcp`, `flush_memories`, `title_generation`, and `skills_hub` — by default routing through Gemini Flash via OpenRouter. An `OPENROUTER_API_KEY` enables these automatically. You can also configure each task individually — see [Auxiliary Models](/docs/user-guide/configuration#auxiliary-models). In v0.11.0, `auto` routing for auxiliary tasks defaults to the **main model** for all users.
 :::
 
 ### Two Commands for Model Management
@@ -102,8 +100,10 @@ bedrock:
   # profile: "myprofile"       # or set AWS_PROFILE
   # discovery: true            # auto-discover region from IAM
   # guardrail:                 # optional Bedrock Guardrails
-  #   id: "your-guardrail-id"
-  #   version: "DRAFT"
+  #   guardrail_identifier: "your-guardrail-id"
+  #   guardrail_version: "DRAFT"
+  #   stream_processing_mode: "sync"   # or "async"
+  #   trace: "enabled"                  # or "disabled"
 ```
 
 Authentication uses the standard boto3 chain: explicit `AWS_ACCESS_KEY_ID`/`AWS_SECRET_ACCESS_KEY`, `AWS_PROFILE` from `~/.aws/credentials`, IAM role on EC2/ECS/Lambda, IMDS, or SSO. Inference profiles use the `us.` and `global.` prefixes; cross-region inference is supported through region-aware discovery.
@@ -332,33 +332,6 @@ xAI is wired through the Responses API (`ResponsesApiTransport`) for automatic r
 When using xAI as a provider (any base URL containing `x.ai`), Hermes automatically enables prompt caching by sending the `x-grok-conv-id` header with every API request. This routes requests to the same server within a conversation session, allowing xAI's infrastructure to reuse cached system prompts and conversation history.
 
 xAI also ships a dedicated TTS endpoint (`/v1/tts`). Select **xAI TTS** in `hermes tools` → Voice & TTS, or see the [TTS](tts.md) page for config.
-
-### Mistral
-
-Direct Mistral API support for chat, TTS, and STT.
-
-```bash
-hermes chat --provider mistral --model mistral-large-latest
-# Requires: MISTRAL_API_KEY in ~/.hermes/.env
-```
-
-### Azure Foundry
-
-Azure AI Foundry's deployments expose Anthropic Claude, OpenAI, Mistral, Llama, and Phi models behind one Azure-managed endpoint. v0.11.0 adds first-class support.
-
-```yaml
-model:
-  provider: "azure-foundry"
-  default: "claude-opus-4.7"
-
-azure_foundry:
-  endpoint: https://my-foundry.cognitiveservices.azure.com
-  # api_version: 2024-12-01-preview  # optional
-```
-
-Required env vars: `AZURE_FOUNDRY_API_KEY`, `AZURE_FOUNDRY_ENDPOINT`, optional `AZURE_FOUNDRY_API_VERSION`.
-
-See the [Azure Foundry guide](/docs/guides/azure-foundry) for full setup.
 
 ### Qwen Portal (OAuth)
 
@@ -759,9 +732,9 @@ Any service with an OpenAI-compatible API works. Some popular options:
 | [Fireworks AI](https://fireworks.ai) | `https://api.fireworks.ai/inference/v1` | Fast open model hosting |
 | [GMI Cloud](https://www.gmicloud.ai/) | `https://api.gmi-serving.com/v1` | Managed OpenAI-compatible inference |
 | [Cerebras](https://cerebras.ai) | `https://api.cerebras.ai/v1` | Wafer-scale chip inference |
-| [Mistral AI](https://mistral.ai) | `https://api.mistral.ai/v1` | First-class `mistral` provider in v0.11.0 |
+| [Mistral AI](https://mistral.ai) | `https://api.mistral.ai/v1` | OpenAI-compatible — set via Custom Endpoint |
 | [OpenAI](https://openai.com) | `https://api.openai.com/v1` | Direct OpenAI access |
-| [Azure OpenAI](https://azure.microsoft.com) | `https://YOUR.openai.azure.com/` | Enterprise OpenAI (use `azure-foundry` for Foundry deployments) |
+| [Azure OpenAI](https://azure.microsoft.com) | `https://YOUR.openai.azure.com/` | Enterprise OpenAI via Custom Endpoint |
 | [LocalAI](https://localai.io) | `http://localhost:8080/v1` | Self-hosted, multi-model |
 | [Jan](https://jan.ai) | `http://localhost:1337/v1` | Desktop app with local models |
 
@@ -813,7 +786,7 @@ Use `HERMES_API_CALL_STALE_TIMEOUT` env var to override `stale_timeout_seconds` 
 | **Multi-provider routing** | LiteLLM, Vercel AI Gateway, OpenRouter |
 | **Cost optimization** | OpenRouter with `sort: "price"` or Vercel ai-gateway |
 | **Maximum privacy** | Ollama, vLLM, or llama.cpp (fully local) |
-| **Enterprise / Azure** | Azure Foundry (`azure-foundry`) or Azure OpenAI custom endpoint |
+| **Enterprise / Azure** | Azure OpenAI via Custom Endpoint |
 | **AWS-native** | AWS Bedrock (native Converse API) |
 | **NVIDIA stack** | NVIDIA NIM (cloud or local) |
 | **Chinese AI models** | z.ai (GLM), Kimi/Moonshot, MiniMax, Xiaomi MiMo, Qwen Portal OAuth |
@@ -866,7 +839,7 @@ fallback_model:
 
 In v0.11.0, fallback semantics are **per-turn** — the primary provider is restored each turn, so a transient outage doesn't permanently shift the session off your preferred model.
 
-Supported providers: `openrouter`, `nous`, `openai-codex`, `copilot`, `copilot-acp`, `anthropic`, `gemini`, `google-gemini-cli`, `qwen-oauth`, `huggingface`, `zai`, `kimi-coding`, `kimi-coding-cn`, `minimax`, `minimax-cn`, `deepseek`, `nvidia`, `xai`, `ollama-cloud`, `bedrock`, `ai-gateway`, `azure-foundry`, `mistral`, `step`, `opencode-zen`, `opencode-go`, `kilocode`, `xiaomi`, `arcee`, `alibaba`, `custom`.
+Supported providers: `openrouter`, `nous`, `openai-codex`, `copilot`, `copilot-acp`, `anthropic`, `gemini`, `google-gemini-cli`, `qwen-oauth`, `huggingface`, `zai`, `kimi-coding`, `kimi-coding-cn`, `minimax`, `minimax-cn`, `deepseek`, `nvidia`, `xai`, `ollama-cloud`, `bedrock`, `ai-gateway`, `stepfun`, `opencode-zen`, `opencode-go`, `kilocode`, `xiaomi`, `arcee`, `alibaba`, `custom`.
 
 :::tip
 Fallback is configured exclusively through `config.yaml` — there are no environment variables for it. For full details on when it triggers, supported providers, and how it interacts with auxiliary tasks and delegation, see [Fallback Providers](fallback-providers.md).

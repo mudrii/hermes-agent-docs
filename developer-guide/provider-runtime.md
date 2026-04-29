@@ -118,7 +118,7 @@ Step Plan is added as an OpenAI-compatible provider; it dispatches through `Chat
 
 ## Auxiliary Model Routing
 
-Auxiliary tasks (vision, web extraction, context compression summaries, session search summarization, memory flushes) can use their own provider/model routing rather than the main conversational model.
+Auxiliary tasks can use their own provider/model routing rather than the main conversational model. v0.11.0 ships nine: `vision`, `compression`, `web_extract`, `session_search`, `approval`, `mcp`, `flush_memories`, `title_generation`, and `skills_hub`.
 
 ### Default Auxiliary Models Per Provider
 
