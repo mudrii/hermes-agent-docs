@@ -389,13 +389,14 @@ When the Anthropic provider is selected, Hermes reads credentials from Claude Co
 
 Hermes applies regex-based secret redaction across logs, tool output, and verbose output. The `redact_sensitive_text()` function masks secrets before they reach log files or gateway messages.
 
-**Known API key prefix patterns:**
+**Known API key prefix patterns** (35 vendor prefixes at v0.11.0):
 
 | Pattern | Service |
 |---------|---------|
 | `sk-*` | OpenAI / OpenRouter / Anthropic |
 | `ghp_*` | GitHub PAT (classic) |
 | `github_pat_*` | GitHub PAT (fine-grained) |
+| `gho_*` / `ghu_*` / `ghs_*` / `ghr_*` | GitHub OAuth / user-to-server / server-to-server / refresh tokens |
 | `xox[baprs]-*` | Slack tokens |
 | `AIza*` | Google API keys |
 | `pplx-*` | Perplexity |
@@ -413,9 +414,15 @@ Hermes applies regex-based secret redaction across logs, tool output, and verbos
 | `pypi-*` | PyPI API tokens |
 | `dop_v1_*` / `doo_v1_*` | DigitalOcean tokens |
 | `am_*` | AgentMail API keys |
-| `elevenlabs_sk_*` | ElevenLabs API keys |
+| `sk_*` (underscore) | ElevenLabs API keys |
 | `tvly-*` | Tavily API keys |
-| `exa-*` | Exa API keys |
+| `exa_*` | Exa API keys |
+| `gsk_*` | Groq Cloud API keys |
+| `syt_*` | Matrix access tokens |
+| `retaindb_*` | RetainDB API keys |
+| `hsk-*` | Hindsight API keys |
+| `mem0_*` | Mem0 Platform API keys |
+| `brv_*` | ByteRover API keys |
 
 **Additional redaction patterns:**
 
@@ -424,9 +431,12 @@ Hermes applies regex-based secret redaction across logs, tool output, and verbos
 | Environment variable assignments | `API_KEY=value`, `TOKEN=value`, `SECRET=value`, `PASSWORD=value` |
 | JSON fields | `"apiKey": "value"`, `"token": "value"`, `"secret": "value"`, etc. |
 | Authorization headers | `Authorization: Bearer <token>` |
+| JWT tokens | `eyJ*` header + optional payload/signature segments |
 | Telegram bot tokens | `bot<digits>:<token>` (30+ char token portion) |
-| Private key blocks | `-----BEGIN RSA PRIVATE KEY-----` through `-----END RSA PRIVATE KEY-----` |
+| Private key blocks | `-----BEGIN [RSA/EC/...] PRIVATE KEY-----` through end marker |
 | Database connection strings | `postgres://user:PASSWORD@host`, `mongodb://`, `redis://`, `amqp://` |
+| URL userinfo | `https://user:PASSWORD@host/...` |
+| URL query strings | sensitive params (`token=`, `api_key=`, `signature=`, `code=`, etc.) masked in any URL with a query |
 | Phone numbers | E.164 format (`+1234567890`) partially masked |
 
 **Masking behavior:** Short tokens (under 18 characters) are fully replaced with `***`. Longer tokens preserve the first 6 and last 4 characters for debuggability (e.g., `sk-or-...xyz9`).
@@ -813,7 +823,7 @@ Existing protections to be aware of:
 | Skills guard | Security scanner for hub-installed skills (`tools/skills_guard.py`) |
 | Code execution sandbox | `execute_code` child process runs with API keys stripped from environment |
 | Container hardening | Docker: all capabilities dropped, no privilege escalation, PID limits, size-limited tmpfs |
-| PII redaction | `agent/redact.py` masks 20+ secret patterns in all log output |
+| PII redaction | `agent/redact.py` masks 35 vendor-prefix patterns plus generic Authorization/JWT/db-URL/query-string forms in all log output |
 | Memory content scanning | `tools/memory_tool.py` blocks injection/exfiltration in memory entries |
 | Supply chain hardening | Pinned deps, `uv.lock` with hashes, litellm removed, CI PR scanning (v0.5.0, [#2796](https://github.com/NousResearch/hermes-agent/pull/2796)–[#3073](https://github.com/NousResearch/hermes-agent/pull/3073)) |
 | SSRF protection | `browser_navigate`, `vision_tools`, `web_tools` block internal network requests; consolidated across all URL-fetching paths (v0.4.0–v0.8.0) |
