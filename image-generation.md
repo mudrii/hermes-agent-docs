@@ -6,25 +6,23 @@ Available since v0.2.0 (FAL FLUX). Backend plugin architecture introduced in v0.
 
 ## Backends
 
-v0.11.0 ships these built-in backends. All but `fal` are new in v0.11.0.
+v0.11.0 ships these built-in backends. All but `fal` are new in v0.11.0; `openai`, `xai`, and `openai-codex` are bundled provider plugins under `plugins/image_gen/`. FAL is the legacy default served directly by `tools/image_generation_tool.py` and exposes many model variants (FLUX 2 Pro, Recraft V4 Pro, Nano Banana Pro, etc.) selectable per call.
 
 | Backend | Provider | Best for | Credentials |
 |---------|----------|----------|-------------|
 | `fal` (default) | FAL.ai | General-purpose photoreal / illustration; multi-model — FLUX 2 Pro, Recraft V4 Pro, Nano Banana Pro, etc. all selectable per call | `FAL_KEY` or Nous Tool Gateway |
-| `recraft` | Recraft V4 Pro (direct) | Vector-friendly graphics, logo/icon work, controllable styles | `RECRAFT_API_KEY` |
-| `nano_banana_pro` | Nano Banana Pro (direct) | Fast, low-cost generations | `NANO_BANANA_API_KEY` |
-| `gpt_image_2` | OpenAI GPT Image 2 | Strong instruction following, text rendering | `OPENAI_API_KEY` |
-| `xai_grok_imagine` | xAI grok-imagine | Stylised generations via xAI | `XAI_API_KEY` |
-| `openai_codex` | GPT-5.5 image generation over Codex OAuth | Use a ChatGPT subscription instead of a separate API key | Codex OAuth login |
+| `openai` | OpenAI gpt-image-2 (Responses `image_generation` tool) | Strong instruction following, text rendering | `OPENAI_API_KEY` |
+| `xai` | xAI `grok-imagine-image` | Stylised generations via xAI | `XAI_API_KEY` |
+| `openai-codex` | OpenAI gpt-image-2 routed over Codex OAuth | Use a ChatGPT subscription instead of a separate API key | Codex OAuth login |
 
-A plugin can add additional backends by calling `ctx.register_image_gen(name, handler)` in its `register()` function — see [Plugins](./plugins.md). Only one backend is active at a time; selection is configured under `image_gen.backend` in `~/.hermes/config.yaml` or interactively via `hermes tools` and `hermes plugins`.
+A plugin can add additional backends by calling `ctx.register_image_gen_provider(name, handler)` in its `register()` function — see [Plugins](./plugins.md). Only one backend is active at a time; selection is configured under `image_gen.provider` in `~/.hermes/config.yaml` or interactively via `hermes tools` and `hermes plugins`.
 
 ## Selecting a Backend
 
 ```yaml
 # ~/.hermes/config.yaml
 image_gen:
-  backend: fal           # fal | recraft | nano_banana_pro | gpt_image_2 | xai_grok_imagine | openai_codex | <plugin name>
+  provider: fal          # fal | openai | xai | openai-codex | <plugin name>
   use_gateway: false     # fal-only: route through Nous Tool Gateway instead of a direct key
 ```
 
@@ -145,7 +143,7 @@ Paid [Nous Portal](https://portal.nousresearch.com) subscribers can use the FAL 
 
 ```yaml
 image_gen:
-  backend: fal
+  provider: fal
   use_gateway: true
 ```
 
@@ -171,7 +169,7 @@ def register(ctx):
         # call your model, return a list of dicts: [{"url": "...", "width": ..., "height": ...}]
         return [{"url": "https://example.com/img.png", "width": 1024, "height": 1024}]
 
-    ctx.register_image_gen("my-backend", handler)
+    ctx.register_image_gen_provider("my-backend", handler)
 ```
 
 The user then selects it via:
@@ -180,7 +178,7 @@ The user then selects it via:
 hermes plugins        # enable my-image-backend
 # then in config.yaml:
 # image_gen:
-#   backend: my-backend
+#   provider: my-backend
 ```
 
 See [Plugins](./plugins.md) and the [plugin guide](/docs/guides/build-a-hermes-plugin) for the full plugin contract.
