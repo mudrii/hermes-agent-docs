@@ -22,7 +22,7 @@ Your request
       → Second 429 → rotate to next pool key
       → All keys exhausted → fallback_model (different provider)
   → 402 billing error?
-      → Immediately rotate to next pool key (24h cooldown)
+      → Immediately rotate to next pool key (1h cooldown)
   → 401 auth expired?
       → Try refreshing the token (OAuth)
       → Refresh failed → rotate to next pool key
@@ -130,7 +130,7 @@ The pool handles different errors differently:
 | Error | Behavior | Cooldown |
 |-------|----------|----------|
 | **429 Rate Limit** | Retry same key once (transient). Second consecutive 429 rotates to next key | 1 hour |
-| **402 Billing/Quota** | Immediately rotate to next key | 24 hours |
+| **402 Billing/Quota** | Immediately rotate to next key | 1 hour |
 | **401 Auth Expired** | Try refreshing the OAuth token first. Rotate only if refresh fails | — |
 | **All keys exhausted** | Fall through to `fallback_model` if configured | — |
 

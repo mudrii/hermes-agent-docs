@@ -156,7 +156,7 @@ Toolsets that are **always blocked** for subagents regardless of what you specif
 
 | Blocked toolset | Reason |
 |----------------|--------|
-| `delegation` | No recursive delegation by default; opt in via `delegation.orchestrator_enabled` + `max_spawn_depth` |
+| `delegation` | No recursive delegation by default; opt in by raising `delegation.max_spawn_depth` (and optionally toggling `delegation.orchestrator_enabled`) |
 | `clarify` | Subagents cannot interact with the user |
 | `memory` | No writes to shared persistent memory |
 | `code_execution` | Children should reason step-by-step |
@@ -185,12 +185,12 @@ v0.11.0 also introduces an explicit **orchestrator role** (`delegation.orchestra
 | Setting | Range | Default | Effect |
 |---------|-------|---------|--------|
 | `delegation.max_spawn_depth` | 1-3 | 1 | Caps how deep recursive delegation can go |
-| `delegation.orchestrator_enabled` | bool | false | Enables orchestrator framing + cross-agent file coordination |
+| `delegation.orchestrator_enabled` | bool | true | Kill switch for the orchestrator role (orchestrator framing + cross-agent file coordination). Set `false` to force every parent into a leaf, even with `max_spawn_depth > 1`. |
 
 ## Key Properties
 
 - Each subagent gets its **own terminal session** (separate from the parent's session and from other subagents)
-- **Nested delegation is opt-in (v0.11.0)** — by default children cannot spawn grandchildren; raise `delegation.max_spawn_depth` and enable `delegation.orchestrator_enabled` to permit it
+- **Nested delegation is opt-in (v0.11.0)** — by default children cannot spawn grandchildren; raise `delegation.max_spawn_depth` to permit it. `delegation.orchestrator_enabled` defaults to `true` and only needs flipping to `false` if you want to force-disable orchestrator framing entirely.
 - **Interrupt propagation** — interrupting the parent interrupts all active children via the `_active_children` registry
 - Only the final summary enters the parent's context, keeping token usage efficient
 - Subagents inherit the parent's **API key and provider configuration** unless overridden in delegation config
@@ -204,7 +204,7 @@ v0.11.0 also introduces an explicit **orchestrator role** (`delegation.orchestra
 delegation:
   max_iterations: 50                        # Max turns per child (default: 50). v0.5.0: each subagent gets its own independent budget.
   max_spawn_depth: 1                        # v0.11.0: how deep recursive delegation can go (1-3, default 1)
-  orchestrator_enabled: false               # v0.11.0: enable orchestrator role + cross-agent file coordination
+  orchestrator_enabled: true                # v0.11.0: orchestrator role (default true; set false to force every parent into a leaf)
   default_toolsets: ["terminal", "file", "web"]  # Default toolsets
   model: "google/gemini-3-flash-preview"             # Optional model override
   provider: "openrouter"                             # Optional provider override
