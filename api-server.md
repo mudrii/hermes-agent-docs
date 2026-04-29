@@ -48,7 +48,11 @@ Or connect Open WebUI, LobeChat, or any other frontend — see the [Open WebUI i
 
 ### POST /v1/chat/completions
 
-Standard OpenAI Chat Completions format. Stateless — the full conversation is included in each request via the `messages` array.
+Standard OpenAI Chat Completions format. Stateless by default — the full conversation is included in each request via the `messages` array.
+
+**Opt-in session continuity (`X-Hermes-Session-Id`)** — clients that want a stateful conversation across requests can either send `X-Hermes-Session-Id: <uuid>` to attach to (or create) a Hermes session, or omit it and read it back from the response — the server always returns the session id it used in an `X-Hermes-Session-Id` response header for both non-streaming and SSE responses. The session id is opaque to the OpenAI schema and is ignored by clients that don't speak it.
+
+**Idempotency (`Idempotency-Key`)** — the API accepts an `Idempotency-Key` request header on non-streaming `/v1/chat/completions` calls. Hermes caches the response by key for five minutes, so retries with the same key return the original response instead of re-running the agent. The header is also CORS-allowed.
 
 **Request:**
 ```json
