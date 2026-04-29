@@ -173,7 +173,7 @@ Batch trajectory generation, trajectory compression for training datasets (`traj
 
 ### Skills Ecosystem
 
-118 skills (96 bundled + 22 optional) across 26+ categories. Compatible with the [agentskills.io](https://agentskills.io) open standard. Skills support per-platform enable/disable, conditional activation based on tool availability, and prerequisite validation. The Skills Hub integrates with both ClawHub and skills.sh (v0.3.0).
+131 skills (72 bundled + 59 optional) across 26+ categories. Compatible with the [agentskills.io](https://agentskills.io) open standard. Skills support per-platform enable/disable, conditional activation based on tool availability, and prerequisite validation. The Skills Hub integrates with both ClawHub and skills.sh (v0.3.0).
 
 ---
 
@@ -338,7 +338,7 @@ Hermes has two entry points: start the terminal UI with `hermes`, or run the gat
 
 | Document | Contents |
 |----------|----------|
-| [skills.md](skills.md) | Skills system, SKILL.md format, 96 bundled + 22 optional skills catalog |
+| [skills.md](skills.md) | Skills system, SKILL.md format, 72 bundled + 59 optional skills catalog |
 | [tools.md](tools.md) | Built-in tools reference with activation rules, parameters, and examples |
 | [toolsets.md](toolsets.md) | Toolset definitions, compositions, per-platform configuration |
 | [mcp.md](mcp.md) | MCP client integration, stdio/HTTP transports, sampling, tool filtering |
