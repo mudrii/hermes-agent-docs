@@ -456,7 +456,7 @@ Plugins are the recommended path for cross-cutting capabilities that should not 
 | Image-gen backend plugins | Drop-in backends under `plugins/image_gen/{openai,openai-codex,xai}/` add new image generation providers without modifying core. |
 | Dashboard tabs / widgets | Plugins can register additional tabs and widgets in the web dashboard. |
 
-For the full hook contracts (signatures, return shapes, ordering guarantees) see the [Plugins guide](../plugins.md) and [Hooks guide](../hooks.md). The bundled `plugins/disk-cleanup/` reference plugin in the source tree is a small worked example of registering a slash command, a tool, and a `post_tool_call` hook from one package.
+For the full hook contracts (signatures, return shapes, ordering guarantees) see the [Plugins guide](plugins.md) and [Hooks guide](hooks.md). The bundled `plugins/disk-cleanup/` reference plugin in the source tree is a small worked example of registering a slash command, a tool, and a `post_tool_call` hook from one package.
 
 ---
 

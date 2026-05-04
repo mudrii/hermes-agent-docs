@@ -170,8 +170,8 @@ Whisper sometimes generates phantom text from silence or background noise ("Than
 ## Gateway Voice Reply (Telegram & Discord)
 
 If you haven't set up your messaging bots yet, see the platform-specific guides:
-- [Telegram Setup Guide](../messaging/telegram.md)
-- [Discord Setup Guide](../messaging/discord.md)
+- [Telegram Setup Guide](messaging/telegram.md)
+- [Discord Setup Guide](messaging/discord.md)
 
 Start the gateway to connect to your messaging platforms:
 
@@ -243,7 +243,7 @@ The most immersive voice feature: the bot joins a Discord voice channel, listens
 
 #### 1. Discord Bot Permissions
 
-If you already have a Discord bot set up for text (see [Discord Setup Guide](../messaging/discord.md)), you need to add voice permissions.
+If you already have a Discord bot set up for text (see [Discord Setup Guide](messaging/discord.md)), you need to add voice permissions.
 
 Go to the [Discord Developer Portal](https://discord.com/developers/applications) → your application → **Installation** → **Default Install Settings** → **Guild Install**:
 

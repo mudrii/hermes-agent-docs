@@ -95,7 +95,7 @@ All slash commands work unchanged. A few are TUI-owned — they produce richer o
 | `/reload` | Re-reads `~/.hermes/.env` into the running TUI process so newly added API keys take effect without a restart |
 | `/mouse` | Toggle mouse tracking on/off at runtime (also persists to `display.mouse_tracking` in `config.yaml`) |
 
-Every other slash command (including installed skills, quick commands, and personality toggles) works identically to the classic CLI. See [Slash Commands Reference](../reference/slash-commands.md).
+Every other slash command (including installed skills, quick commands, and personality toggles) works identically to the classic CLI. See [Slash Commands Reference](reference/slash-commands.md).
 
 ## LaTeX math rendering
 

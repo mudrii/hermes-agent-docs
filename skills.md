@@ -306,7 +306,7 @@ Hermes currently integrates with these skills ecosystems and discovery sources:
 
 These are maintained in the Hermes repository itself and install with builtin trust.
 
-- Catalog: [Official Optional Skills Catalog](../../reference/optional-skills-catalog)
+- Catalog: [Official Optional Skills Catalog](reference/optional-skills-catalog)
 - Source in repo: `optional-skills/`
 - Example:
 

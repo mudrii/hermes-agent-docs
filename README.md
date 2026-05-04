@@ -384,7 +384,7 @@ Hermes has two entry points: start the terminal UI with `hermes`, or run the gat
 | [messaging/feishu.md](messaging/feishu.md) | Feishu/Lark enterprise messaging (v0.6.0) |
 | [messaging/wecom.md](messaging/wecom.md) | WeCom enterprise messaging (v0.6.0) |
 | [messaging/qqbot.md](messaging/qqbot.md) | QQ Bot via the Official API v2 (v0.10.0) |
-| [messaging/webhook.md](messaging/webhook.md) | Webhook adapter |
+| [messaging/webhooks.md](messaging/webhooks.md) | Webhook adapter |
 | [messaging/open-webui.md](messaging/open-webui.md) | Open WebUI / API server frontend |
 | [messaging/sms.md](messaging/sms.md) | SMS via Twilio |
 

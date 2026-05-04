@@ -328,7 +328,7 @@ When using xAI as a provider (any base URL containing `x.ai`), Hermes automatica
 
 No configuration is needed — caching activates automatically when an xAI endpoint is detected and a session ID is available. This reduces latency and cost for multi-turn conversations.
 
-xAI also ships a dedicated TTS endpoint (`/v1/tts`). Select **xAI TTS** in `hermes tools` → Voice & TTS, or see the [Voice & TTS](../user-guide/features/tts.md#text-to-speech) page for config.
+xAI also ships a dedicated TTS endpoint (`/v1/tts`). Select **xAI TTS** in `hermes tools` → Voice & TTS, or see the [Voice & TTS](user-guide/features/tts.md#text-to-speech) page for config.
 
 ### Ollama Cloud — Managed Ollama Models, OAuth + API Key
 
