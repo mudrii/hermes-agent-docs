@@ -1,6 +1,6 @@
 # Architecture
 
-This page is the authoritative map of Hermes Agent internals, reviewed against the released v0.11.0 surface (`v2026.4.23`). The project is organized around a shared agent core that serves multiple platform frontends, a pluggable transport layer that abstracts every provider, a centralized auxiliary client, a SQLite session store, and a set of loosely-coupled optional subsystems.
+This page is the authoritative map of Hermes Agent internals, reviewed against the released v0.12.0 surface (`v2026.4.30`). The project is organized around a shared agent core that serves multiple platform frontends, a pluggable transport layer that abstracts every provider, a centralized auxiliary client, a SQLite session store, and a set of loosely-coupled optional subsystems.
 
 ---
 

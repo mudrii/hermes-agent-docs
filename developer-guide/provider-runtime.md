@@ -36,12 +36,16 @@ Current provider families include:
 - NVIDIA NIM (`nvidia`) -- added v0.11.0
 - Step Plan -- added v0.11.0
 - Arcee AI -- added v0.11.0
-- Azure Foundry (`azure-foundry`) -- v0.11.0 flavor
+- Azure AI Foundry (`azure-foundry`) -- first-class provider in v0.12.0
 - Qwen Portal OAuth (`qwen-oauth`) -- v0.11.0 flavor
 - Z.AI
 - Kimi / Moonshot
 - MiniMax
 - MiniMax China
+- MiniMax OAuth (`minimax-oauth`) -- browser OAuth provider in v0.12.0
+- GMI Cloud (`gmi`, aliases `gmi-cloud` / `gmicloud`) -- first-class provider in v0.12.0
+- LM Studio (`lmstudio`) -- first-class local provider in v0.12.0
+- Tencent Tokenhub (`tencent-tokenhub`) -- first-class provider in v0.12.0
 - xAI / Grok (Responses API)
 - Mistral
 - Ollama Cloud (`ollama-cloud`)
@@ -65,9 +69,9 @@ The important abstraction is `api_mode`. In v0.11.0 each `api_mode` is owned by 
 
 | `api_mode` | Used by | Transport class |
 |------------|---------|-----------------|
-| `chat_completions` | OpenRouter, Nous Portal, NVIDIA NIM, Step Plan, Arcee, Vercel ai-gateway, xAI (chat mode), Ollama Cloud, Mistral, Qwen, MiniMax, DeepSeek, Z.AI, Kimi, custom OpenAI-compatible endpoints | `ChatCompletionsTransport` |
+| `chat_completions` | OpenRouter, Nous Portal, NVIDIA NIM, Step Plan, Arcee, Vercel ai-gateway, Ollama Cloud, Mistral, Qwen, DeepSeek, Z.AI, Kimi, GMI Cloud, Tencent Tokenhub, LM Studio, Azure OpenAI-style Foundry endpoints, custom OpenAI-compatible endpoints | `ChatCompletionsTransport` |
 | `codex_responses` | OpenAI Codex (GPT-5 and GPT-5.5 over Codex OAuth), xAI Grok in Responses mode | `ResponsesApiTransport` |
-| `anthropic_messages` | Native Anthropic | `AnthropicTransport` |
+| `anthropic_messages` | Native Anthropic, MiniMax, MiniMax OAuth, Azure Anthropic-style Foundry endpoints | `AnthropicTransport` |
 | `bedrock_converse` | AWS Bedrock | `BedrockTransport` |
 
 Adding a new non-OpenAI protocol means adding a new transport subclass and a new `api_mode` string. See [Transport Layer](./transport-layer.md) for the ABC contract and [Adding Providers](./adding-providers.md) for the full provider-side checklist.
@@ -108,9 +112,21 @@ Step Plan is added as an OpenAI-compatible provider; it dispatches through `Chat
 
 `ai-gateway` dispatches through `ChatCompletionsTransport` and additionally pulls live pricing, attribution metadata, and dynamic model discovery from the gateway's catalog endpoint. Aggregator-aware `/model` resolution stays on `ai-gateway` when the requested model is available there.
 
-## Azure Foundry Path (v0.11.0)
+## Azure AI Foundry Path (v0.12.0)
 
-`azure-foundry` is the v0.11.0 flavor for Azure-hosted OpenAI-compatible deployments. It uses `AZURE_FOUNDRY_*` env vars and dispatches through `ChatCompletionsTransport`.
+`azure-foundry` supports Azure OpenAI-style `/openai/v1` endpoints and Anthropic-style Azure endpoints. Hermes normalizes the configured URL, can detect the endpoint shape, and dispatches through either `ChatCompletionsTransport` or the Anthropic Messages path.
+
+## LM Studio Path (v0.12.0)
+
+`lmstudio` is a first-class local provider instead of a generic custom endpoint. It supports optional `LM_API_KEY`, `LM_BASE_URL`, live `/models` probing, `hermes doctor` checks, and LM Studio reasoning-effort handling.
+
+## MiniMax OAuth Path (v0.12.0)
+
+`minimax-oauth` uses MiniMax's browser OAuth flow and stores refreshable credentials in Hermes auth state. It shares the Anthropic Messages-compatible runtime path with API-key MiniMax providers.
+
+## GMI Cloud and Tencent Tokenhub (v0.12.0)
+
+`gmi` / `gmi-cloud` and `tencent-tokenhub` are first-class provider IDs in the registry. They resolve through the shared runtime and model-selection path instead of requiring a custom-provider entry.
 
 ## Qwen Portal OAuth Path (v0.11.0)
 
@@ -118,7 +134,7 @@ Step Plan is added as an OpenAI-compatible provider; it dispatches through `Chat
 
 ## Auxiliary Model Routing
 
-Auxiliary tasks can use their own provider/model routing rather than the main conversational model. v0.11.0 ships nine: `vision`, `compression`, `web_extract`, `session_search`, `approval`, `mcp`, `flush_memories`, `title_generation`, and `skills_hub`.
+Auxiliary tasks can use their own provider/model routing rather than the main conversational model. The v0.12.0 canonical slots are: `vision`, `web_extract`, `compression`, `session_search`, `skills_hub`, `approval`, `mcp`, `title_generation`, and `curator`.
 
 ### Default Auxiliary Models Per Provider
 

@@ -2,7 +2,32 @@
 
 All notable changes to Hermes Agent are documented here.
 
-**Current stable release: v0.11.0** (v2026.4.23, April 23, 2026)
+**Current stable release: v0.12.0** (v2026.4.30, April 30, 2026)
+
+---
+
+## v0.12.0 -- April 30, 2026
+
+> The Curator release — Hermes Agent now maintains itself. An autonomous background Curator grades, prunes, and consolidates your skill library on its own schedule. The self-improvement loop was upgraded, four new inference providers landed, Yuanbao became the 18th messaging platform, Microsoft Teams shipped as the first plugin-provided platform, Spotify and Google Meet arrived as native integrations, and visible TUI cold start was cut by roughly 57%.
+
+### Highlights
+
+- **Autonomous Curator** — `hermes curator` runs as a background auxiliary-model task on the gateway cron ticker, with a 7-day default interval. It reviews agent-created skills, classifies archived skills as consolidated or pruned, writes `logs/curator/run.json` plus `REPORT.md`, and exposes status, dry-run, pause/resume, pin/unpin, backup, rollback, and restore commands.
+- **Self-improvement loop upgrade** — The background review fork is now class-first, biased toward updating the active skill, handles `references/` and `templates/` sub-files, inherits the parent's live runtime, and is restricted to memory and skills toolsets.
+- **New and upgraded providers** — GMI Cloud, Azure AI Foundry, MiniMax OAuth, Tencent Tokenhub, and first-class LM Studio support were added or promoted. Remote OpenRouter and Nous Portal model catalogs now update from a manifest without requiring a Hermes release.
+- **Messaging expansion** — Yuanbao is the 18th built-in messaging platform, while Microsoft Teams ships as the first plugin-provided gateway platform. Gateway media delivery gained native multi-image sending across Telegram, Discord, Slack, Mattermost, Email, and Signal, plus centralized audio routing with FLAC support.
+- **Native integrations** — Spotify adds seven OAuth-backed tools for playback, devices, queue, search, playlists, albums, and library operations. Google Meet ships as a bundled plugin for joining calls, transcribing, speaking, and follow-up workflows.
+- **Skills ecosystem expansion** — ComfyUI and TouchDesigner-MCP moved from optional to bundled by default, new skills such as Humanizer, claude-design, design-md, pretext, spike, and sketch landed, and `hermes skills install <url>` plus `/reload-skills` improve skill operations.
+- **CLI, TUI, and dashboard** — `hermes -z <prompt>` one-shot mode, `hermes update --check`, a Models dashboard tab, dashboard model configuration, TUI LaTeX rendering, `.env` reload, auto-resume, session deletion, and mouse controls were added.
+- **Voice and execution** — TTS now has a provider registry with native Piper local TTS, Vercel Sandbox is available as an execution backend, and secret redaction is off by default unless `security.redact_secrets: true` is set.
+
+### Delivery notes
+
+- 1,096 commits, 550 merged PRs, 1,270 files changed, and 217,776 insertions since v0.11.0.
+- The upstream source tree includes a `RELEASE_v0.12.0.md` artifact and the `v2026.4.30` tag.
+- v2026.4.30 / v0.12.0 is published on GitHub Releases.
+
+**Full Changelog:** [v2026.4.23...v2026.4.30](https://github.com/NousResearch/hermes-agent/compare/v2026.4.23...v2026.4.30)
 
 ---
 

@@ -12,7 +12,7 @@ The security model has six layers:
 2. **Dangerous command approval** -- human-in-the-loop for destructive operations
 3. **Tirith pre-exec scanning** -- content-level threat detection (homograph URLs, terminal injection)
 4. **Container isolation** -- Docker/Singularity/Modal sandboxing with hardened settings
-5. **PII and secret redaction** -- automatic masking in logs, tool output, and MCP errors
+5. **PII and secret redaction** -- opt-in masking in logs, tool output, and MCP errors
 6. **Context file scanning** -- prompt injection detection in project files and memory entries
 
 Each layer is independent. Enabling container isolation does not disable the other layers unless explicitly configured (the approval check is skipped when running in a container because the container is itself the security boundary).
@@ -301,7 +301,7 @@ Pairing data is stored in `~/.hermes/pairing/` with per-platform JSON files:
 
 ## Secret Exfiltration Hardening (v0.7.0)
 
-Released v0.7.0 adds several concrete protections on top of the existing redaction and approval model:
+Released v0.7.0 adds several concrete protections on top of the existing credential-handling and approval model:
 
 - **Browser URL exfiltration blocking** -- browser navigation rejects URLs that embed apparent secrets or encoded secret material
 - **`execute_code` output redaction** -- sandbox output is scrubbed before it is surfaced back to the model
@@ -387,7 +387,7 @@ When the Anthropic provider is selected, Hermes reads credentials from Claude Co
 
 ### Comprehensive Secret Redaction (`agent/redact.py`)
 
-Hermes applies regex-based secret redaction across logs, tool output, and verbose output. The `redact_sensitive_text()` function masks secrets before they reach log files or gateway messages.
+Hermes has regex-based secret redaction for logs, tool output, and verbose output, but it is **off by default as of v0.12.0** to avoid corrupting benign tool output that happens to look secret-shaped. Enable it explicitly with `security.redact_secrets: true` in `config.yaml` or `HERMES_REDACT_SECRETS=true` when you want this safety net.
 
 **Known API key prefix patterns** (35 vendor prefixes at v0.11.0):
 
@@ -441,11 +441,11 @@ Hermes applies regex-based secret redaction across logs, tool output, and verbos
 
 **Masking behavior:** Short tokens (under 18 characters) are fully replaced with `***`. Longer tokens preserve the first 6 and last 4 characters for debuggability (e.g., `sk-or-...xyz9`).
 
-**Disabling redaction:** Set `HERMES_REDACT_SECRETS=false` environment variable or `security.redact_secrets: false` in config.yaml.
+**Enabling redaction:** Set `HERMES_REDACT_SECRETS=true` or `security.redact_secrets: true` in `config.yaml`. The default is `false`.
 
 ### RedactingFormatter
 
-The `RedactingFormatter` class in `agent/redact.py` is a `logging.Formatter` subclass that automatically applies redaction to all log messages. It is applied to the root logger so all Hermes logging output is protected.
+The `RedactingFormatter` class in `agent/redact.py` is a `logging.Formatter` subclass that applies redaction to log messages when redaction is enabled.
 
 ### Code Execution Sandbox
 

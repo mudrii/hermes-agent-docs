@@ -1,184 +1,156 @@
+---
+title: Image Generation
+description: Generate images via FAL.ai — 9 models including FLUX 2, GPT Image (1.5 & 2), Nano Banana Pro, Ideogram, Recraft V4 Pro, and more, selectable via `hermes tools`.
+sidebar_label: Image Generation
+sidebar_position: 6
+---
+
 # Image Generation
 
-Hermes Agent generates images through the `image_gen` tool. As of **v0.11.0**, `image_gen` is a pluggable surface — Hermes ships several backends out of the box and plugins can register their own. The selected backend is the only thing that changes; the tool name, schema, and call site are stable.
+Hermes Agent generates images from text prompts via FAL.ai. Nine models are supported out of the box, each with different speed, quality, and cost tradeoffs. The active model is user-configurable via `hermes tools` and persists in `config.yaml`.
 
-Available since v0.2.0 (FAL FLUX). Backend plugin architecture introduced in v0.11.0.
+## Supported Models
 
-## Backends
+| Model | Speed | Strengths | Price |
+|---|---|---|---|
+| `fal-ai/flux-2/klein/9b` *(default)* | `<1s` | Fast, crisp text | $0.006/MP |
+| `fal-ai/flux-2-pro` | ~6s | Studio photorealism | $0.03/MP |
+| `fal-ai/z-image/turbo` | ~2s | Bilingual EN/CN, 6B params | $0.005/MP |
+| `fal-ai/nano-banana-pro` | ~8s | Gemini 3 Pro, reasoning depth, text rendering | $0.15/image (1K) |
+| `fal-ai/gpt-image-1.5` | ~15s | Prompt adherence | $0.034/image |
+| `fal-ai/gpt-image-2` | ~20s | SOTA text rendering + CJK, world-aware photorealism | $0.04–0.06/image |
+| `fal-ai/ideogram/v3` | ~5s | Best typography | $0.03–0.09/image |
+| `fal-ai/recraft/v4/pro/text-to-image` | ~8s | Design, brand systems, production-ready | $0.25/image |
+| `fal-ai/qwen-image` | ~12s | LLM-based, complex text | $0.02/MP |
 
-v0.11.0 ships these built-in backends. All but `fal` are new in v0.11.0; `openai`, `xai`, and `openai-codex` are bundled provider plugins under `plugins/image_gen/`. FAL is the legacy default served directly by `tools/image_generation_tool.py` and exposes many model variants (FLUX 2 Pro, Recraft V4 Pro, Nano Banana Pro, etc.) selectable per call.
+Prices are FAL's pricing at time of writing; check [fal.ai](https://fal.ai/) for current numbers.
 
-| Backend | Provider | Best for | Credentials |
-|---------|----------|----------|-------------|
-| `fal` (default) | FAL.ai | General-purpose photoreal / illustration; multi-model — FLUX 2 Pro, Recraft V4 Pro, Nano Banana Pro, etc. all selectable per call | `FAL_KEY` or Nous Tool Gateway |
-| `openai` | OpenAI gpt-image-2 (Responses `image_generation` tool) | Strong instruction following, text rendering | `OPENAI_API_KEY` |
-| `xai` | xAI `grok-imagine-image` | Stylised generations via xAI | `XAI_API_KEY` |
-| `openai-codex` | OpenAI gpt-image-2 routed over Codex OAuth | Use a ChatGPT subscription instead of a separate API key | Codex OAuth login |
+## Setup
 
-A plugin can add additional backends by calling `ctx.register_image_gen_provider(name, handler)` in its `register()` function — see [Plugins](./plugins.md). Only one backend is active at a time; selection is configured under `image_gen.provider` in `~/.hermes/config.yaml` or interactively via `hermes tools` and `hermes plugins`.
+:::tip Nous Subscribers
+If you have a paid [Nous Portal](https://portal.nousresearch.com) subscription, you can use image generation through the **[Tool Gateway](tool-gateway.md)** without a FAL API key. Your model selection persists across both paths.
 
-## Selecting a Backend
+If the managed gateway returns `HTTP 4xx` for a specific model, that model isn't yet proxied on the portal side — the agent will tell you so, with remediation steps (set `FAL_KEY` for direct access, or pick a different model).
+:::
+
+### Get a FAL API Key
+
+1. Sign up at [fal.ai](https://fal.ai/)
+2. Generate an API key from your dashboard
+
+### Configure and Pick a Model
+
+Run the tools command:
+
+```bash
+hermes tools
+```
+
+Navigate to **🎨 Image Generation**, pick your backend (Nous Subscription or FAL.ai), then the picker shows all supported models in a column-aligned table — arrow keys to navigate, Enter to select:
+
+```
+  Model                          Speed    Strengths                    Price
+  fal-ai/flux-2/klein/9b         <1s      Fast, crisp text             $0.006/MP   ← currently in use
+  fal-ai/flux-2-pro              ~6s      Studio photorealism          $0.03/MP
+  fal-ai/z-image/turbo           ~2s      Bilingual EN/CN, 6B          $0.005/MP
+  ...
+```
+
+Your selection is saved to `config.yaml`:
 
 ```yaml
-# ~/.hermes/config.yaml
 image_gen:
-  provider: fal          # fal | openai | xai | openai-codex | <plugin name>
-  use_gateway: false     # fal-only: route through Nous Tool Gateway instead of a direct key
+  model: fal-ai/flux-2/klein/9b
+  use_gateway: false            # true if using Nous Subscription
 ```
 
-Or interactively:
+### GPT-Image Quality
 
-```bash
-hermes tools     # toggle the image_gen tool and pick a backend
-hermes plugins   # if you want to use a third-party image_gen backend plugin
-```
-
-## Setup per Backend
-
-### FAL (default)
-
-```bash
-# Either: direct key
-echo "FAL_KEY=your-fal-api-key-here" >> ~/.hermes/.env
-pip install fal-client
-
-# Or: paid Nous Portal subscription (no FAL key needed)
-hermes model     # pick Nous Portal, follow tool prompts
-# This sets image_gen.use_gateway: true
-```
-
-The FAL backend is the only one that uses the Nous Tool Gateway path. All other backends require a direct API key.
-
-### Recraft V4 Pro
-
-```bash
-echo "RECRAFT_API_KEY=..." >> ~/.hermes/.env
-```
-
-### Nano Banana Pro
-
-```bash
-echo "NANO_BANANA_API_KEY=..." >> ~/.hermes/.env
-```
-
-### GPT Image 2
-
-```bash
-echo "OPENAI_API_KEY=..." >> ~/.hermes/.env
-```
-
-### xAI grok-imagine
-
-```bash
-echo "XAI_API_KEY=..." >> ~/.hermes/.env
-```
-
-### Codex OAuth (GPT-5.5 image)
-
-```bash
-hermes login codex      # browser OAuth flow against ChatGPT account
-```
-
-No API key is required — generations are billed against the ChatGPT subscription. See [Provider Authentication](./provider-runtime.md) for OAuth details.
+The `fal-ai/gpt-image-1.5` and `fal-ai/gpt-image-2` request quality is pinned to `medium` (~$0.034–$0.06/image at 1024×1024). We don't expose the `low` / `high` tiers as a user-facing option so that Nous Portal billing stays predictable across all users — the cost spread between tiers is 3–22×. If you want a cheaper option, pick Klein 9B or Z-Image Turbo; if you want higher quality, use Nano Banana Pro or Recraft V4 Pro.
 
 ## Usage
 
-The tool name and surface are identical across backends. The active backend handles the call.
+The agent-facing schema is intentionally minimal — the model picks up whatever you've configured:
 
-```text
+```
 Generate an image of a serene mountain landscape with cherry blossoms
 ```
 
-```text
-Create a portrait of a wise old owl perched on an ancient tree branch
+```
+Create a square portrait of a wise old owl — use the typography model
 ```
 
-## Parameters
+```
+Make me a futuristic cityscape, landscape orientation
+```
 
-| Parameter | Default | Notes |
-|-----------|---------|-------|
-| `prompt` | *(required)* | Text description |
-| `aspect_ratio` | `landscape` | `landscape`, `square`, `portrait` (FAL also accepts raw size presets) |
-| `num_images` | 1 | 1-4 |
-| `output_format` | `png` | `png`, `jpeg` |
-| `seed` | *(random)* | Reproducible runs |
+## Aspect Ratios
 
-Backends accept additional backend-specific parameters; the tool schema documents what each backend exposes. Unknown parameters are passed through to the backend's API.
+Every model accepts the same three aspect ratios from the agent's perspective. Internally, each model's native size spec is filled in automatically:
 
-### FAL-specific parameters
+| Agent input | image_size (flux/z-image/qwen/recraft/ideogram) | aspect_ratio (nano-banana-pro) | image_size (gpt-image-1.5) | image_size (gpt-image-2) |
+|---|---|---|---|---|
+| `landscape` | `landscape_16_9` | `16:9` | `1536x1024` | `landscape_4_3` (1024×768) |
+| `square` | `square_hd` | `1:1` | `1024x1024` | `square_hd` (1024×1024) |
+| `portrait` | `portrait_16_9` | `9:16` | `1024x1536` | `portrait_4_3` (768×1024) |
 
-`num_inference_steps` (1-100, default 50), `guidance_scale` (0.1-20.0, default 4.5). FAL also supports raw size presets `square_hd`, `square`, `portrait_4_3`, `portrait_16_9`, `landscape_4_3`, `landscape_16_9`, and custom sizes up to 2048x2048.
+GPT Image 2 maps to 4:3 presets rather than 16:9 because its minimum pixel count is 655,360 — the `landscape_16_9` preset (1024×576 = 589,824) would be rejected.
 
-## Automatic Upscaling (FAL only)
+This translation happens in `_build_fal_payload()` — agent code never has to know about per-model schema differences.
 
-The FAL backend automatically 2x-upscales every result with the Clarity Upscaler. Other backends return the model's native resolution and do not chain a second pass — pick a backend whose default resolution already meets your need, or upscale separately.
+## Automatic Upscaling
+
+Upscaling via FAL's **Clarity Upscaler** is gated per-model:
+
+| Model | Upscale? | Why |
+|---|---|---|
+| `fal-ai/flux-2-pro` | ✓ | Backward-compat (was the pre-picker default) |
+| All others | ✗ | Fast models would lose their sub-second value prop; hi-res models don't need it |
+
+When upscaling runs, it uses these settings:
 
 | Setting | Value |
-|---------|-------|
-| Upscale Factor | 2x |
+|---|---|
+| Upscale factor | 2× |
 | Creativity | 0.35 |
 | Resemblance | 0.6 |
-| Guidance Scale | 4 |
-| Inference Steps | 18 |
-| Positive Prompt | `"masterpiece, best quality, highres"` + your original prompt |
-| Negative Prompt | `"(worst quality, low quality, normal quality:2)"` |
+| Guidance scale | 4 |
+| Inference steps | 18 |
 
-If upscaling fails (network issue, rate limit), the original resolution image is returned automatically.
+If upscaling fails (network issue, rate limit), the original image is returned automatically.
+
+## How It Works Internally
+
+1. **Model resolution** — `_resolve_fal_model()` reads `image_gen.model` from `config.yaml`, falls back to the `FAL_IMAGE_MODEL` env var, then to `fal-ai/flux-2/klein/9b`.
+2. **Payload building** — `_build_fal_payload()` translates your `aspect_ratio` into the model's native format (preset enum, aspect-ratio enum, or GPT literal), merges the model's default params, applies any caller overrides, then filters to the model's `supports` whitelist so unsupported keys are never sent.
+3. **Submission** — `_submit_fal_request()` routes via direct FAL credentials or the managed Nous gateway.
+4. **Upscaling** — runs only if the model's metadata has `upscale: True`.
+5. **Delivery** — final image URL returned to the agent, which emits a `MEDIA:<url>` tag that platform adapters convert to native media.
 
 ## Debugging
+
+Enable debug logging:
 
 ```bash
 export IMAGE_TOOLS_DEBUG=true
 ```
 
-Debug logs are saved to `./logs/image_tools_debug_<session_id>.json` with the active backend name, request parameters, timing, and any errors.
+Debug logs go to `./logs/image_tools_debug_<session_id>.json` with per-call details (model, parameters, timing, errors).
 
-## Safety Settings
+## Platform Delivery
 
-For backends that expose a safety toggle (currently FAL via `safety_tolerance` and `ENABLE_SAFETY_CHECKER`), Hermes runs with the most permissive setting. Other backends use their provider's default safety filtering. Backend-specific safety knobs are documented at the call site in source.
-
-## Nous Tool Gateway (FAL only)
-
-Paid [Nous Portal](https://portal.nousresearch.com) subscribers can use the FAL backend without a `FAL_KEY`:
-
-```yaml
-image_gen:
-  provider: fal
-  use_gateway: true
-```
-
-The gateway routes generation through FAL using your Nous subscription credentials stored in `~/.hermes/auth.json`. When `use_gateway: true`, the gateway is used even if `FAL_KEY` is also set. For setup, run `hermes model` → Nous Portal → follow tool prompts. See [Nous Tool Gateway](/docs/nous-tool-gateway) for the full guide.
-
-The gateway path is only available for the FAL backend. Other backends always go directly to their provider.
+| Platform | Delivery |
+|---|---|
+| **CLI** | Image URL printed as markdown `![](url)` — click to open |
+| **Telegram** | Photo message with the prompt as caption |
+| **Discord** | Embedded in a message |
+| **Slack** | URL unfurled by Slack |
+| **WhatsApp** | Media message |
+| **Others** | URL in plain text |
 
 ## Limitations
 
-- **Backend selection is single-active** — only one image_gen backend is enabled at a time.
-- **No image editing** — `image_gen` is text-to-image; inpainting and img2img are backend-specific extensions if exposed at all.
-- **URL-based delivery** — most backends return temporary URLs rather than saving files locally.
-- **Backend feature parity is not guaranteed** — parameters supported by FAL (e.g. `num_inference_steps`, exact `guidance_scale` ranges) may not exist on other backends.
-
-## Adding a Backend (v0.11.0)
-
-A plugin can register a new image_gen backend. Minimal example:
-
-```python
-# ~/.hermes/plugins/my-image-backend/__init__.py
-def register(ctx):
-    def handler(prompt, aspect_ratio="landscape", num_images=1, **kwargs):
-        # call your model, return a list of dicts: [{"url": "...", "width": ..., "height": ...}]
-        return [{"url": "https://example.com/img.png", "width": 1024, "height": 1024}]
-
-    ctx.register_image_gen_provider("my-backend", handler)
-```
-
-The user then selects it via:
-
-```bash
-hermes plugins        # enable my-image-backend
-# then in config.yaml:
-# image_gen:
-#   provider: my-backend
-```
-
-See [Plugins](./plugins.md) and the [plugin guide](/docs/guides/build-a-hermes-plugin) for the full plugin contract.
+- **Requires FAL credentials** (direct `FAL_KEY` or Nous Subscription)
+- **Text-to-image only** — no inpainting, img2img, or editing via this tool
+- **Temporary URLs** — FAL returns hosted URLs that expire after hours/days; save locally if needed
+- **Per-model constraints** — some models don't support `seed`, `num_inference_steps`, etc. The `supports` filter silently drops unsupported params; this is expected behavior

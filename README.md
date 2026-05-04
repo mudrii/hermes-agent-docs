@@ -4,7 +4,7 @@
 
 Hermes Agent is an autonomous AI agent with a built-in learning loop. It creates skills from experience, improves them during use, searches its own past conversations for context, and builds a deepening model of who you are across sessions. It runs on a $5 VPS, a GPU cluster, or serverless infrastructure -- not tied to your laptop.
 
-Current version: **v0.11.0 (v2026.4.23)** -- released April 23, 2026.
+Current version: **v0.12.0 (v2026.4.30)** -- released April 30, 2026.
 
 ---
 
@@ -16,7 +16,7 @@ Hermes Agent is not a coding copilot or a chatbot wrapper. It is a multi-platfor
 - Manages long-running conversations with context compression and session lineage
 - Persists memory, skills, and session history in SQLite across restarts
 - Streams responses token-by-token from the model to the user interface (v0.3.0)
-- Runs as a CLI (with an Ink-based TUI invoked via `hermes --tui`), a messaging gateway across 17 platforms (Telegram, Discord, Slack, WhatsApp, Signal, DingTalk, SMS, Mattermost, Matrix, Webhook, Email, Home Assistant, Feishu/Lark, WeCom, Weixin, BlueBubbles iMessage, QQBot), or an IDE integration (VS Code, Zed, JetBrains via ACP)
+- Runs as a CLI (with an Ink-based TUI invoked via `hermes --tui`), a messaging gateway across 18 built-in platforms (Telegram, Discord, Slack, WhatsApp, Signal, DingTalk, SMS, Mattermost, Matrix, Webhook, Email, Home Assistant, Feishu/Lark, WeCom, Weixin, BlueBubbles iMessage, QQBot, Yuanbao), a plugin-shipped Microsoft Teams platform, or an IDE integration (VS Code, Zed, JetBrains via ACP)
 - Exposes an OpenAI-compatible `/v1/chat/completions` API server with REST cron job management (v0.4.0)
 - Delegates work to isolated subagents and spawns scheduled cron jobs
 - Exports training trajectories for SFT data generation and RL fine-tuning
@@ -37,16 +37,17 @@ Real-time token-by-token delivery in the CLI and all gateway platforms. Response
 - **Pluggable memory providers** -- the built-in memory layer can now be extended with released memory-provider plugins such as Honcho and other provider backends (v0.7.0)
 - **Autonomous skill creation** -- after complex tasks (5+ tool calls), the agent creates reusable skill documents
 - **Skill self-improvement** -- skills are patched during use when they are outdated, incomplete, or wrong
+- **Autonomous Curator** -- v0.12.0 adds `hermes curator`, a background auxiliary-model task that reviews agent-created skills, consolidates overlap, archives stale entries, writes per-run reports, and protects pinned skills from both the curator and `skill_manage`
 - **FTS5 session search** -- full-text search across all past sessions with LLM summarization for cross-session recall
 - **Honcho integration** -- dialectic user modeling that builds a persistent model of who you are across sessions
 
 ### Multi-Platform Messaging Gateway
 
-Telegram, Discord, Slack, WhatsApp, Signal, DingTalk, SMS (Twilio), Mattermost, Matrix, Webhook, Email (IMAP/SMTP), Home Assistant, Feishu/Lark, WeCom, Weixin, BlueBubbles (iMessage), and QQBot -- 17 platforms from a single gateway process. Six new adapters were added in v0.4.0; Feishu/Lark and WeCom were added in v0.6.0; QQBot (the 17th platform) was added in v0.11.0 via the QQ Official API v2. Unified session management, media attachments, voice transcription, and per-platform tool configuration. The gateway auto-reconnects failed platforms with exponential backoff (v0.4.0).
+Telegram, Discord, Slack, WhatsApp, Signal, DingTalk, SMS (Twilio), Mattermost, Matrix, Webhook, Email (IMAP/SMTP), Home Assistant, Feishu/Lark, WeCom, Weixin, BlueBubbles (iMessage), QQBot, and Yuanbao -- 18 built-in platforms from a single gateway process. Microsoft Teams ships as the first plugin-provided platform in v0.12.0. Unified session management, media attachments, voice transcription, and per-platform tool configuration are shared across adapters. v0.12.0 also adds native multi-image sending across Telegram, Discord, Slack, Mattermost, Email, and Signal plus centralized audio routing with FLAC support.
 
-### Plugin Architecture (v0.3.0, expanded in v0.11.0)
+### Plugin Architecture (v0.3.0, expanded in v0.11.0-v0.12.0)
 
-Drop Python files into `~/.hermes/plugins/` to extend Hermes with custom tools, commands, and hooks. No forking required. v0.11.0 dramatically expanded the plugin surface: plugins can now register slash commands (`register_command`), dispatch tools programmatically (`dispatch_tool`), veto execution from `pre_tool_call`, rewrite results via `transform_tool_result` and `transform_terminal_output`, ship pluggable `image_gen` backends, register namespaced skill bundles, bridge shell-script hooks, and add custom dashboard tabs.
+Drop Python files into `~/.hermes/plugins/` to extend Hermes with custom tools, commands, hooks, dashboard tabs, and gateway platforms. No forking required. v0.12.0 adds auto-loaded backend/platform plugin kinds, the Spotify backend toolset, Microsoft Teams as a platform plugin, Google Meet and Langfuse standalone plugins, and dashboard-only achievements.
 
 ### Ink-based TUI (v0.11.0)
 
@@ -72,6 +73,11 @@ Use any model without code changes. Supported providers:
 - **Google Gemini CLI OAuth** (v0.11.0) -- inference via your Google account using `HERMES_GEMINI_PROJECT_ID`
 - **Vercel ai-gateway** (v0.11.0 native path) -- pricing, attribution, and dynamic model discovery on top of Vercel's catalog
 - **Codex OAuth (GPT-5.5)** (v0.11.0) -- OpenAI's GPT-5.5 reasoning model via your ChatGPT Codex login, with live model discovery in the picker
+- **GMI Cloud** (v0.12.0) -- first-class API-key provider
+- **Azure AI Foundry** (v0.12.0) -- OpenAI-style and Anthropic-style Azure endpoints with auto-detection
+- **LM Studio** (v0.12.0) -- first-class local provider with auth, doctor checks, reasoning support, and live `/models`
+- **MiniMax OAuth** (v0.12.0) -- PKCE browser login without a programmatic API key
+- **Tencent Tokenhub** (v0.12.0) -- direct provider integration
 - **GitHub Copilot** (v0.4.0) -- OAuth auth, 400k context, token validation
 - **Alibaba Cloud / DashScope** (v0.4.0) -- DashScope v1 runtime
 - **Kilo Code** (v0.4.0) -- direct API-key provider
@@ -82,6 +88,13 @@ Use any model without code changes. Supported providers:
 - **Custom endpoints** -- any OpenAI-compatible API
 
 Switch with `hermes model` -- no code changes, no lock-in.
+
+### Native Integrations (v0.12.0)
+
+- **Spotify** -- seven OAuth-backed tools for playback, devices, queue, search, playlists, albums, and library operations, plus a bundled skill and setup wizard
+- **Google Meet** -- bundled plugin for joining calls, transcribing, speaking, and follow-up workflows
+- **Piper TTS** -- native local TTS provider through the new `tts.providers.<name>` registry
+- **ComfyUI and TouchDesigner-MCP** -- promoted to bundled skills by default
 
 ### OpenAI-Compatible API Server (v0.4.0)
 
@@ -308,7 +321,7 @@ Hermes has two entry points: start the terminal UI with `hermes`, or run the gat
 | Document | Contents |
 |----------|----------|
 | [plugins.md](plugins.md) | Plugin architecture, discovery, registration, custom tools (v0.3.0) |
-| [dashboard-plugins.md](dashboard-plugins.md) | Extend the local web dashboard with custom tabs, bundles, and backend routes (v0.10.0) |
+| [extending-the-dashboard.md](extending-the-dashboard.md) | Extend the local web dashboard with custom tabs, bundles, widgets, and backend routes |
 | [hooks.md](hooks.md) | Gateway and plugin lifecycle hooks, event types |
 | [logging.md](logging.md) | Centralized logging to `~/.hermes/logs/`, `hermes logs` command, rotation, and redaction (v0.8.0) |
 | [live-model-switching.md](live-model-switching.md) | `/model` command, mid-session provider and model switching, interactive pickers (v0.8.0) |

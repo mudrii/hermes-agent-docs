@@ -1,3 +1,9 @@
+---
+sidebar_position: 11
+sidebar_label: "Plugins"
+title: "Plugins"
+description: "Extend Hermes with custom tools, hooks, and integrations via the plugin system"
+---
 
 # Plugins
 
@@ -58,7 +64,7 @@ def register(ctx):
         name = params.get("name", "World")
         return f"Hello, {name}! 👋  (from the hello-world plugin)"
 
-    ctx.register_tool("hello_world", "hello-world", schema, handle_hello)
+    ctx.register_tool("hello_world", schema, handle_hello)
 
     # --- Hook: log every tool call ---
     def on_tool_call(tool_name, params, result):
@@ -75,20 +81,13 @@ Project-local plugins under `./.hermes/plugins/` are disabled by default. Enable
 
 | Capability | How |
 |-----------|-----|
-| Add tools | `ctx.register_tool(name, toolset, schema, handler)` — `toolset` groups the tool for `hermes tools` enable/disable |
+| Add tools | `ctx.register_tool(name, schema, handler)` |
 | Add hooks | `ctx.register_hook("post_tool_call", callback)` |
 | Add slash commands | `ctx.register_command(name, handler, description)` — adds `/name` in CLI and gateway sessions |
 | Add CLI commands | `ctx.register_cli_command(name, help, setup_fn, handler_fn)` — adds `hermes <plugin> <subcommand>` |
-| Dispatch a tool from a hook | `ctx.dispatch_tool(name, params)` — programmatically invoke another registered tool from inside a hook or command (v0.11.0) |
-| Veto a tool call | Return `{"action": "block", "message": "..."}` from `pre_tool_call` to short-circuit the call (v0.11.0) |
-| Rewrite a tool result | `ctx.register_hook("transform_tool_result", fn)` — fn returns a replacement result string (v0.11.0) |
-| Rewrite terminal output | `ctx.register_hook("transform_terminal_output", fn)` — fn rewrites stdout/stderr before the model sees it (v0.11.0) |
-| Provide an image_gen backend | `ctx.register_image_gen_provider(name, handler)` — backs the `image_gen` tool (v0.11.0) |
-| Add a dashboard panel | Ship a `dashboard/manifest.json` in your plugin — entries become custom panels in `hermes dashboard` (v0.11.0) |
-| React to subagent finishing | `ctx.register_hook("subagent_stop", fn)` — fires when a delegated child completes (v0.11.0) |
 | Inject messages | `ctx.inject_message(content, role="user")` — see [Injecting Messages](#injecting-messages) |
 | Ship data files | `Path(__file__).parent / "data" / "file.yaml"` |
-| Bundle skills | Copy `skill.md` to `~/.hermes/skills/` at load time, namespaced under the plugin (v0.11.0) |
+| Bundle skills | `ctx.register_skill(name, path)` — namespaced as `plugin:skill`, loaded via `skill_view("plugin:skill")` |
 | Gate on env vars | `requires_env: [API_KEY]` in plugin.yaml — prompted during `hermes plugins install` |
 | Distribute via pip | `[project.entry-points."hermes_agent.plugins"]` |
 
@@ -96,9 +95,40 @@ Project-local plugins under `./.hermes/plugins/` are disabled by default. Enable
 
 | Source | Path | Use case |
 |--------|------|----------|
+| Bundled | `<repo>/plugins/` | Ships with Hermes — see [Built-in Plugins](/docs/user-guide/features/built-in-plugins) |
 | User | `~/.hermes/plugins/` | Personal plugins |
 | Project | `.hermes/plugins/` | Project-specific plugins (requires `HERMES_ENABLE_PROJECT_PLUGINS=true`) |
 | pip | `hermes_agent.plugins` entry_points | Distributed packages |
+| Nix | `services.hermes-agent.extraPlugins` / `extraPythonPackages` | NixOS declarative installs — see [Nix Setup](/docs/getting-started/nix-setup#plugins) |
+
+Later sources override earlier ones on name collision, so a user plugin with the same name as a bundled plugin replaces it.
+
+## Plugins are opt-in
+
+**Every plugin — user-installed, bundled, or pip — is disabled by default.** Discovery finds them (so they show up in `hermes plugins` and `/plugins`), but nothing loads until you add the plugin's name to `plugins.enabled` in `~/.hermes/config.yaml`. This stops anything with hooks or tools from running without your explicit consent.
+
+```yaml
+plugins:
+  enabled:
+    - my-tool-plugin
+    - disk-cleanup
+  disabled:       # optional deny-list — always wins if a name appears in both
+    - noisy-plugin
+```
+
+Three ways to flip state:
+
+```bash
+hermes plugins                    # interactive toggle (space to check/uncheck)
+hermes plugins enable <name>      # add to allow-list
+hermes plugins disable <name>     # remove from allow-list + add to disabled
+```
+
+After `hermes plugins install owner/repo`, you're asked `Enable 'name' now? [y/N]` — defaults to no. Skip the prompt for scripted installs with `--enable` or `--no-enable`.
+
+### Migration for existing users
+
+When you upgrade to a version of Hermes that has opt-in plugins (config schema v21+), any user plugins already installed under `~/.hermes/plugins/` that weren't already in `plugins.disabled` are **automatically grandfathered** into `plugins.enabled`. Your existing setup keeps working. Bundled plugins are NOT grandfathered — even existing users have to opt in explicitly.
 
 ## Available hooks
 
@@ -106,43 +136,58 @@ Plugins can register callbacks for these lifecycle events. See the **[Event Hook
 
 | Hook | Fires when |
 |------|-----------|
-| [`pre_tool_call`](/docs/user-guide/features/hooks#pre_tool_call) | Before any tool executes — return `{"action": "block", "message": "..."}` to veto the call (v0.11.0) |
+| [`pre_tool_call`](/docs/user-guide/features/hooks#pre_tool_call) | Before any tool executes |
 | [`post_tool_call`](/docs/user-guide/features/hooks#post_tool_call) | After any tool returns |
-| [`transform_tool_result`](/docs/user-guide/features/hooks#transform_tool_result) | After `post_tool_call`; rewrite the tool result the model sees (v0.11.0) |
-| [`transform_terminal_output`](/docs/user-guide/features/hooks#transform_terminal_output) | Rewrite raw terminal stdout/stderr before it is added to the conversation (v0.11.0) |
 | [`pre_llm_call`](/docs/user-guide/features/hooks#pre_llm_call) | Once per turn, before the LLM loop — can return `{"context": "..."}` to [inject context into the user message](/docs/user-guide/features/hooks#pre_llm_call) |
 | [`post_llm_call`](/docs/user-guide/features/hooks#post_llm_call) | Once per turn, after the LLM loop (successful turns only) |
 | [`on_session_start`](/docs/user-guide/features/hooks#on_session_start) | New session created (first turn only) |
 | [`on_session_end`](/docs/user-guide/features/hooks#on_session_end) | End of every `run_conversation` call + CLI exit handler |
-| [`subagent_stop`](/docs/user-guide/features/hooks#subagent_stop) | A delegated subagent completes (v0.11.0) |
+| [`on_session_finalize`](/docs/user-guide/features/hooks#on_session_finalize) | CLI/gateway tears down an active session (`/new`, GC, CLI quit) |
+| [`on_session_reset`](/docs/user-guide/features/hooks#on_session_reset) | Gateway swaps in a new session key (`/new`, `/reset`, `/clear`, idle rotation) |
+| [`subagent_stop`](/docs/user-guide/features/hooks#subagent_stop) | Once per child after `delegate_task` finishes |
+| [`pre_gateway_dispatch`](/docs/user-guide/features/hooks#pre_gateway_dispatch) | Gateway received a user message, before auth + dispatch. Return `{"action": "skip" \| "rewrite" \| "allow", ...}` to influence flow. |
 
 ## Plugin types
 
-Hermes has four kinds of plugins:
+Hermes has three kinds of plugins:
 
 | Type | What it does | Selection | Location |
 |------|-------------|-----------|----------|
-| **General plugins** | Add tools, hooks, slash commands, CLI commands, dashboard tabs, namespaced skills | Multi-select (enable/disable) | `~/.hermes/plugins/` |
+| **General plugins** | Add tools, hooks, slash commands, CLI commands | Multi-select (enable/disable) | `~/.hermes/plugins/` |
 | **Memory providers** | Replace or augment built-in memory | Single-select (one active) | `plugins/memory/` |
 | **Context engines** | Replace the built-in context compressor | Single-select (one active) | `plugins/context_engine/` |
-| **Image generation backends (v0.11.0)** | Provide a backend for the `image_gen` tool (FAL, Recraft, Nano Banana, GPT Image, Grok Imagine, openai-codex, custom) | Single-select (one active) | `plugins/image_gen/` |
 
-Memory providers, context engines, and image-gen backends are **provider plugins** — only one of each type can be active at a time. General plugins can be enabled in any combination.
+Memory providers and context engines are **provider plugins** — only one of each type can be active at a time. General plugins can be enabled in any combination.
 
-### Namespaced skills (v0.11.0)
+## NixOS declarative plugins
 
-A general plugin can ship one or more `skill.md` files under a `skills/` subdirectory. At load time these are surfaced as namespaced skills under the plugin name (e.g. `my-plugin:do-thing`) rather than dumped into the global `~/.hermes/skills/` directory. This prevents naming collisions across plugins and lets skills be enabled or disabled together with their owning plugin.
+On NixOS, plugins can be installed declaratively via the module options — no `hermes plugins install` needed. See the **[Nix Setup guide](/docs/getting-started/nix-setup#plugins)** for full details.
+
+```nix
+services.hermes-agent = {
+  # Directory plugin (source tree with plugin.yaml)
+  extraPlugins = [ (pkgs.fetchFromGitHub { ... }) ];
+  # Entry-point plugin (pip package)
+  extraPythonPackages = [ (pkgs.python312Packages.buildPythonPackage { ... }) ];
+  # Enable in config
+  settings.plugins.enabled = [ "my-plugin" ];
+};
+```
+
+Declarative plugins are symlinked with a `nix-managed-` prefix — they coexist with manually installed plugins and are cleaned up automatically when removed from the Nix config.
 
 ## Managing plugins
 
 ```bash
-hermes plugins                  # unified interactive UI
-hermes plugins list             # table view with enabled/disabled status
-hermes plugins install user/repo  # install from Git
-hermes plugins update my-plugin   # pull latest
-hermes plugins remove my-plugin   # uninstall
-hermes plugins enable my-plugin   # re-enable a disabled plugin
-hermes plugins disable my-plugin  # disable without removing
+hermes plugins                               # unified interactive UI
+hermes plugins list                          # table: enabled / disabled / not enabled
+hermes plugins install user/repo             # install from Git, then prompt Enable? [y/N]
+hermes plugins install user/repo --enable    # install AND enable (no prompt)
+hermes plugins install user/repo --no-enable # install but leave disabled (no prompt)
+hermes plugins update my-plugin              # pull latest
+hermes plugins remove my-plugin              # uninstall
+hermes plugins enable my-plugin              # add to allow-list
+hermes plugins disable my-plugin             # remove from allow-list + add to disabled
 ```
 
 ### Interactive UI
@@ -156,14 +201,16 @@ Plugins
   General Plugins
  → [✓] my-tool-plugin — Custom search tool
    [ ] webhook-notifier — Event hooks
+   [ ] disk-cleanup — Auto-cleanup of ephemeral files [bundled]
 
   Provider Plugins
      Memory Provider          ▸ honcho
      Context Engine           ▸ compressor
 ```
 
-- **General Plugins section** — checkboxes, toggle with SPACE
+- **General Plugins section** — checkboxes, toggle with SPACE. Checked = in `plugins.enabled`, unchecked = in `plugins.disabled` (explicit off).
 - **Provider Plugins section** — shows current selection. Press ENTER to drill into a radio picker where you choose one active provider.
+- Bundled plugins appear in the same list with a `[bundled]` tag.
 
 Provider plugin selections are saved to `config.yaml`:
 
@@ -175,15 +222,17 @@ context:
   engine: "compressor"    # default built-in compressor
 ```
 
-### Disabling general plugins
+### Enabled vs. disabled vs. neither
 
-Disabled plugins remain installed but are skipped during loading. The disabled list is stored in `config.yaml` under `plugins.disabled`:
+Plugins occupy one of three states:
 
-```yaml
-plugins:
-  disabled:
-    - my-noisy-plugin
-```
+| State | Meaning | In `plugins.enabled`? | In `plugins.disabled`? |
+|---|---|---|---|
+| `enabled` | Loaded on next session | Yes | No |
+| `disabled` | Explicitly off — won't load even if also in `enabled` | (irrelevant) | Yes |
+| `not enabled` | Discovered but never opted in | No | No |
+
+The default for a newly-installed or bundled plugin is `not enabled`. `hermes plugins list` shows all three distinct states so you can tell what's been explicitly turned off vs. what's just waiting to be enabled.
 
 In a running session, `/plugins` shows which plugins are currently loaded.
 

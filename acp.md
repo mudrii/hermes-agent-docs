@@ -6,6 +6,8 @@ ACP is the right choice when you want Hermes to behave like an editor-native cod
 
 Released v0.7.0 also lets ACP clients contribute their own MCP servers. Hermes can ingest those editor-provided MCP endpoints and expose them as additional tools inside the ACP-backed session.
 
+Released v0.12.0 advertises ACP image prompt support. ACP clients can send image blocks in a prompt; the adapter converts them into OpenAI-style `image_url` content blocks before handing the turn to `AIAgent`. Image routing then follows the same `agent.image_input_mode` and model-vision capability rules as CLI image paste. Slash-command text remains text-only; use normal ACP prompts for mixed text/image requests.
+
 ---
 
 ## What is ACP?

@@ -333,7 +333,7 @@ Prompt caching is automatically enabled when:
 
 ```yaml
 # config.yaml — TTL is configurable
-model:
+prompt_caching:
   cache_ttl: "5m"   # "5m" or "1h"
 ```
 

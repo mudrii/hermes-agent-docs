@@ -2,7 +2,7 @@
 
 The Hermes gateway is the long-running background process that connects Hermes Agent to external messaging platforms. It manages incoming messages, session state, platform authentication, cron scheduling, and outbound delivery — all through a single unified pipeline.
 
-This document covers the released gateway surface through v0.11.0 (v2026.4.23).
+This document covers the released gateway surface through v0.12.0 (v2026.4.30).
 
 ---
 
