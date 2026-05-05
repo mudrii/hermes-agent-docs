@@ -12,7 +12,7 @@ All notable changes to Hermes Agent are documented here.
 
 ### Highlights
 
-- **Autonomous Curator** — `hermes curator` runs as a background auxiliary-model task on the gateway cron ticker, with a 7-day default interval. It reviews agent-created skills, classifies archived skills as consolidated or pruned, writes `logs/curator/run.json` plus `REPORT.md`, and exposes status, dry-run, pause/resume, pin/unpin, backup, rollback, and restore commands.
+- **Autonomous Curator** — `hermes curator` runs as a background auxiliary-model task on the gateway cron ticker, with a 7-day default interval. It reviews agent-created skills, classifies archived skills as consolidated or pruned, writes `logs/curator/run.json` plus `REPORT.md`, and exposes status, run, pause/resume, pin/unpin, and restore commands.
 - **Self-improvement loop upgrade** — The background review fork is now class-first, biased toward updating the active skill, handles `references/` and `templates/` sub-files, inherits the parent's live runtime, and is restricted to memory and skills toolsets.
 - **New and upgraded providers** — GMI Cloud, Azure AI Foundry, MiniMax OAuth, Tencent Tokenhub, and first-class LM Studio support were added or promoted. Remote OpenRouter and Nous Portal model catalogs now update from a manifest without requiring a Hermes release.
 - **Messaging expansion** — Yuanbao is the 18th built-in messaging platform, while Microsoft Teams ships as the first plugin-provided gateway platform. Gateway media delivery gained native multi-image sending across Telegram, Discord, Slack, Mattermost, Email, and Signal, plus centralized audio routing with FLAC support.

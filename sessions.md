@@ -10,7 +10,7 @@ Hermes Agent automatically saves every conversation as a session. Sessions enabl
 
 ## How Sessions Work
 
-Every conversation — whether from the CLI, Telegram, Discord, Slack, WhatsApp, Signal, Matrix, or any other messaging platform — is stored as a session with full message history. Sessions are tracked in two complementary systems:
+Every conversation — whether from the CLI, Telegram, Discord, Slack, WhatsApp, Signal, Matrix, Teams, or any other messaging platform — is stored as a session with full message history. Sessions are tracked in two complementary systems:
 
 1. **SQLite database** (`~/.hermes/state.db`) — structured session metadata with FTS5 full-text search
 2. **JSONL transcripts** (`~/.hermes/sessions/`) — raw conversation transcripts including tool calls (gateway)
@@ -124,7 +124,7 @@ display:
 ```
 
 :::tip
-Session IDs follow the format `YYYYMMDD_HHMMSS_<8-char-hex>`, e.g. `20250305_091523_a1b2c3d4`. You can resume by ID or by title — both work with `-c` and `-r`.
+Session IDs follow the format `YYYYMMDD_HHMMSS_<hex>` — CLI/TUI sessions use a 6-char hex suffix (e.g. `20250305_091523_a1b2c3`), gateway sessions use an 8-char suffix (e.g. `20250305_091523_a1b2c3d4`). You can resume by ID (full or unique prefix) or by title — both work with `-c` and `-r`.
 :::
 
 ## Session Naming
@@ -169,16 +169,6 @@ When a session's context is compressed (manually via `/compress` or automaticall
 ```
 
 When you resume by name (`hermes -c "my project"`), it automatically picks the most recent session in the lineage.
-
-### Orchestrator Role and Cross-Agent File Coordination (v0.11.0)
-
-When a session spawns delegates (subagents) via the orchestrator role, the parent and child sessions share file-state coordination so concurrent edits from sibling agents don't clobber each other. Each delegate inherits the parent session's tracked-file snapshot and writes flow back through the orchestrator's tool ledger.
-
-The orchestrator depth is bounded by `delegation.max_spawn_depth` (1–3, default `1`) — an orchestrator may spawn delegates, but those delegates cannot spawn further sub-delegates unless the depth budget allows it. The lineage chain (parent → child) is recorded with `parent_session_id` exactly like compression splits, so `hermes sessions list --tree` and resume-by-name work transparently across delegated work.
-
-### /steer Mid-Run Nudges (v0.11.0)
-
-`/steer "<message>"` injects a steering nudge between turns of the active session without restarting the conversation or breaking the prompt cache. The nudge is recorded as a synthetic user note that the next turn sees, so the agent can course-correct without a full reset. Because it lands at a turn boundary, prefix caching for the previous prompt is preserved.
 
 ### /title in Messaging Platforms
 
@@ -280,10 +270,6 @@ hermes sessions prune --older-than 30 --yes
 Pruning only deletes **ended** sessions (sessions that have been explicitly ended or auto-reset). Active sessions are never pruned.
 :::
 
-:::tip v0.11.0 — auto-prune + VACUUM at startup
-On agent startup the SQLite session store now opportunistically prunes ended sessions older than `sessions.auto_prune_days` (default `90`) and runs `VACUUM` when free-page churn exceeds the configured threshold. This keeps `~/.hermes/state.db` size bounded for long-running installs without requiring manual `hermes sessions prune` runs. Set `sessions.auto_prune_days: 0` in `config.yaml` to disable.
-:::
-
 ### Session Statistics
 
 ```bash
@@ -340,7 +326,7 @@ On messaging platforms, sessions are keyed by a deterministic session key built 
 |-----------|--------------------|----------|
 | Telegram DM | `agent:main:telegram:dm:<chat_id>` | One session per DM chat |
 | Discord DM | `agent:main:discord:dm:<chat_id>` | One session per DM chat |
-| WhatsApp DM | `agent:main:whatsapp:dm:<chat_id>` | One session per DM chat |
+| WhatsApp DM | `agent:main:whatsapp:dm:<canonical_identifier>` | One session per DM user (LID/phone aliases collapse to one identity when mapping exists) |
 | Group chat | `agent:main:<platform>:group:<chat_id>:<user_id>` | Per-user inside the group when the platform exposes a user ID |
 | Group thread/topic | `agent:main:<platform>:group:<chat_id>:<thread_id>` | Shared session for all thread participants (default). Per-user with `thread_sessions_per_user: true`. |
 | Channel | `agent:main:<platform>:channel:<chat_id>:<user_id>` | Per-user inside the channel when the platform exposes a user ID |
@@ -400,7 +386,21 @@ Key tables in `state.db`:
 
 - Gateway sessions auto-reset based on the configured reset policy
 - Before reset, the agent saves memories and skills from the expiring session
-- Ended sessions remain in the database until pruned
+- Opt-in auto-pruning: when `sessions.auto_prune` is `true`, ended sessions older than `sessions.retention_days` (default 90) are pruned at CLI/gateway startup
+- After a prune that actually removed rows, `state.db` is `VACUUM`ed to reclaim disk space (SQLite does not shrink the file on plain DELETE)
+- Pruning runs at most once per `sessions.min_interval_hours` (default 24); the last-run timestamp is tracked inside `state.db` itself so it's shared across every Hermes process in the same `HERMES_HOME`
+
+Default is **off** — session history is valuable for `session_search` recall, and silently deleting it could surprise users. Enable in `~/.hermes/config.yaml`:
+
+```yaml
+sessions:
+  auto_prune: true          # opt in — default is false
+  retention_days: 90        # keep ended sessions this many days
+  vacuum_after_prune: true  # reclaim disk space after a pruning sweep
+  min_interval_hours: 24    # don't re-run the sweep more often than this
+```
+
+Active sessions are never auto-pruned, regardless of age.
 
 ### Manual Cleanup
 
@@ -417,5 +417,5 @@ hermes sessions prune --older-than 30 --yes
 ```
 
 :::tip
-The database grows slowly (typical: 10-15 MB for hundreds of sessions). Pruning is mainly useful for removing old conversations you no longer need for search recall.
+The database grows slowly (typical: 10-15 MB for hundreds of sessions) and session history powers `session_search` recall across past conversations, so auto-prune ships disabled. Enable it if you're running a heavy gateway/cron workload where `state.db` is meaningfully affecting performance (observed failure mode: 384 MB state.db with ~1000 sessions slowing down FTS5 inserts and `/resume` listing). Use `hermes sessions prune` for one-off cleanup without turning on the automatic sweep.
 :::

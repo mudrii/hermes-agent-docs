@@ -11,3 +11,4 @@
 | TTS/media | `tts.md`, `tools.md`, `toolsets.md`, `voice-mode.md`, `gateway.md` | `tools/tts_tool.py`, `gateway/platforms/base.py`, platform adapter `send_multiple_images` implementations |
 | CLI/TUI/dashboard | `cli-reference.md`, `reference/cli-commands.md`, `reference/slash-commands.md`, `tui.md`, `web-dashboard.md` | `hermes_cli/_parser.py`, `hermes_cli/main.py`, `hermes_cli/commands.py`, `ui-tui/src/**`, `hermes_cli/web_server.py`, `web/src/**` |
 | Image/ACP/prompt cache/security | `vision.md`, `acp.md`, `developer-guide/context-compression.md`, `security.md`, `configuration.md` | `agent/image_routing.py`, `acp_adapter/server.py`, `hermes_cli/config.py`, `run_agent.py`, `agent/redact.py` |
+| Release-bound exclusions | Removed unreleased post-tag docs for Kanban, Goals, two optional productivity skills, Curator backup/rollback/dry-run, and Telegram `/topic` command | `git ls-tree v2026.4.30`, `RELEASE_v0.12.0.md`, `hermes_cli/curator.py`, `gateway/run.py` |

@@ -34,7 +34,6 @@ Type `/` in the CLI to open the autocomplete menu. Built-in commands are case-in
 | `/stop` | Kill all running background processes |
 | `/queue <prompt>` (alias: `/q`) | Queue a prompt for the next turn (doesn't interrupt the current agent response). |
 | `/steer <prompt>` | Inject a mid-run note that arrives at the agent **after the next tool call** — no interrupt, no new user turn. The text is appended to the last tool result's content once the current tool completes, giving the agent new context without breaking the current tool-calling loop. Use this to nudge direction mid-task (e.g. "focus on the auth module" while the agent is running tests). |
-| `/goal <text>` | Set a standing goal Hermes works toward across turns — our take on the Ralph loop. After each turn an auxiliary judge model decides whether the goal is done; if not, Hermes auto-continues. Subcommands: `/goal status`, `/goal pause`, `/goal resume`, `/goal clear`. Budget defaults to 20 turns (`goals.max_turns`); any real user message preempts the continuation loop, and state survives `/resume`. See [Persistent Goals](/docs/user-guide/features/goals) for the full walkthrough. |
 | `/resume [name]` | Resume a previously-named session |
 | `/redraw` | Force a full UI repaint (recovers from terminal drift after tmux resize, mouse selection artifacts, etc.) |
 | `/status` | Show session info |
@@ -69,7 +68,7 @@ Type `/` in the CLI to open the autocomplete menu. Built-in commands are case-in
 | `/browser [connect\|disconnect\|status]` | Manage local Chrome CDP connection. `connect` attaches browser tools to a running Chrome instance (default: `ws://localhost:9222`). `disconnect` detaches. `status` shows current connection. Auto-launches Chrome if no debugger is detected. |
 | `/skills` | Search, install, inspect, or manage skills from online registries |
 | `/cron` | Manage scheduled tasks (list, add/create, edit, pause, resume, run, remove) |
-| `/curator` | Background skill maintenance — `status`, `run`, `pin`, `archive`. See [Curator](../curator.md). |
+| `/curator` | Background skill maintenance — `status`, `run`, `pause`, `resume`, `pin`, `unpin`, `restore`. See [Curator](/docs/user-guide/features/curator). |
 | `/reload-mcp` (alias: `/reload_mcp`) | Reload MCP servers from config.yaml |
 | `/reload` | Reload `.env` variables into the running session (picks up new API keys without restarting) |
 | `/plugins` | List installed plugins and their status |
@@ -129,7 +128,7 @@ Commands support prefix matching: typing `/h` resolves to `/help`, `/mod` resolv
 
 ## Messaging slash commands
 
-The messaging gateway supports the following built-in commands inside Telegram, Discord, Slack, WhatsApp, Signal, Email, and Home Assistant chats:
+The messaging gateway supports the following built-in commands inside Telegram, Discord, Slack, WhatsApp, Signal, Email, Home Assistant, and Microsoft Teams chats:
 
 | Command | Description |
 |---------|-------------|
@@ -154,9 +153,8 @@ The messaging gateway supports the following built-in commands inside Telegram, 
 | `/background <prompt>` | Run a prompt in a separate background session. Results are delivered back to the same chat when the task finishes. See [Messaging Background Sessions](/docs/user-guide/messaging/#background-sessions). |
 | `/queue <prompt>` (alias: `/q`) | Queue a prompt for the next turn without interrupting the current one. |
 | `/steer <prompt>` | Inject a message after the next tool call without interrupting — the model picks it up on its next iteration rather than as a new turn. |
-| `/goal <text>` | Set a standing goal Hermes works toward across turns — our take on the Ralph loop. A judge model checks after each turn; if not done, Hermes auto-continues until it is, you pause/clear it, or the turn budget (default 20) is hit. Subcommands: `/goal status`, `/goal pause`, `/goal resume`, `/goal clear`. Safe to run mid-agent for status/pause/clear; setting a new goal requires `/stop` first. See [Persistent Goals](/docs/user-guide/features/goals). |
 | `/footer [on\|off\|status]` | Toggle the runtime-metadata footer on final replies (shows model, tool counts, timing). |
-| `/curator [status\|run\|pin\|archive]` | Background skill maintenance controls. |
+| `/curator [status\|run\|pause\|resume\|pin\|unpin\|restore]` | Background skill maintenance controls. |
 | `/reload-mcp` (alias: `/reload_mcp`) | Reload MCP servers from config. |
 | `/yolo` | Toggle YOLO mode — skip all dangerous command approval prompts. |
 | `/commands [page]` | Browse all commands and skills (paginated). |

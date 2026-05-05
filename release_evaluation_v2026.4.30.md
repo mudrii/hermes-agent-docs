@@ -5,8 +5,8 @@
 - Source repo: `~/src/hermes/hermes-agent`
 - Docs repo: `~/src/hermes/hermes-agent-docs`
 - Release tag: `v2026.4.30`
-- Release commit: `73bf3ab1b22314ed9dfecbb59242c03742fe72af`
-- Current pulled source main: `95f395027f72c69f06bddcecb08da53cfd10c440`
+- Release commit: `0c35092accdc4e306e982c7b1913bf97b9bb3d3d`
+- Current pulled source main: `601e5f1d57cfd4ceefee50a6df05a860a1a602e8`
 - Release note: `RELEASE_v0.12.0.md`
 - Compare: `v2026.4.23...v2026.4.30`
 
@@ -22,7 +22,8 @@ Updated in this pass:
 - Provider and reference pages for GMI Cloud, Azure AI Foundry, LM Studio, MiniMax OAuth, Tencent Tokenhub, model catalog, CLI/slash commands, environment variables, tools, toolsets, and generated skills.
 - Developer docs for browser supervisor and provider runtime corrections.
 - ACP, vision, security, architecture, and context-compression factual patches.
+- Follow-up corrections after pulling latest `main`: release-bound pages were checked against the `v2026.4.30` tag, and unreleased post-tag claims were removed from stable docs.
 
 ## Residual Risk
 
-The standalone docs repo is not the upstream Docusaurus tree, so imported pages may retain some `/docs/...` absolute links and upstream frontmatter conventions. The content is source-aligned, but a separate site-build/link-check pass remains useful if this repo has its own publishing pipeline.
+The standalone docs repo is not the upstream Docusaurus tree, so imported pages may retain some `/docs/...` absolute links and upstream frontmatter conventions. The content is source-aligned to `v2026.4.30`; post-tag source-main features remain out of scope until they are part of a release note or changelog.

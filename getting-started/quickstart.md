@@ -64,18 +64,33 @@ The single most important setup step. Use `hermes model` to walk through the cho
 hermes model
 ```
 
-Recommendation matrix:
+Good defaults:
 
-| Situation | Recommended path |
-|---|---|
-| Least friction | Nous Portal or OpenRouter |
-| You already have Claude or Codex auth | Anthropic, or OpenAI Codex (GPT-5.5 over Codex OAuth) |
-| You want local/private inference | Ollama or any custom OpenAI-compatible endpoint |
-| You want multi-provider routing | OpenRouter or Vercel AI Gateway |
-| You have a custom GPU server | vLLM, SGLang, LiteLLM, NVIDIA NIM, or any OpenAI-compatible endpoint |
-| You want Google models | Gemini API key, or Gemini CLI OAuth (no key, uses your Google account) |
-| You want native AWS Bedrock | Bedrock provider via the AWS Converse API |
-| You want enterprise plans | Step Plan, Arcee AI, or other native providers in `hermes model` |
+| Provider | What it is | How to set up |
+|----------|-----------|---------------|
+| **Nous Portal** | Subscription-based, zero-config | OAuth login via `hermes model` |
+| **OpenAI Codex** | ChatGPT OAuth, uses Codex models | Device code auth via `hermes model` |
+| **Anthropic** | Claude models directly — Max plan + extra usage credits (OAuth), or API key for pay-per-token | `hermes model` → OAuth login (requires Max + extra credits), or an Anthropic API key |
+| **OpenRouter** | Multi-provider routing across many models | Enter your API key |
+| **Z.AI** | GLM / Zhipu-hosted models | Set `GLM_API_KEY` / `ZAI_API_KEY` |
+| **Kimi / Moonshot** | Moonshot-hosted coding and chat models | Set `KIMI_API_KEY` |
+| **Kimi / Moonshot China** | China-region Moonshot endpoint | Set `KIMI_CN_API_KEY` |
+| **Arcee AI** | Trinity models | Set `ARCEEAI_API_KEY` |
+| **GMI Cloud** | Multi-model direct API | Set `GMI_API_KEY` |
+| **MiniMax (OAuth)** | MiniMax-M2.7 via browser OAuth — no API key needed | `hermes model` → MiniMax (OAuth) |
+| **MiniMax** | International MiniMax endpoint | Set `MINIMAX_API_KEY` |
+| **MiniMax China** | China-region MiniMax endpoint | Set `MINIMAX_CN_API_KEY` |
+| **Alibaba Cloud** | Qwen models via DashScope | Set `DASHSCOPE_API_KEY` |
+| **Hugging Face** | 20+ open models via unified router (Qwen, DeepSeek, Kimi, etc.) | Set `HF_TOKEN` |
+| **Kilo Code** | KiloCode-hosted models | Set `KILOCODE_API_KEY` |
+| **OpenCode Zen** | Pay-as-you-go access to curated models | Set `OPENCODE_ZEN_API_KEY` |
+| **OpenCode Go** | $10/month subscription for open models | Set `OPENCODE_GO_API_KEY` |
+| **DeepSeek** | Direct DeepSeek API access | Set `DEEPSEEK_API_KEY` |
+| **NVIDIA NIM** | Nemotron models via build.nvidia.com or local NIM | Set `NVIDIA_API_KEY` (optional: `NVIDIA_BASE_URL`) |
+| **GitHub Copilot** | GitHub Copilot subscription (GPT-5.x, Claude, Gemini, etc.) | OAuth via `hermes model`, or `COPILOT_GITHUB_TOKEN` / `GH_TOKEN` |
+| **GitHub Copilot ACP** | Copilot ACP agent backend (spawns local `copilot` CLI) | `hermes model` (requires `copilot` CLI + `copilot login`) |
+| **Vercel AI Gateway** | Vercel AI Gateway routing | Set `AI_GATEWAY_API_KEY` |
+| **Custom Endpoint** | VLLM, SGLang, Ollama, or any OpenAI-compatible API | Set base URL + API key |
 
 For most first-time users: choose a provider, accept the defaults unless you know why you're changing them. The full provider catalog with env vars and setup steps lives on the [Providers](../integrations/providers.md) page.
 
@@ -97,28 +112,24 @@ Hermes separates secrets from normal config:
 The easiest way to set values correctly is through the CLI:
 
 ```bash
-hermes config set model anthropic/claude-opus-4.7
+hermes config set model anthropic/claude-opus-4.6
 hermes config set terminal.backend docker
 hermes config set OPENROUTER_API_KEY sk-or-...
 ```
 
 The right value goes to the right file automatically.
 
-:::tip Skip user config or rules for one run
-If you suspect a stale `~/.hermes/config.yaml` or a project rule is interfering, run with `hermes --ignore-user-config` (skip user-level YAML) or `hermes --ignore-rules` (skip CLAUDE.md / HERMES.md rules) to isolate the problem without editing anything.
-:::
-
 ## 3. Run Your First Chat
 
 ```bash
 hermes            # classic CLI
-hermes --tui      # modern Ink-based TUI (recommended)
+hermes --tui      # modern TUI (recommended)
 ```
 
 You'll see a welcome banner with your model, available tools, and skills. Use a prompt that's specific and easy to verify:
 
 :::tip Pick your interface
-Hermes ships with two terminal interfaces: the classic `prompt_toolkit` CLI and a newer Ink-based TUI with sticky composer, live streaming, OSC-52 clipboard support, per-turn stopwatch, git branch in the status bar, and a subagent spawn observability overlay. Both share the same sessions, slash commands, and config — try each with `hermes` vs `hermes --tui`.
+Hermes ships with two terminal interfaces: the classic `prompt_toolkit` CLI and a newer [TUI](../user-guide/tui.md) with modal overlays, mouse selection, and non-blocking input. Both share the same sessions, slash commands, and config — try each with `hermes` vs `hermes --tui`.
 :::
 
 ```
@@ -172,7 +183,6 @@ Type `/` to see an autocomplete dropdown of all commands:
 | `/help` | Show all available commands |
 | `/tools` | List available tools |
 | `/model` | Switch models interactively |
-| `/steer <prompt>` | Inject a mid-run note that the agent sees after its next tool call |
 | `/personality pirate` | Try a fun personality |
 | `/save` | Save the conversation |
 
@@ -194,7 +204,7 @@ Only after the base chat works. Pick what you need:
 hermes gateway setup    # Interactive platform configuration
 ```
 
-Connect [Telegram](../messaging/telegram.md), [Discord](../messaging/discord.md), [Slack](../messaging/slack.md), [WhatsApp](../messaging/whatsapp.md), [Signal](../messaging/signal.md), [Email](../messaging/email.md), [QQBot](../messaging/qqbot.md), or [Home Assistant](../messaging/homeassistant.md).
+Connect [Telegram](/docs/user-guide/messaging/telegram), [Discord](/docs/user-guide/messaging/discord), [Slack](/docs/user-guide/messaging/slack), [WhatsApp](/docs/user-guide/messaging/whatsapp), [Signal](/docs/user-guide/messaging/signal), [Email](/docs/user-guide/messaging/email), [Home Assistant](/docs/user-guide/messaging/homeassistant), or [Microsoft Teams](/docs/user-guide/messaging/teams).
 
 ### Automation and tools
 
@@ -218,7 +228,7 @@ pip install "hermes-agent[voice]"
 # Includes faster-whisper for free local speech-to-text
 ```
 
-Then in the CLI: `/voice on`. Press `Ctrl+B` to record. See [Voice Mode](../voice-mode.md).
+Then in the CLI: `/voice on`. Press `Ctrl+B` to record. See [Voice Mode](../user-guide/features/voice-mode.md).
 
 ### Skills
 
@@ -248,7 +258,7 @@ pip install -e '.[acp]'
 hermes acp
 ```
 
-See [ACP Editor Integration](../acp.md).
+See [ACP Editor Integration](../user-guide/features/acp.md).
 
 ---
 
@@ -284,23 +294,21 @@ That sequence gets you from "broken vibes" back to a known state fast.
 
 | Command | Description |
 |---------|-------------|
-| `hermes` | Start chatting (classic CLI) |
-| `hermes --tui` | Start the Ink-based TUI |
+| `hermes` | Start chatting |
 | `hermes model` | Choose your LLM provider and model |
 | `hermes tools` | Configure which tools are enabled per platform |
 | `hermes setup` | Full setup wizard (configures everything at once) |
 | `hermes doctor` | Diagnose issues |
 | `hermes update` | Update to latest version |
 | `hermes gateway` | Start the messaging gateway |
-| `hermes --continue` / `-c` | Resume last session |
-| `hermes --ignore-user-config` | Skip `~/.hermes/config.yaml` for this run |
-| `hermes --ignore-rules` | Skip CLAUDE.md / HERMES.md rules for this run |
+| `hermes --continue` | Resume last session |
 
 ## Next Steps
 
-- **[CLI Reference](../cli-reference.md)** — Master the terminal interface
-- **[Configuration](../configuration.md)** — Customize your setup
-- **[Messaging Gateway](../messaging/index.md)** — Connect Telegram, Discord, Slack, WhatsApp, Signal, Email, QQBot, or Home Assistant
-- **[Tools & Toolsets](../tools.md)** — Explore available capabilities
+- **[CLI Guide](../user-guide/cli.md)** — Master the terminal interface
+- **[Configuration](../user-guide/configuration.md)** — Customize your setup
+- **[Messaging Gateway](../user-guide/messaging/index.md)** — Connect Telegram, Discord, Slack, WhatsApp, Signal, Email, Home Assistant, Teams, and more
+- **[Tools & Toolsets](../user-guide/features/tools.md)** — Explore available capabilities
 - **[AI Providers](../integrations/providers.md)** — Full provider list and setup details
-- **[Skills System](../skills.md)** — Reusable workflows and knowledge
+- **[Skills System](../user-guide/features/skills.md)** — Reusable workflows and knowledge
+- **[Tips & Best Practices](../guides/tips.md)** — Power user tips
