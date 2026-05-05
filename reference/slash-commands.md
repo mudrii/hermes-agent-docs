@@ -70,6 +70,7 @@ Type `/` in the CLI to open the autocomplete menu. Built-in commands are case-in
 | `/cron` | Manage scheduled tasks (list, add/create, edit, pause, resume, run, remove) |
 | `/curator` | Background skill maintenance — `status`, `run`, `pause`, `resume`, `pin`, `unpin`, `restore`. See [Curator](/docs/user-guide/features/curator). |
 | `/reload-mcp` (alias: `/reload_mcp`) | Reload MCP servers from config.yaml |
+| `/reload-skills` (alias: `/reload_skills`) | Re-scan `~/.hermes/skills/` for newly installed or removed skills |
 | `/reload` | Reload `.env` variables into the running session (picks up new API keys without restarting) |
 | `/plugins` | List installed plugins and their status |
 
@@ -156,6 +157,7 @@ The messaging gateway supports the following built-in commands inside Telegram, 
 | `/footer [on\|off\|status]` | Toggle the runtime-metadata footer on final replies (shows model, tool counts, timing). |
 | `/curator [status\|run\|pause\|resume\|pin\|unpin\|restore]` | Background skill maintenance controls. |
 | `/reload-mcp` (alias: `/reload_mcp`) | Reload MCP servers from config. |
+| `/reload-skills` (alias: `/reload_skills`) | Re-scan `~/.hermes/skills/` for newly installed or removed skills. |
 | `/yolo` | Toggle YOLO mode — skip all dangerous command approval prompts. |
 | `/commands [page]` | Browse all commands and skills (paginated). |
 | `/approve [session\|always]` | Approve and execute a pending dangerous command. `session` approves for this session only; `always` adds to permanent allowlist. |

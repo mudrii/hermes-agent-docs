@@ -281,7 +281,7 @@ cronjob(
     action="create",
     prompt="Summarize the unread alerts and post them to #ops.",
     schedule="every 5m",
-    script="/usr/local/bin/precheck.sh",
+    script="precheck.sh",
     delivery="slack:#ops",
 )
 ```
@@ -401,7 +401,7 @@ cronjob(
     schedule="every 1h",
     name="Hourly digest",
     skills=["blogwatcher"],
-    script="/path/to/precheck.sh",   # Pre-run script (also drives wakeAgent gate)
+    script="precheck.sh",             # Relative to ~/.hermes/scripts/
     enabled_toolsets=[                # v0.11.0: restrict this job to a subset
         "core",
         "web_research",

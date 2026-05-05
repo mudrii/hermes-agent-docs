@@ -5,7 +5,8 @@
 - Source repo: `~/src/hermes/hermes-agent`
 - Docs repo: `~/src/hermes/hermes-agent-docs`
 - Release tag: `v2026.4.30`
-- Release commit: `0c35092accdc4e306e982c7b1913bf97b9bb3d3d`
+- Release tag object: `0c35092accdc4e306e982c7b1913bf97b9bb3d3d`
+- Release commit: `73bf3ab1b22314ed9dfecbb59242c03742fe72af`
 - Current pulled source main: `601e5f1d57cfd4ceefee50a6df05a860a1a602e8`
 - Release note: `RELEASE_v0.12.0.md`
 - Compare: `v2026.4.23...v2026.4.30`

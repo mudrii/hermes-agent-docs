@@ -34,11 +34,11 @@ The plugin system lets you add a platform adapter without modifying any core Her
 
 ```
 ~/.hermes/plugins/my-platform/
-  PLUGIN.yaml      # Plugin metadata
+  plugin.yaml      # Plugin metadata
   adapter.py       # Adapter class + register() entry point
 ```
 
-### PLUGIN.yaml
+### plugin.yaml
 
 ```yaml
 name: my-platform

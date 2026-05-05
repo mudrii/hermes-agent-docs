@@ -6,7 +6,8 @@
 - Previous released baseline: `v2026.4.23` / `Hermes Agent v0.11.0`
 - Primary source artifact: `~/src/hermes/hermes-agent/RELEASE_v0.12.0.md`
 - Compare window: `https://github.com/NousResearch/hermes-agent/compare/v2026.4.23...v2026.4.30`
-- Local source tag: `0c35092accdc4e306e982c7b1913bf97b9bb3d3d`
+- Local source tag object: `0c35092accdc4e306e982c7b1913bf97b9bb3d3d`
+- Local source tag commit: `73bf3ab1b22314ed9dfecbb59242c03742fe72af`
 - Local source main after pull: `601e5f1d57cfd4ceefee50a6df05a860a1a602e8`
 
 Post-tag commits on `main` after `v2026.4.30` are reviewed only when they correct documentation for behavior already released in `v0.12.0`. Release claims remain bounded to the tag and release note; unreleased post-tag features are excluded from the stable docs.

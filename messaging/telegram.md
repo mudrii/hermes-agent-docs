@@ -293,7 +293,7 @@ Hermes Agent works in Telegram group chats with a few considerations:
 - `TELEGRAM_ALLOWED_USERS` still applies — only authorized users can trigger the bot, even in groups
 - You can keep the bot from responding to ordinary group chatter with `telegram.require_mention: true`
 - With `telegram.require_mention: true`, group messages are accepted when they are:
-  - slash commands
+  - `/command@botusername` commands from the Telegram bot menu
   - replies to one of the bot's messages
   - `@botusername` mentions
   - matches for one of your configured regex wake words in `telegram.mention_patterns`
@@ -496,19 +496,16 @@ Telegram groups and forum chats have two orthogonal gates you can configure:
 - **Chat IDs** (`group_allowed_chats` / `TELEGRAM_GROUP_ALLOWED_CHATS`) — chat-scoped allowlist. Any member of these groups/forums can interact with the bot. Useful for team/support bots where group membership itself is the access signal.
 
 ```yaml
-gateway:
-  platforms:
-    telegram:
-      extra:
-        # Global access (DMs + groups). Users here can always invoke the bot.
-        allow_from:
-          - "123456789"
-        # Sender IDs allowed in groups/forums only. Does NOT grant DM access.
-        group_allow_from:
-          - "987654321"
-        # Entire groups/forums — any member is authorized.
-        group_allowed_chats:
-          - "-1001234567890"
+telegram:
+  # Global access (DMs + groups). Users here can always invoke the bot.
+  allow_from:
+    - "123456789"
+  # Sender IDs allowed in groups/forums only. Does NOT grant DM access.
+  group_allow_from:
+    - "987654321"
+  # Entire groups/forums — any member is authorized.
+  group_allowed_chats:
+    - "-1001234567890"
 ```
 
 Equivalent env vars:
