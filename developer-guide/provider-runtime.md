@@ -9,6 +9,10 @@ Primary implementation files:
 - `hermes_cli/model_switch.py` -- shared `/model` switch pipeline (CLI + gateway)
 - `agent/auxiliary_client.py` -- auxiliary model routing
 - `agent/model_metadata.py` -- context length resolution, token estimation
+- `providers/` -- ABC + registry entry points (`ProviderProfile`, `register_provider`, `get_provider_profile`, `list_providers`)
+- `plugins/model-providers/<name>/` -- per-provider plugins (bundled) that declare `api_mode`, `base_url`, `env_vars`, `fallback_models` and register themselves into the registry on first access. User plugins at `$HERMES_HOME/plugins/model-providers/<name>/` override bundled ones of the same name.
+
+`get_provider_profile()` in `providers/` returns a `ProviderProfile` for a given provider id. `runtime_provider.py` calls this at resolution time to get the canonical `base_url`, `env_vars` priority list, `api_mode`, and `fallback_models` without needing to duplicate that data in multiple files. Adding a new plugin under `plugins/model-providers/<your-provider>/` (or `$HERMES_HOME/plugins/model-providers/<your-provider>/`) that calls `register_provider()` is enough for `runtime_provider.py` to pick it up — no branch needed in the resolver itself.
 
 ## Resolution Precedence
 

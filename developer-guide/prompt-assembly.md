@@ -168,6 +168,30 @@ The `agent.tool_use_enforcement` config controls injection of `TOOL_USE_ENFORCEM
 
 This is enabled by default for GPT and Codex models because they have a tendency to describe intended tool use in prose rather than actually emitting tool calls.
 
+## Supported prompt customization surfaces
+
+Most users should treat `agent/prompt_builder.py` as implementation code, not a configuration surface. The supported customization path is to change the prompt inputs Hermes already loads, rather than editing Python templates in place.
+
+### Use these surfaces first
+
+- `~/.hermes/SOUL.md` — replace the built-in default identity block with your own agent persona and standing behavior.
+- `~/.hermes/MEMORY.md` and `~/.hermes/USER.md` — provide durable cross-session facts and user profile data that should be snapshotted into new sessions.
+- Project context files such as `.hermes.md`, `HERMES.md`, `AGENTS.md`, `CLAUDE.md`, or `.cursorrules` — inject repo-specific working rules.
+- Skills — package reusable workflows and references without editing core prompt code.
+- Optional system prompt config / API overrides — add deployment-specific instruction text without forking Hermes.
+- Ephemeral overlays such as `HERMES_EPHEMERAL_SYSTEM_PROMPT` or prefill messages — add turn-scoped guidance that should not become part of the cached prompt prefix.
+
+### When to edit code instead
+
+Edit `agent/prompt_builder.py` only if you are intentionally maintaining a fork or contributing upstream behavior changes. That file assembles the prompt plumbing, cache boundaries, and injection order for every session. Direct edits there are global product changes, not per-user prompt customization.
+
+In other words:
+
+- if you want a different assistant identity, edit `SOUL.md`
+- if you want different repo rules, edit project context files
+- if you want reusable operating procedures, add or modify skills
+- if you want to change how Hermes assembles prompts for everyone, change Python and treat it as a code contribution
+
 ## Why Prompt Assembly Is Split This Way
 
 The architecture is intentionally optimized to:
