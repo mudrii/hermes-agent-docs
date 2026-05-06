@@ -642,16 +642,19 @@ Telegram groups and forum chats have two orthogonal gates you can configure:
 - **Chat IDs** (`group_allowed_chats` / `TELEGRAM_GROUP_ALLOWED_CHATS`) — chat-scoped allowlist. Any member of these groups/forums can interact with the bot. Useful for team/support bots where group membership itself is the access signal.
 
 ```yaml
-telegram:
-  # Global access (DMs + groups). Users here can always invoke the bot.
-  allow_from:
-    - "123456789"
-  # Sender IDs allowed in groups/forums only. Does NOT grant DM access.
-  group_allow_from:
-    - "987654321"
-  # Entire groups/forums — any member is authorized.
-  group_allowed_chats:
-    - "-1001234567890"
+gateway:
+  platforms:
+    telegram:
+      extra:
+        # Global access (DMs + groups). Users here can always invoke the bot.
+        allow_from:
+          - "123456789"
+        # Sender IDs allowed in groups/forums only. Does NOT grant DM access.
+        group_allow_from:
+          - "987654321"
+        # Entire groups/forums — any member is authorized.
+        group_allowed_chats:
+          - "-1001234567890"
 ```
 
 Equivalent env vars:

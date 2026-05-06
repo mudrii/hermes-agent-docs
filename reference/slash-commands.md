@@ -68,7 +68,7 @@ Type `/` in the CLI to open the autocomplete menu. Built-in commands are case-in
 | `/browser [connect\|disconnect\|status]` | Manage local Chrome CDP connection. `connect` attaches browser tools to a running Chrome instance (default: `ws://localhost:9222`). `disconnect` detaches. `status` shows current connection. Auto-launches Chrome if no debugger is detected. |
 | `/skills` | Search, install, inspect, or manage skills from online registries |
 | `/cron` | Manage scheduled tasks (list, add/create, edit, pause, resume, run, remove) |
-| `/curator` | Background skill maintenance — `status`, `run`, `pause`, `resume`, `pin`, `unpin`, `restore`. See [Curator](/docs/user-guide/features/curator). |
+| `/curator` | Background skill maintenance — `status`, `run`, `pin`, `archive`. See [Curator](/docs/user-guide/features/curator). |
 | `/reload-mcp` (alias: `/reload_mcp`) | Reload MCP servers from config.yaml |
 | `/reload-skills` (alias: `/reload_skills`) | Re-scan `~/.hermes/skills/` for newly installed or removed skills |
 | `/reload` | Reload `.env` variables into the running session (picks up new API keys without restarting) |
@@ -155,7 +155,7 @@ The messaging gateway supports the following built-in commands inside Telegram, 
 | `/queue <prompt>` (alias: `/q`) | Queue a prompt for the next turn without interrupting the current one. |
 | `/steer <prompt>` | Inject a message after the next tool call without interrupting — the model picks it up on its next iteration rather than as a new turn. |
 | `/footer [on\|off\|status]` | Toggle the runtime-metadata footer on final replies (shows model, tool counts, timing). |
-| `/curator [status\|run\|pause\|resume\|pin\|unpin\|restore]` | Background skill maintenance controls. |
+| `/curator [status\|run\|pin\|archive]` | Background skill maintenance controls. |
 | `/reload-mcp` (alias: `/reload_mcp`) | Reload MCP servers from config. |
 | `/reload-skills` (alias: `/reload_skills`) | Re-scan `~/.hermes/skills/` for newly installed or removed skills. |
 | `/yolo` | Toggle YOLO mode — skip all dangerous command approval prompts. |

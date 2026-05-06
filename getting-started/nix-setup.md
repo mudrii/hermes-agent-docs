@@ -722,7 +722,9 @@ nix build .#checks.x86_64-linux.config-roundtrip    # merge script preserves use
 | Option | Type | Default | Description |
 |---|---|---|---|
 | `extraArgs` | `listOf str` | `[]` | Extra args for `hermes gateway` |
-| `extraPackages` | `listOf package` | `[]` | Extra packages on service PATH (native mode only) |
+| `extraPackages` | `listOf package` | `[]` | Extra packages available to the agent. Added to the hermes user's per-user profile so terminal commands, skills, and cron jobs all see them |
+| `extraPlugins` | `listOf package` | `[]` | Directory plugin packages to symlink into `$HERMES_HOME/plugins/`. Each must contain `plugin.yaml` |
+| `extraPythonPackages` | `listOf package` | `[]` | Python packages added to PYTHONPATH for entry-point plugin discovery. Build with `python312Packages` |
 | `restart` | `str` | `"always"` | systemd `Restart=` policy |
 | `restartSec` | `int` | `5` | systemd `RestartSec=` value |
 
