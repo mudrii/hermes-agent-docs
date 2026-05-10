@@ -565,7 +565,7 @@ Blocked files show a warning:
 4. **Store secrets securely** — keep API keys in `~/.hermes/.env` with proper file permissions
 5. **Enable DM pairing** — use pairing codes instead of hardcoding user IDs when possible
 6. **Review command allowlist** — periodically audit `command_allowlist` in config.yaml
-7. **Set `terminal.cwd`** — don't let the agent operate from sensitive directories
+7. **Set `MESSAGING_CWD`** — don't let the agent operate from sensitive directories
 8. **Run as non-root** — never run the gateway as root
 9. **Monitor logs** — check `~/.hermes/logs/` for unauthorized access attempts
 10. **Keep updated** — run `hermes update` regularly for security patches
@@ -582,14 +582,19 @@ chmod 600 ~/.hermes/.env
 
 ### Network Isolation
 
-For maximum security, run the gateway on a separate machine or VM:
+For maximum security, run the gateway on a separate machine or VM. Set `terminal.backend: ssh` in `config.yaml`, then provide host details via environment variables in `~/.hermes/.env`:
 
 ```yaml
+# ~/.hermes/config.yaml
 terminal:
   backend: ssh
-  ssh_host: "agent-worker.local"
-  ssh_user: "hermes"
-  ssh_key: "~/.ssh/hermes_agent_key"
 ```
 
-This keeps the gateway's messaging connections separate from the agent's command execution.
+```bash
+# ~/.hermes/.env
+TERMINAL_SSH_HOST=agent-worker.local
+TERMINAL_SSH_USER=hermes
+TERMINAL_SSH_KEY=~/.ssh/hermes_agent_key
+```
+
+The SSH connection details live in `.env` (not `config.yaml`) so they aren't checked in or shared along with profile exports. This keeps the gateway's messaging connections separate from the agent's command execution.

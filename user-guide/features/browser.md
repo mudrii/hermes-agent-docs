@@ -423,11 +423,20 @@ Check the browser console for any JavaScript errors
 
 Use `clear=True` to clear the console after reading, so subsequent calls only show new messages.
 
+`browser_console` also evaluates JavaScript when called with an `expression` argument — same shape as DevTools console, the result comes back parsed (JSON-serialized objects become dicts; primitive values stay primitive).
+
+```
+browser_console(expression="document.querySelector('h1').textContent")
+browser_console(expression="JSON.stringify(performance.timing)")
+```
+
+When a CDP supervisor is active for the current session (typical for any session that's run `browser_navigate` against a CDP-capable backend), evaluation runs over the supervisor's persistent WebSocket — no subprocess startup cost. Falls through to the standard agent-browser CLI path otherwise. Behaviour is identical either way; only latency changes.
+
 ### `browser_cdp`
 
 Raw Chrome DevTools Protocol passthrough — the escape hatch for browser operations not covered by the other tools. Use for native dialog handling, iframe-scoped evaluation, cookie/network control, or any CDP verb the agent needs.
 
-**Only available when a CDP endpoint is reachable at session start** — meaning `/browser connect` has attached to a running Chrome, or `browser.cdp_url` is set in `config.yaml`. The default local agent-browser mode, Camofox, and cloud providers (Browserbase, Browser Use, Firecrawl) do not currently expose CDP to this tool — cloud providers have per-session CDP URLs but live-session routing is a follow-up.
+**Only available when a CDP endpoint is reachable for the active browser session** — meaning `/browser connect` has attached to a running Chrome, `browser.cdp_url` is set in `config.yaml`, or a CDP-capable provider such as Browserbase exposes a live session endpoint. Camofox and local Chrome are handled through their CDP URLs; providers without live CDP expose only the higher-level browser tools.
 
 **CDP method reference:** https://chromedevtools.github.io/devtools-protocol/ — the agent can `web_extract` a specific method's page to look up parameters and return shape.
 

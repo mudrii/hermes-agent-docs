@@ -10,6 +10,18 @@ Receive events from external services (GitHub, GitLab, JIRA, Stripe, etc.) and t
 
 The agent processes the event and can respond by posting comments on PRs, sending messages to Telegram/Discord, or logging the result.
 
+## Video Tutorial
+
+<div style={{position: 'relative', width: '100%', aspectRatio: '16 / 9', marginBottom: '1.5rem'}}>
+  <iframe
+    src="https://www.youtube.com/embed/WNYe5mD4fY8"
+    title="Hermes Agent — Webhooks Tutorial"
+    style={{position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', border: 0}}
+    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+    allowFullScreen
+  />
+</div>
+
 ---
 
 ## Quick Start
@@ -72,7 +84,7 @@ Routes define how different webhook sources are handled. Each route is a named e
 | `skills` | No | List of skill names to load for the agent run. |
 | `deliver` | No | Where to send the response: `github_comment`, `telegram`, `discord`, `slack`, `signal`, `sms`, `whatsapp`, `matrix`, `mattermost`, `homeassistant`, `email`, `dingtalk`, `feishu`, `wecom`, `weixin`, `bluebubbles`, `qqbot`, or `log` (default). |
 | `deliver_extra` | No | Additional delivery config — keys depend on `deliver` type (e.g. `repo`, `pr_number`, `chat_id`). Values support the same `{dot.notation}` templates as `prompt`. |
-| `deliver_only` | No | If `true`, **skip the agent entirely** and forward the rendered prompt straight to `deliver`. Useful for zero-LLM push notifications (e.g. fan webhook events out to Telegram with no inference cost). Default: `false`. |
+| `deliver_only` | No | If `true`, skip the agent entirely — the rendered `prompt` template becomes the literal message that gets delivered. Zero LLM cost, sub-second delivery. See [Direct Delivery Mode](#direct-delivery-mode) for use cases. Requires `deliver` to be a real target (not `log`). |
 
 ### Full example
 
@@ -126,35 +138,6 @@ prompt: "PR #{pull_request.number} by {pull_request.user.login}: {__raw__}"
 If no `prompt` template is configured for a route, the entire payload is dumped as indented JSON (truncated at 4000 characters).
 
 The same dot-notation templates work in `deliver_extra` values.
-
-### Direct Delivery Mode (`deliver_only`)
-
-For high-volume notification routes — alerts, build statuses, deploy pings, monitoring webhooks — invoking the agent on every event is wasteful: there's nothing for it to "decide", you just want the formatted message pushed to a channel. Set `deliver_only: true` on the route to bypass the agent entirely:
-
-```yaml
-platforms:
-  webhook:
-    enabled: true
-    extra:
-      routes:
-        ci-status:
-          events: ["workflow_run"]
-          secret: "ci-secret"
-          prompt: "CI {workflow_run.conclusion}: {workflow_run.name} on {workflow_run.head_branch}"
-          deliver: "telegram"
-          deliver_only: true              # render prompt → telegram, skip the agent
-          deliver_extra:
-            chat_id: "-1001234567890"
-```
-
-In direct-delivery mode:
-
-- The webhook payload is rendered against the `prompt` template exactly as before.
-- The rendered string is passed straight to the `deliver` adapter — no LLM call, no token usage, no skill loading.
-- `skills` is ignored (there's no agent run).
-- Idempotency, HMAC validation, rate limiting, and body-size limits all still apply.
-
-This is the right mode for "I just want webhook X to show up in Telegram channel Y" routes. Leave `deliver_only` unset (or `false`) for routes where you actually want the agent to read the payload and reason about it.
 
 ### Forum Topic Delivery
 
@@ -270,6 +253,80 @@ For cross-platform delivery, the target platform must also be enabled and connec
 
 ---
 
+## Direct Delivery Mode {#direct-delivery-mode}
+
+By default, every webhook POST triggers an agent run — the payload becomes a prompt, the agent processes it, and the agent's response is delivered. This costs LLM tokens on every event.
+
+For use cases where you just want to **push a plain notification** — no reasoning, no agent loop, just deliver the message — set `deliver_only: true` on the route. The rendered `prompt` template becomes the literal message body, and the adapter dispatches it directly to the configured delivery target.
+
+### When to use direct delivery
+
+- **External service push** — Supabase/Firebase webhook fires on a database change → notify a user in Telegram instantly
+- **Monitoring alerts** — Datadog/Grafana alert webhook → push to a Discord channel
+- **Inter-agent pings** — Agent A notifies Agent B's user that a long-running task finished
+- **Background job completion** — Cron job finishes → post result to Slack
+
+Benefits:
+
+- **Zero LLM tokens** — the agent is never invoked
+- **Sub-second delivery** — a single adapter call, no reasoning loop
+- **Same security as agent mode** — HMAC auth, rate limits, idempotency, and body-size limits all still apply
+- **Synchronous response** — the POST returns `200 OK` once delivery succeeds, or `502` if the target rejects it, so your upstream service can retry intelligently
+
+### Example: Telegram push from Supabase
+
+```yaml
+platforms:
+  webhook:
+    enabled: true
+    extra:
+      port: 8644
+      secret: "global-secret"
+      routes:
+        antenna-matches:
+          secret: "antenna-webhook-secret"
+          deliver: "telegram"
+          deliver_only: true
+          prompt: "🎉 New match: {match.user_name} matched with you!"
+          deliver_extra:
+            chat_id: "{match.telegram_chat_id}"
+```
+
+Your Supabase edge function signs the payload with HMAC-SHA256 and POSTs to `https://your-server:8644/webhooks/antenna-matches`. The webhook adapter validates the signature, renders the template from the payload, delivers to Telegram, and returns `200 OK`.
+
+### Example: Dynamic subscription via CLI
+
+```bash
+hermes webhook subscribe antenna-matches \
+  --deliver telegram \
+  --deliver-chat-id "123456789" \
+  --deliver-only \
+  --prompt "🎉 New match: {match.user_name} matched with you!" \
+  --description "Antenna match notifications"
+```
+
+### Response codes
+
+| Status | Meaning |
+|--------|---------|
+| `200 OK` | Delivered successfully. Body: `{"status": "delivered", "route": "...", "target": "...", "delivery_id": "..."}` |
+| `200 OK` (status=duplicate) | Duplicate `X-GitHub-Delivery` ID within the idempotency TTL (1 hour). Not re-delivered. |
+| `401 Unauthorized` | HMAC signature invalid or missing. |
+| `400 Bad Request` | Malformed JSON body. |
+| `404 Not Found` | Unknown route name. |
+| `413 Payload Too Large` | Body exceeded `max_body_bytes`. |
+| `429 Too Many Requests` | Route rate limit exceeded. |
+| `502 Bad Gateway` | Target adapter rejected the message or raised. The error is logged server-side; the response body is a generic `Delivery failed` to avoid leaking adapter internals. |
+
+### Configuration gotchas
+
+- `deliver_only: true` requires `deliver` to be a real target. `deliver: log` (or omitting `deliver`) is rejected at startup — the adapter refuses to start if it finds a misconfigured route.
+- The `skills` field is ignored in direct delivery mode (no agent runs, so there's nothing to inject skills into).
+- Template rendering uses the same `{dot.notation}` syntax as agent mode, including the `{__raw__}` token.
+- Idempotency uses the same `X-GitHub-Delivery` / `X-Request-ID` header — retries with the same ID return `status=duplicate` and do NOT re-deliver.
+
+---
+
 ## Dynamic Subscriptions (CLI) {#dynamic-subscriptions}
 
 In addition to static routes in `config.yaml`, you can create webhook subscriptions dynamically using the `hermes webhook` CLI command. This is especially useful when the agent itself needs to set up event-driven triggers.
@@ -337,6 +394,8 @@ If a secret is configured but no recognized signature header is present, the req
 ### Secret is required
 
 Every route must have a secret — either set directly on the route or inherited from the global `secret`. Routes without a secret cause the adapter to fail at startup with an error. For development/testing only, you can set the secret to `"INSECURE_NO_AUTH"` to skip validation entirely.
+
+`INSECURE_NO_AUTH` is only accepted when the gateway is bound to a loopback host (`127.0.0.1`, `localhost`, `::1`). If it is combined with a non-loopback bind such as `0.0.0.0` or a LAN IP, the adapter refuses to start — this prevents accidentally exposing an unauthenticated endpoint on a public interface.
 
 ### Rate limiting
 
