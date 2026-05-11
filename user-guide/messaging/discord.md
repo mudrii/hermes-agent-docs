@@ -464,6 +464,8 @@ display:
 
 ## Slash Command Access Control
 
+This section documents current `main` after v0.13.0; it is not part of the v2026.5.7 release command surface.
+
 By default, every allowed user can run every slash command. To split your allowlist into **admins** (full slash command access) and **regular users** (only commands you explicitly enable), add `allow_admin_from` and `user_allowed_commands` to the Discord platform's `extra` block:
 
 ```yaml

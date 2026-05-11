@@ -18,9 +18,12 @@ Date reviewed: 2026-05-11
 12. **Security redaction default was contradicted.** Updated configuration docs to state that `security.redact_secrets` is on by default in v0.13.0 and documented opt-out.
 13. **Gateway/messaging pages had stale platform defaults and missing v0.13.0 allowlists.** Updated streaming defaults, DingTalk/Home Assistant auto-enable wording, Slack/Mattermost/Matrix/DingTalk allowlist notes, and QQBot v0.13 capability notes.
 14. **Plugin/provider docs overstated or misstated released APIs.** Corrected hook coverage, memory-provider discovery, pip entry-point group, plugin LLM `agent_id` semantics, and image-generation FAL default routing.
+15. **Second-pass release audit found post-release references in release pages.** Removed `/sessions`, `/handoff`, and unreleased Kanban `list`/`unblock` claims from release-facing references, and labeled slash-command access control plus Telegram draft streaming as current-main/post-v0.13 where retained.
+16. **Skills catalogs were partially post-release and partially stale.** Re-aligned the released bundled catalog by removing post-release computer-use and Teams meeting-pipeline entries, adding released MLOps skills, and adding the released `searxng-search` optional skill page/catalog entry.
+17. **Hook/tool/env references missed released v0.13 details.** Added `transform_llm_output` hook docs, `SEARXNG_URL` to `web_search` requirements, and released Teams bot environment variables.
 
 ## Deferred / Watch Items
 
-- Generated skills catalogs were refreshed from first-party docs where copied, but individual skill content was not exhaustively revalidated line by line.
+- Generated skills catalogs were refreshed for release-scoped index coverage, but individual skill content was not exhaustively revalidated line by line.
 - Some release-note items, such as every individual security fix PR, are summarized in docs rather than expanded into dedicated pages.
 - First-party source docs should also receive the dashboard plugin auth, `HERMES_LANGUAGE`, Browserbase env, and CDP wording corrections in a future upstream documentation PR.

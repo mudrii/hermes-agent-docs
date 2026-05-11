@@ -387,6 +387,7 @@ def register(ctx):
 | [`post_approval_response`](#post_approval_response) | User responded to an approval prompt (or it timed out) | ignored |
 | [`transform_tool_result`](#transform_tool_result) | After any tool returns, before the result is handed back to the model | `str` to replace the result, `None` to leave unchanged |
 | [`transform_terminal_output`](#transform_terminal_output) | Inside the `terminal` tool, before truncation/ANSI-strip/redact | `str` to replace the raw output, `None` to leave unchanged |
+| [`transform_llm_output`](#transform_llm_output) | After the tool-calling loop completes, before the final response is delivered | `str` to replace the response text, `None`/empty to leave unchanged |
 
 ---
 
@@ -1090,6 +1091,26 @@ def register(ctx):
 ```
 
 Pairs well with `transform_tool_result` (which covers every other tool).
+
+---
+
+### `transform_llm_output`
+
+Fires once per turn after the tool-calling loop completes and the model has produced a final response, before that response is delivered to the user. Plugins can rewrite the assistant's final text without spending another inference call.
+
+**Callback signature:**
+
+```python
+def my_callback(
+    response_text: str,
+    task_id: str | None,
+    **kwargs,
+) -> str | None:
+```
+
+**Return value:** `str` to replace the response text, `None` or an empty string to leave it unchanged.
+
+The hook is guarded on a non-empty, non-interrupted response. Exceptions are logged and do not break the agent run.
 
 ---
 

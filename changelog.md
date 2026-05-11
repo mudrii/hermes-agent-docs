@@ -18,7 +18,7 @@ All notable changes to Hermes Agent are documented here.
 - **Security and reliability** — secret redaction is on by default; Discord role allowlists are guild-scoped; WhatsApp rejects strangers by default; TOCTOU windows were closed in auth and MCP OAuth flows; browser SSRF protections and debug-share redaction were tightened.
 - **Messaging expansion** — Google Chat joins as the 20th platform, platform-plugin behavior is documented, and platform allowlists expand across Slack/Telegram/Mattermost/Matrix/DingTalk.
 - **Plugin and provider expansion** — `ctx.llm` gives plugins host-owned one-shot LLM calls, model-provider plugins and image-generation provider plugins are documented, and dashboard plugin API routes are covered by dashboard auth.
-- **Tools and runtime** — SearXNG support and split web-tool backend selection are documented; browser console eval uses the persistent CDP supervisor fast path when available; Kanban list/unblock tools are included in the reference.
+- **Tools and runtime** — SearXNG support and split web-tool backend selection are documented; browser console eval uses the persistent CDP supervisor fast path when available; Kanban worker/orchestrator tools are included in the reference.
 - **Localization** — static gateway and CLI messages add seven release locales: Chinese, Japanese, German, Spanish, French, Ukrainian, and Turkish. The docs site gains a Chinese (`zh-Hans`) locale.
 
 ### Delivery notes
@@ -115,7 +115,7 @@ All notable changes to Hermes Agent are documented here.
 ### Delivery notes
 
 - The upstream source tree includes a `RELEASE_v0.10.0.md` artifact and `v2026.4.16` tag.
-- v2026.4.16 / v0.10.0 is [published on GitHub Releases](https://github.com/NousResearch/hermes-agent/releases/tag/v2026.4.16) as the latest release.
+- v2026.4.16 / v0.10.0 is [published on GitHub Releases](https://github.com/NousResearch/hermes-agent/releases/tag/v2026.4.16).
 
 **Full Changelog:** [v2026.4.13...v2026.4.16](https://github.com/NousResearch/hermes-agent/compare/v2026.4.13...v2026.4.16)
 

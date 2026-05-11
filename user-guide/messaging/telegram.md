@@ -420,6 +420,8 @@ Topics created outside of the config (e.g., by manually calling the Telegram API
 
 ## Multi-session DM mode (`/topic`)
 
+This section documents current `main` after v0.13.0; it is not part of the v2026.5.7 release command surface.
+
 A ChatGPT-style multi-session DM — one bot, many parallel conversations. Unlike the operator-curated `extra.dm_topics` above, this mode is **user-driven**: no config, no pre-declared topic names. The end user flips it on with `/topic`, then taps the Telegram **+** button to create as many topics as they want, each one a fully independent Hermes session.
 
 ### `/topic` subcommands
@@ -611,15 +613,15 @@ To find a topic's `thread_id`, open the topic in Telegram Web or Desktop and loo
 
 - **Bot API 9.4 (Feb 2026):** Private Chat Topics — bots can create forum topics in 1-on-1 DM chats via `createForumTopic`. Hermes uses this for two distinct features: operator-curated [Private Chat Topics](#private-chat-topics-bot-api-94) (config-driven, fixed topic list) and user-driven [Multi-session DM mode](#multi-session-dm-mode-topic) (activated by `/topic`, unlimited user-created topics).
 - **Privacy policy:** Telegram now requires bots to have a privacy policy. Set one via BotFather with `/setprivacy_policy`, or Telegram may auto-generate a placeholder. This is particularly important if your bot is public-facing.
-- **Bot API 9.5 (Mar 2026): Native streaming via `sendMessageDraft`.** Hermes uses Telegram's native streaming-draft API to render an animated preview of the agent's reply as tokens arrive in private chats. Drops the per-edit jitter you used to see with the legacy `editMessageText` polling path on slow models.
+- **Bot API 9.5 (Mar 2026): Native streaming via `sendMessageDraft`.** Current `main` after v0.13.0 can use Telegram's native streaming-draft API to render an animated preview of the agent's reply as tokens arrive in private chats. The v0.13.0 release supports the legacy edit-based streaming path.
 
-### Streaming transport (`gateway.streaming.transport`)
+### Streaming transport (`streaming.transport`)
 
-When streaming is enabled (`gateway.streaming.enabled: true`), Hermes picks one of four transports:
+When streaming is enabled (`streaming.enabled: true`), Hermes picks a transport. In v0.13.0, use `edit` or `off`. Current `main` also supports `auto` and `draft` for native Telegram draft streaming.
 
 | Value | Behaviour |
 |---|---|
-| `auto` (default) | Native draft streaming on supported chats (currently Telegram DMs); legacy edit-based path otherwise. Falls back gracefully if a draft frame fails. |
+| `auto` (current-main default) | Native draft streaming on supported chats (currently Telegram DMs); legacy edit-based path otherwise. Falls back gracefully if a draft frame fails. |
 | `draft` | Force native drafts. Logs a downgrade and falls back to edit if the chat doesn't support drafts (e.g. groups/topics). |
 | `edit` | Legacy progressive `editMessageText` polling for every chat type. |
 | `off` | Disable streaming entirely (final reply only, no progressive updates). |
@@ -627,10 +629,9 @@ When streaming is enabled (`gateway.streaming.enabled: true`), Hermes picks one 
 In `~/.hermes/config.yaml`:
 
 ```yaml
-gateway:
-  streaming:
-    enabled: true
-    transport: auto    # auto | draft | edit | off
+streaming:
+  enabled: true
+  transport: edit      # v0.13.0: edit | off; current main also supports auto | draft
 ```
 
 **What you'll see in DMs with `auto` (default)** — when the agent generates a reply, Telegram shows an animated draft preview that updates token-by-token. When the reply finishes, it's delivered as a regular message and the draft preview clears naturally on the client. Drafts have no message id, so the final answer is what stays in your chat history.
@@ -712,6 +713,8 @@ TELEGRAM_GROUP_ALLOWED_CHATS="-1001234567890"
 ```
 
 ## Slash Command Access Control
+
+This section documents current `main` after v0.13.0; it is not part of the v2026.5.7 release command surface.
 
 By default, every allowed user can run every slash command. To split your allowlist into **admins** (full slash command access) and **regular users** (only commands you explicitly enable), add `allow_admin_from` and `user_allowed_commands` to the platform's `extra` block:
 

@@ -41,7 +41,7 @@ Released v0.13.0 adds further gateway updates:
 - **Google Chat** as the 20th platform, plus a generic platform-plugin hook surface.
 - **Platform allowlists** across Slack, Telegram, Mattermost, Matrix, and DingTalk.
 - **Per-platform restart notifications** via `gateway_restart_notification`.
-- **Telegram native draft streaming** on current `main` when `gateway.streaming.transport: auto` can use `sendMessageDraft`.
+- **Telegram native draft streaming** is available on current `main` after v0.13.0 when `streaming.transport: auto` can use `sendMessageDraft`.
 
 ---
 
@@ -377,9 +377,9 @@ stt:
 # SMS) gracefully fall back to sending the final response in one message.
 streaming:
   enabled: false
-  transport: auto           # auto | draft | edit | off
-  edit_interval: 0.8        # seconds between message edits
-  buffer_threshold: 24      # chars before forcing an edit
+  transport: edit           # v0.13.0: edit | off; current main also supports auto | draft
+  edit_interval: 1.0        # seconds between message edits
+  buffer_threshold: 40      # chars before forcing an edit
   fresh_final_after_seconds: 60.0
   cursor: " ▉"             # cursor shown during streaming
 

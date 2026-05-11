@@ -289,6 +289,14 @@ For cloud sandbox backends, persistence is filesystem-oriented. `TERMINAL_LIFETI
 | `GOOGLE_CHAT_MAX_BYTES` | Pub/Sub FlowControl max in-flight bytes (default: `16777216`, 16 MiB) |
 | `GOOGLE_CHAT_BOOTSTRAP_SPACES` | Comma-separated extra space IDs to probe at startup when resolving the bot's own `users/{id}` |
 | `GOOGLE_CHAT_DEBUG_RAW` | Set to any value to log redacted Pub/Sub envelopes at DEBUG level (debugging only) |
+| `TEAMS_CLIENT_ID` | Microsoft Teams bot application/client ID |
+| `TEAMS_CLIENT_SECRET` | Microsoft Teams bot client secret |
+| `TEAMS_TENANT_ID` | Microsoft Entra tenant ID for the Teams bot |
+| `TEAMS_PORT` | Local Bot Framework webhook port (default: `3978`) |
+| `TEAMS_ALLOWED_USERS` | Comma-separated Microsoft Entra user object IDs allowed to use Teams bot approval actions |
+| `TEAMS_ALLOW_ALL_USERS` | Allow all Teams users without an allowlist (dev only) |
+| `TEAMS_HOME_CHANNEL` | Default Teams chat/channel identifier for cron delivery |
+| `TEAMS_HOME_CHANNEL_NAME` | Display name for the Teams home target |
 | `WHATSAPP_ENABLED` | Enable the WhatsApp bridge (`true`/`false`) |
 | `WHATSAPP_MODE` | `bot` (separate number) or `self-chat` (message yourself) |
 | `WHATSAPP_ALLOWED_USERS` | Comma-separated phone numbers (with country code, no `+`), or `*` to allow all senders |

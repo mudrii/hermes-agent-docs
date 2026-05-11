@@ -27,8 +27,8 @@ For the full voice feature set — including CLI microphone mode, spoken replies
 | BlueBubbles | — | ✅ | ✅ | — | ✅ | ✅ | — |
 | QQ Bot | ✅ | ✅ | ✅ | — | — | ✅ | — |
 | Yuanbao | ✅ | ✅ | ✅ | — | — | ✅ | ✅ |
-| Microsoft Teams | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
-| Google Chat | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Microsoft Teams | — | ✅ | — | ✅ | — | ✅ | — |
+| Google Chat | — | ✅ | ✅ | ✅ | — | ✅ | — |
 | LINE | ✅ | ✅ | ✅ | — | — | ✅ | ✅ |
 | Webhooks | — | — | — | — | — | — | — |
 
@@ -54,9 +54,13 @@ flowchart TB
     fs[Feishu/Lark]
     wc[WeCom]
     wcb[WeCom Callback]
-    wx[Weixin]
-    bb[BlueBubbles]
-    qq[QQ]
+            wx[Weixin]
+            bb[BlueBubbles]
+            qq[QQ]
+            yb[Yuanbao]
+            teams[Microsoft Teams]
+            gchat[Google Chat]
+            line[LINE]
             api["API Server<br/>(OpenAI-compatible)"]
             wh[Webhooks]
         end
@@ -83,6 +87,10 @@ flowchart TB
     wx --> store
     bb --> store
     qq --> store
+    yb --> store
+    teams --> store
+    gchat --> store
+    line --> store
     api --> store
     wh --> store
     store --> agent
