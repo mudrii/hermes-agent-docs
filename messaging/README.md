@@ -388,7 +388,7 @@ Each platform has its own toolset:
 | QQBot | `hermes-qqbot` | Full tools including terminal |
 | Yuanbao | `hermes-yuanbao` | Full tools including terminal |
 | Microsoft Teams | `hermes-teams` | Full tools including terminal |
-| Google Chat | `hermes-google-chat` | Full tools including terminal |
+| Google Chat | `hermes-google_chat` | Full tools including terminal |
 | LINE | `hermes-line` | Full tools including terminal |
 | API Server | `hermes-api-server` | HTTP API toolset without interactive UI tools |
 | Webhooks | `hermes-webhook` | Full tools including terminal |
