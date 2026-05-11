@@ -150,11 +150,16 @@ gateway:
         allowed_users:
           - user-id-1
           - user-id-2
+
+        # Optional chat whitelist. When set, Hermes ignores all other chats.
+        allowed_chats:
+          - cidXXXX==
 ```
 
 - `group_sessions_per_user: true` keeps each participant's context isolated inside shared group chats
 - `require_mention: true` prevents the bot from responding to every group message — it only answers when someone @-mentions it
 - `allowed_users` under `dingtalk.extra` is an alternative to `DINGTALK_ALLOWED_USERS`; if both are set, they're merged
+- `allowed_chats` under `dingtalk.extra` is a hard chat whitelist; messages from other chats are ignored
 
 ### Start the Gateway
 

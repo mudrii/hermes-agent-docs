@@ -22,7 +22,7 @@ Three kinds of toolsets exist:
 
 | Toolset | Tools | Description |
 |---------|-------|-------------|
-| `browser` | `browser_back`, `browser_cdp`, `browser_click`, `browser_close`, `browser_console`, `browser_get_images`, `browser_navigate`, `browser_press`, `browser_scroll`, `browser_snapshot`, `browser_type`, `browser_vision`, `web_search` | Browser automation for web interaction (navigate, click, type, scroll, iframes, hold-click) with web search for finding URLs. v0.11.0 adds `browser_cdp` for raw Chrome DevTools Protocol passthrough. |
+| `browser` | `browser_back`, `browser_cdp`, `browser_click`, `browser_console`, `browser_dialog`, `browser_get_images`, `browser_navigate`, `browser_press`, `browser_scroll`, `browser_snapshot`, `browser_type`, `browser_vision`, `web_search` | Browser automation for web interaction (navigate, click, type, scroll, iframes, hold-click) with web search for finding URLs. v0.11.0 adds CDP-gated tools such as `browser_cdp` and `browser_dialog`. |
 | `clarify` | `clarify` | Ask the user clarifying questions (multiple-choice or open-ended) |
 | `code_execution` | `execute_code` | Run Python scripts that call tools programmatically (reduces LLM round trips) |
 | `cronjob` | `cronjob` | Cronjob management — create, list, update, pause, resume, remove, and trigger scheduled tasks. v0.11.0 jobs accept `wakeAgent: true|false` and per-job `enabled_toolsets` to bound token overhead. See [cron.md](./cron.md). |
@@ -70,7 +70,7 @@ vision_analyze, image_generate,
 mixture_of_agents,
 skills_list, skill_view, skill_manage,
 browser_navigate, browser_snapshot, browser_click, browser_type,
-browser_scroll, browser_back, browser_press, browser_close,
+browser_scroll, browser_back, browser_press, browser_dialog,
 browser_get_images, browser_vision, browser_console,
 text_to_speech,
 todo, memory,
@@ -98,7 +98,7 @@ Tools gated on environment variables or runtime conditions (`send_message`, `ha_
 | `hermes-sms` | platform | SMS bot toolset via Twilio. Same tools as `hermes-cli`. |
 | `hermes-telegram` | platform | Telegram bot toolset — full access for personal use. Same tools as `hermes-cli`. |
 | `hermes-whatsapp` | platform | WhatsApp bot toolset. Same tools as `hermes-cli`. |
-| `hermes-gateway` | composite | Union of all messaging platform toolsets (includes `hermes-telegram`, `hermes-discord`, `hermes-whatsapp`, `hermes-slack`, `hermes-signal`, `hermes-homeassistant`, `hermes-email`, `hermes-sms`, `hermes-qqbot`). |
+| `hermes-gateway` | composite | Union of all messaging platform toolsets. See [Toolsets Reference](reference/toolsets-reference.md) for the generated current list, including newer platform toolsets such as BlueBubbles, Mattermost, Matrix, DingTalk, Feishu, WeCom, Weixin, Webhook, Yuanbao, and QQBot. |
 
 ## Plugin Toolsets (v0.5.0)
 

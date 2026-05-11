@@ -16,7 +16,7 @@ Hermes Agent is not a coding copilot or a chatbot wrapper. It is a multi-platfor
 - Manages long-running conversations with context compression and session lineage
 - Persists memory, skills, and session history in SQLite across restarts
 - Streams responses token-by-token from the model to the user interface (v0.3.0)
-- Runs as a CLI (with an Ink-based TUI invoked via `hermes --tui`), a messaging gateway across 20+ platforms (Telegram, Discord, Slack, WhatsApp, Signal, DingTalk, SMS, Mattermost, Matrix, Webhook, Email, Home Assistant, Feishu/Lark, WeCom, Weixin, BlueBubbles iMessage, QQBot, Yuanbao, Microsoft Teams, Google Chat, LINE), or an IDE integration (VS Code, Zed, JetBrains via ACP)
+- Runs as a CLI (with an Ink-based TUI invoked via `hermes --tui`), a messaging gateway across 20+ platforms (Telegram, Discord, Slack, WhatsApp, Signal, DingTalk, SMS, Mattermost, Matrix, Webhook, Email, Home Assistant, Feishu/Lark, WeCom, Weixin, BlueBubbles iMessage, QQBot, Yuanbao, Microsoft Teams, Google Chat, and post-release LINE support on current `main`), or an IDE integration (VS Code, Zed, JetBrains via ACP)
 - Exposes an OpenAI-compatible `/v1/chat/completions` API server with REST cron job management (v0.4.0)
 - Delegates work to isolated subagents and spawns scheduled cron jobs
 - Exports training trajectories for SFT data generation and RL fine-tuning
@@ -43,7 +43,7 @@ Real-time token-by-token delivery in the CLI and all gateway platforms. Response
 
 ### Multi-Platform Messaging Gateway
 
-Telegram, Discord, Slack, WhatsApp, Signal, DingTalk, SMS (Twilio), Mattermost, Matrix, Webhook, Email (IMAP/SMTP), Home Assistant, Feishu/Lark, WeCom, Weixin, BlueBubbles (iMessage), QQBot, Yuanbao, Microsoft Teams, Google Chat, and LINE run from one gateway process. Unified session management, media attachments, voice transcription, and per-platform tool configuration are shared across adapters. v0.13.0 adds Google Chat as the 20th platform, LINE setup docs, broader platform allowlists, restart auto-resume, and per-platform restart notification controls.
+Telegram, Discord, Slack, WhatsApp, Signal, DingTalk, SMS (Twilio), Mattermost, Matrix, Webhook, Email (IMAP/SMTP), Home Assistant, Feishu/Lark, WeCom, Weixin, BlueBubbles (iMessage), QQBot, Yuanbao, Microsoft Teams, Google Chat, and post-release LINE support on current `main` run from one gateway process. Unified session management, media attachments, voice transcription, and per-platform tool configuration are shared across adapters. v0.13.0 adds Google Chat as the 20th platform, broader platform allowlists, restart auto-resume, and per-platform restart notification controls.
 
 ### Plugin Architecture (v0.3.0, expanded in v0.11.0-v0.13.0)
 
@@ -186,7 +186,7 @@ Batch trajectory generation, trajectory compression for training datasets (`traj
 
 ### Skills Ecosystem
 
-131 skills (72 bundled + 59 optional) across 26+ categories. Compatible with the [agentskills.io](https://agentskills.io) open standard. Skills support per-platform enable/disable, conditional activation based on tool availability, and prerequisite validation. The Skills Hub integrates with both ClawHub and skills.sh (v0.3.0).
+166 tracked skills (87 bundled + 79 optional) across 26+ categories in the current source tree. Compatible with the [agentskills.io](https://agentskills.io) open standard. Skills support per-platform enable/disable, conditional activation based on tool availability, and prerequisite validation. The Skills Hub integrates with both ClawHub and skills.sh (v0.3.0).
 
 ---
 
@@ -351,7 +351,7 @@ Hermes has two entry points: start the terminal UI with `hermes`, or run the gat
 
 | Document | Contents |
 |----------|----------|
-| [skills.md](skills.md) | Skills system, SKILL.md format, 72 bundled + 59 optional skills catalog |
+| [skills.md](skills.md) | Skills system, SKILL.md format, bundled and optional skills catalogs |
 | [tools.md](tools.md) | Built-in tools reference with activation rules, parameters, and examples |
 | [toolsets.md](toolsets.md) | Toolset definitions, compositions, per-platform configuration |
 | [mcp.md](mcp.md) | MCP client integration, stdio/HTTP transports, sampling, tool filtering |

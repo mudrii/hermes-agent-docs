@@ -20,6 +20,8 @@ Both are configured through a single backend selection. Providers are chosen via
 |----------|---------|--------|---------|-------|-----------|
 | **Firecrawl** (default) | `FIRECRAWL_API_KEY` | ✔ | ✔ | ✔ | 500 credits/mo |
 | **SearXNG** | `SEARXNG_URL` | ✔ | — | — | ✔ Free (self-hosted) |
+| **Brave Search free** | `BRAVE_SEARCH_API_KEY` | ✔ | — | — | ✔ Free tier |
+| **DDGS** | Python `ddgs` package | ✔ | — | — | ✔ Free |
 | **Tavily** | `TAVILY_API_KEY` | ✔ | ✔ | ✔ | 1 000 searches/mo |
 | **Exa** | `EXA_API_KEY` | ✔ | ✔ | — | 1 000 searches/mo |
 | **Parallel** | `PARALLEL_API_KEY` | ✔ | ✔ | — | Paid |
@@ -310,6 +312,8 @@ If no backend is explicitly configured, Hermes picks the first available one bas
 | `TAVILY_API_KEY` | tavily |
 | `EXA_API_KEY` | exa |
 | `SEARXNG_URL` | searxng |
+| `BRAVE_SEARCH_API_KEY` | brave-free |
+| `ddgs` package importable | ddgs |
 
 ---
 

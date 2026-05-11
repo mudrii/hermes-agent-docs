@@ -129,7 +129,7 @@ sudo hermes gateway install --system   # Linux only: system service
 
 ## config.yaml Section
 
-Unlike platforms such as Telegram or Discord, DingTalk does not auto-enable from environment variables alone. You must enable it in `~/.hermes/gateway.json` or `~/.hermes/config.yaml`:
+DingTalk auto-enables when both `DINGTALK_CLIENT_ID` and `DINGTALK_CLIENT_SECRET` are present. You can also enable it explicitly in `~/.hermes/gateway.json` or `~/.hermes/config.yaml`:
 
 ```json
 {
@@ -153,9 +153,18 @@ Global settings in `config.yaml`:
 group_sessions_per_user: true
 
 unauthorized_dm_behavior: pair    # pair | ignore
+
+gateway:
+  platforms:
+    dingtalk:
+      extra:
+        # Optional chat whitelist. When set, Hermes ignores all other chats.
+        allowed_chats:
+          - cidXXXX==
 ```
 
 `group_sessions_per_user: true` (the default) keeps each participant's context isolated inside shared group chats. Set it to `false` only if you explicitly want one shared conversation for the entire group.
+`allowed_chats` under `dingtalk.extra` is a hard chat whitelist; messages from other chats are ignored.
 
 ---
 

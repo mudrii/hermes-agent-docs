@@ -250,11 +250,11 @@ The general `PluginManager` (the thing `hermes plugins` operates on) **sees** mo
 Like any Hermes plugin, model providers can ship as a pip package. Add an entry point to your `pyproject.toml`:
 
 ```toml
-[project.entry-points."hermes.plugins"]
+[project.entry-points."hermes_agent.plugins"]
 acme-inference = "acme_hermes_plugin:register"
 ```
 
-…where `acme_hermes_plugin:register` is a function that calls `register_provider(profile)`. The general PluginManager picks up entry-point plugins during `discover_and_load()`. For `kind: model-provider` pip plugins, you still need to declare the kind in your manifest (or rely on the source-text heuristic).
+…where `acme_hermes_plugin:register` is a function that calls `register_provider(profile)`. The general PluginManager picks up entry-point plugins during `discover_and_load()`. For `kind: model-provider` pip plugins, declare the kind in your manifest; the source-text provider heuristic is for directory manifests, not entry-point metadata.
 
 See [Building a Hermes Plugin](/docs/guides/build-a-hermes-plugin#distribute-via-pip) for the full entry-points setup.
 

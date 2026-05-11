@@ -2,7 +2,7 @@
 
 The Hermes gateway is the long-running background process that connects Hermes Agent to external messaging platforms. It manages incoming messages, session state, platform authentication, cron scheduling, and outbound delivery — all through a single unified pipeline.
 
-This document covers the released gateway surface through v0.12.0 (v2026.4.30).
+This document covers the gateway surface through v0.13.0 (v2026.5.7), with selected current-main notes called out where the standalone docs track post-release source changes.
 
 ---
 
@@ -35,6 +35,14 @@ Released v0.8.0 adds further improvements:
 - **Thread-safe PairingStore** with atomic writes.
 - **Profile-aware service units** — the installed systemd/launchd service units are now aware of the active profile.
 
+Released v0.13.0 adds further gateway updates:
+
+- **Gateway auto-resume** after restarts, `/update`, and source reloads.
+- **Google Chat** as the 20th platform, plus a generic platform-plugin hook surface.
+- **Platform allowlists** across Slack, Telegram, Mattermost, Matrix, and DingTalk.
+- **Per-platform restart notifications** via `gateway_restart_notification`.
+- **Telegram native draft streaming** on current `main` when `gateway.streaming.transport: auto` can use `sendMessageDraft`.
+
 ---
 
 ## Architecture
@@ -60,6 +68,12 @@ flowchart TB
             wx[Weixin]
             bb[BlueBubbles]
             qq[QQ]
+            yb[Yuanbao]
+            gchat[Google Chat]
+            teams[Teams]
+            line[LINE]
+            msgraph[MS Graph Webhook]
+            irc[IRC]
             api["API Server (OpenAI-compatible)"]
             wh[Webhook]
         end
@@ -86,6 +100,12 @@ flowchart TB
     wx --> store
     bb --> store
     qq --> store
+    yb --> store
+    gchat --> store
+    teams --> store
+    line --> store
+    msgraph --> store
+    irc --> store
     api --> store
     wh --> store
     store --> agent
@@ -357,9 +377,10 @@ stt:
 # SMS) gracefully fall back to sending the final response in one message.
 streaming:
   enabled: false
-  transport: edit           # "edit" = progressive editMessageText
-  edit_interval: 0.3        # seconds between message edits
-  buffer_threshold: 40      # chars before forcing an edit
+  transport: auto           # auto | draft | edit | off
+  edit_interval: 0.8        # seconds between message edits
+  buffer_threshold: 24      # chars before forcing an edit
+  fresh_final_after_seconds: 60.0
   cursor: " ▉"             # cursor shown during streaming
 
 # Tool progress notifications
@@ -408,7 +429,7 @@ For Home Assistant event filtering, `gateway.json` is currently the required loc
 
 Environment variables are set in `~/.hermes/.env`. They override all config file settings.
 
-Note: DingTalk and Home Assistant do not auto-enable from environment variables alone. They must be enabled in `~/.hermes/gateway.json` or `~/.hermes/config.yaml` under the `platforms` section (or via `hermes gateway setup`).
+Note: most platforms auto-enable when their required credential environment variables are present. Home Assistant auto-enables when `HASS_TOKEN` is set, and DingTalk auto-enables when both `DINGTALK_CLIENT_ID` and `DINGTALK_CLIENT_SECRET` are set.
 
 | Platform | Key Variables |
 |----------|---------------|
@@ -423,6 +444,10 @@ Note: DingTalk and Home Assistant do not auto-enable from environment variables 
 | Email | `EMAIL_ADDRESS`, `EMAIL_PASSWORD`, `EMAIL_IMAP_HOST`, `EMAIL_SMTP_HOST`, `EMAIL_ALLOWED_USERS` |
 | SMS | `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_PHONE_NUMBER`, `SMS_ALLOWED_USERS` |
 | DingTalk | `DINGTALK_CLIENT_ID`, `DINGTALK_CLIENT_SECRET`, `DINGTALK_ALLOWED_USERS` |
+| Google Chat | Google service-account / app credentials configured by the Google Chat plugin |
+| LINE | `LINE_CHANNEL_ACCESS_TOKEN`, `LINE_CHANNEL_SECRET`, `LINE_PUBLIC_URL` |
+| Microsoft Teams | Plugin-provided Teams credentials / webhook configuration |
+| Yuanbao | Yuanbao platform credentials |
 | Webhook | No credential env vars — authentication is per-route via HMAC `secret` in `config.yaml` |
 | API Server | `API_SERVER_ENABLED`, `API_SERVER_KEY`, `API_SERVER_PORT`, `API_SERVER_HOST` |
 

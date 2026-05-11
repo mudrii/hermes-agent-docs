@@ -7,7 +7,7 @@
 - Primary source artifact: `~/src/hermes/hermes-agent/RELEASE_v0.13.0.md`
 - Compare window: `https://github.com/NousResearch/hermes-agent/compare/v2026.4.30...v2026.5.7`
 - Local source tag commit: `498bfc7bc12a937621b4215312049b1000726df3`
-- Local source `main` after pull: `d4b26df8974bca7114fa4fbff83e4600c31230f9`
+- Local source `main` after pull: `7026af4e23030a1c01a388ac60575bbf3b011187`
 - Documentation target: `~/src/hermes/hermes-agent-docs`
 
 Post-tag commits on `main` after `v2026.5.7` are reviewed only when they correct documentation for behavior already released in `v0.13.0`. Release claims remain bounded to the tag, release note, source files, tests, and first-party website docs.
@@ -29,9 +29,9 @@ Post-tag commits on `main` after `v2026.5.7` are reviewed only when they correct
    - Docs files: `changelog.md`, `README.md`, `index.md`, prior `release_evaluation_*`, `source_validation_matrix_*`, and `documentation_integrity_findings_*`.
    - Verify: stable version, release date, compare range, and headline claims agree.
 4. Review messaging/platform documentation.
-   - Source files: `plugins/platforms/line/**`, `gateway/platforms/**`, `gateway/platform_registry.py`, `gateway/config.py`, `tests/gateway/test_line_plugin.py`, first-party `website/docs/user-guide/messaging/**`.
+   - Source files: `gateway/platforms/**`, `gateway/platform_registry.py`, `gateway/config.py`, first-party `website/docs/user-guide/messaging/**`, plus current-main plugin platform docs where intentionally tracked.
    - Docs files: `messaging/**`, `user-guide/messaging/**`, platform references.
-   - Verify: new LINE docs are present, platform-plugin behavior is described accurately, and allowlist/cron/media environment variables are documented.
+   - Verify: Google Chat and released platform-plugin behavior are described accurately, and allowlist/cron/media environment variables are documented. LINE is treated as a current-main docs sync item, not as a v0.13.0 release claim.
 5. Review plugin, dashboard, and kanban documentation.
    - Source files: `agent/plugin_llm.py`, `hermes_cli/plugins.py`, `plugins/kanban/**`, `tools/kanban_tools.py`, `hermes_cli/kanban_db.py`, dashboard plugin files, related tests.
    - Docs files: `plugins.md`, `built-in-plugins.md`, `extending-the-dashboard.md`, `developer-guide/plugin-llm-access.md`, `kanban.md`, `kanban-tutorial.md`.
@@ -62,7 +62,7 @@ Post-tag commits on `main` after `v2026.5.7` are reviewed only when they correct
 ## Success Criteria
 
 - `changelog.md`, `README.md`, and `index.md` identify v0.13.0 / v2026.5.7 as the current stable release.
-- v0.13.0 documentation exists for durable kanban, `/goal`, Checkpoints v2, Google Chat, LINE, SearXNG/web-tool split, plugin LLM access, provider plugins, i18n, and security changes where first-party docs/source support them.
-- `reference/environment-variables.md` includes current LINE, kanban, OpenRouter cache, SearXNG, and relevant v0.13 variables.
+- v0.13.0 documentation exists for durable kanban, `/goal`, Checkpoints v2, Google Chat, SearXNG/web-tool split, plugin LLM access, provider plugins, i18n, and security changes where first-party docs/source support them.
+- `reference/environment-variables.md` includes kanban, OpenRouter cache, SearXNG, and relevant v0.13 variables, plus current-main LINE variables where the standalone docs track current source.
 - New v2026.5.7 audit artifacts exist and distinguish source-backed facts from gaps that require future documentation.
 - `git diff --check` passes before commit.

@@ -10,6 +10,9 @@ The QQ Bot adapter uses the [Official QQ Bot API](https://bot.q.qq.com/wiki/deve
 - Send text and markdown replies via the **REST API**
 - Download and process images, voice messages, and file attachments
 - Transcribe voice messages using Tencent's built-in ASR or a configurable STT provider
+- Render native approval keyboards for dangerous-command approval
+- Upload large files through chunked upload when required
+- Preserve quoted attachment context where the QQ API exposes it
 
 ## Prerequisites
 

@@ -625,6 +625,10 @@ Session continuity is maintained via the `X-Hermes-Session-Id` header. The host'
 
 **Fix**: Add your User ID to `MATRIX_ALLOWED_USERS` in `~/.hermes/.env` and restart the gateway. Use the full `@user:server` format.
 
+### Room allowlist
+
+Set `MATRIX_ALLOWED_ROOMS` or `platforms.matrix.extra.allowed_rooms` to a comma-separated/list of room IDs. When set, Hermes ignores rooms outside that whitelist. DMs remain governed by the user allowlist.
+
 ## Security
 
 :::warning

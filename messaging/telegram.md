@@ -293,9 +293,9 @@ Hermes Agent works in Telegram group chats with a few considerations:
 - `TELEGRAM_ALLOWED_USERS` still applies — only authorized users can trigger the bot, even in groups
 - You can keep the bot from responding to ordinary group chatter with `telegram.require_mention: true`
 - With `telegram.require_mention: true`, group messages are accepted when they are:
-  - `/command@botusername` commands from the Telegram bot menu
   - replies to one of the bot's messages
   - `@botusername` mentions
+  - `/command@botusername` (Telegram's bot-menu command form that includes the bot name)
   - matches for one of your configured regex wake words in `telegram.mention_patterns`
 - Use `telegram.ignored_threads` to keep Hermes silent in specific Telegram forum topics, even when the group would otherwise allow free responses or mention-triggered replies
 - If `telegram.require_mention` is left unset or false, Hermes keeps the previous open-group behavior and responds to normal group messages it can see
@@ -535,6 +535,50 @@ TELEGRAM_GROUP_ALLOWED_USERS="-1001234567890"
 # New
 TELEGRAM_GROUP_ALLOWED_CHATS="-1001234567890"
 ```
+
+## Slash Command Access Control
+
+By default, every allowed user can run every slash command. To split your allowlist into **admins** (full slash command access) and **regular users** (only commands you explicitly enable), add `allow_admin_from` and `user_allowed_commands` to the platform's `extra` block:
+
+```yaml
+gateway:
+  platforms:
+    telegram:
+      extra:
+        # Existing allowlists (unchanged)
+        allow_from:
+          - "123456789"     # admin
+          - "555555555"     # regular user
+          - "777777777"     # regular user
+
+        # Admins get all slash commands (built-in + plugin)
+        allow_admin_from:
+          - "123456789"
+
+        # Non-admin allowed users can only run these slash commands.
+        # /help and /whoami are always allowed so users can see their access.
+        user_allowed_commands:
+          - status
+          - model
+          - history
+
+        # Optional: separate admin/command lists for groups
+        group_allow_admin_from:
+          - "123456789"
+        group_user_allowed_commands:
+          - status
+```
+
+**Behavior:**
+
+- A user listed in `allow_admin_from` for a scope (DM or group) can run **every** registered slash command — built-in commands AND plugin-registered ones — through the live registry.
+- A user in `allow_from` but **not** in `allow_admin_from` can only run commands listed in `user_allowed_commands`, plus the always-allowed floor: `/help` and `/whoami`.
+- Plain chat (non-slash messages) is unaffected. Non-admin users can still talk to the agent normally, they just can't trigger arbitrary commands.
+- **Backward compat:** if `allow_admin_from` is not set for a scope, slash command gating is disabled for that scope. Existing installs keep working with no changes.
+- DM admin status does not imply group admin status. Each scope has its own admin list.
+- If only `group_allow_admin_from` is set, DM scope stays in unrestricted (backward-compat) mode.
+
+Use `/whoami` to see the active scope, your tier (admin / user / unrestricted), and which slash commands you can run.
 
 ## Interactive Model Picker
 

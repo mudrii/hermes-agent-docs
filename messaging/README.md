@@ -1,7 +1,7 @@
 
 # Messaging Gateway
 
-Chat with Hermes from Telegram, Discord, Slack, WhatsApp, Signal, SMS, Email, Home Assistant, Mattermost, Matrix, DingTalk, Feishu/Lark, WeCom, Weixin, BlueBubbles (iMessage), QQ Bot, or your browser. The gateway is a single background process that connects to all your configured platforms, handles sessions, runs cron jobs, and delivers voice messages.
+Chat with Hermes from Telegram, Discord, Slack, WhatsApp, Signal, SMS, Email, Home Assistant, Mattermost, Matrix, DingTalk, Feishu/Lark, WeCom, Weixin, BlueBubbles (iMessage), QQ Bot, Yuanbao, Microsoft Teams, Google Chat, LINE, webhooks, the API server, or your browser. The gateway is a single background process that connects to all your configured platforms, handles sessions, runs cron jobs, and delivers voice messages.
 
 For the full voice feature set — including CLI microphone mode, spoken replies in messaging, and Discord voice-channel conversations — see [Voice Mode](/docs/user-guide/features/voice-mode) and [Use Voice Mode with Hermes](/docs/guides/use-voice-mode-with-hermes).
 
@@ -26,6 +26,11 @@ For the full voice feature set — including CLI microphone mode, spoken replies
 | Weixin | ✅ | ✅ | ✅ | — | — | ✅ | ✅ |
 | BlueBubbles | — | ✅ | ✅ | — | ✅ | ✅ | — |
 | QQ Bot | ✅ | ✅ | ✅ | — | — | ✅ | — |
+| Yuanbao | ✅ | ✅ | ✅ | — | — | ✅ | ✅ |
+| Microsoft Teams | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Google Chat | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| LINE | ✅ | ✅ | ✅ | — | — | ✅ | ✅ |
+| Webhooks | — | — | — | — | — | — | — |
 
 **Voice** = TTS audio replies and/or voice message transcription. **Images** = send/receive images. **Files** = send/receive file attachments. **Threads** = threaded conversations. **Reactions** = emoji reactions on messages. **Typing** = typing indicator while processing. **Streaming** = progressive message updates via editing.
 
@@ -381,7 +386,11 @@ Each platform has its own toolset:
 | Weixin | `hermes-weixin` | Full tools including terminal |
 | BlueBubbles | `hermes-bluebubbles` | Full tools including terminal |
 | QQBot | `hermes-qqbot` | Full tools including terminal |
-| API Server | `hermes` (default) | Full tools including terminal |
+| Yuanbao | `hermes-yuanbao` | Full tools including terminal |
+| Microsoft Teams | `hermes-teams` | Full tools including terminal |
+| Google Chat | `hermes-google-chat` | Full tools including terminal |
+| LINE | `hermes-line` | Full tools including terminal |
+| API Server | `hermes-api-server` | HTTP API toolset without interactive UI tools |
 | Webhooks | `hermes-webhook` | Full tools including terminal |
 
 ## Next Steps
@@ -398,6 +407,10 @@ Each platform has its own toolset:
 - [Matrix Setup](matrix.md)
 - [DingTalk Setup](dingtalk.md)
 - [Feishu/Lark Setup](feishu.md)
+- [Google Chat Setup](google_chat.md)
+- [LINE Setup](line.md)
+- [Microsoft Teams Setup](teams.md)
+- [Webhooks](webhooks.md)
 - [WeCom Setup](wecom.md)
 - [WeCom Callback Setup](wecom-callback.md)
 - [Weixin Setup (WeChat)](weixin.md)

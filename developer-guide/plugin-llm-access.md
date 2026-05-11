@@ -204,7 +204,7 @@ in the same repo.
 | The same call from async code (gateway adapters, async hooks) | `acomplete()` / `acomplete_structured()` |
 
 Everything else — provider selection, model resolution, auth, fallback,
-timeout, vision routing — is the same across all four.
+timeout, and multimodal message formatting — is the same across all four.
 
 ## API surface
 
@@ -220,7 +220,7 @@ result = ctx.llm.complete(
     temperature=None,
     max_tokens=None,
     timeout=None,          # seconds
-    agent_id=None,         # optional, gated
+    agent_id=None,         # optional, gated; recorded in audit/result metadata
     profile=None,          # optional, gated — explicit auth-profile name
     purpose="optional-audit-string",
 )
@@ -257,7 +257,7 @@ result = ctx.llm.complete_structured(
     temperature=None,
     max_tokens=None,
     timeout=None,
-    agent_id=None,
+    agent_id=None,         # optional, gated; recorded in audit/result metadata
     profile=None,
     purpose=None,
 )
@@ -295,7 +295,7 @@ class PluginLlmCompleteResult:
     text: str                    # the assistant's response
     provider: str                # e.g. "openrouter", "anthropic"
     model: str                   # whatever the provider returned for this call
-    agent_id: str                # whose model/auth was used
+    agent_id: str                # audited agent id associated with the call
     usage: PluginLlmUsage        # tokens + cache + cost estimate
     audit: Dict[str, Any]        # plugin_id, purpose, profile
 
@@ -322,7 +322,7 @@ config block, a plugin can:
   `input`, `json_schema`),
 
 …and that's it. `provider=`, `model=`, `agent_id=`, and `profile=`
-arguments raise `PluginLlmTrustError` until the operator opts in.
+arguments raise `PluginLlmTrustError` until the operator opts in. In v0.13.0, `agent_id` is accepted and audited but does not route the completion to a separate runtime by itself.
 
 **Most plugins never need this section.** A plugin that just calls
 `ctx.llm.complete(messages=...)` with no overrides runs against
@@ -443,7 +443,7 @@ Existing `ctx.*` methods extend an existing Hermes subsystem:
 | `ctx.register_tool` | adds a tool the agent can call |
 | `ctx.register_platform` | wires a new gateway adapter |
 | `ctx.register_image_gen_provider` | replaces an image-gen backend |
-| `ctx.register_memory_provider` | replaces the memory backend |
+| Memory provider loader | replaces the memory backend through the dedicated memory-provider discovery system |
 | `ctx.register_context_engine` | replaces the context compressor |
 | `ctx.register_hook` | observes a lifecycle event |
 

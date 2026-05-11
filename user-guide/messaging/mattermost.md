@@ -155,6 +155,9 @@ MATTERMOST_ALLOWED_USERS=3uo8dkh1p7g1mfk49ear5fzs5c
 
 # Optional: channels where bot responds without @mention (comma-separated channel IDs)
 # MATTERMOST_FREE_RESPONSE_CHANNELS=channel_id_1,channel_id_2
+
+# Optional: channel whitelist. When set, Hermes ignores all other channels.
+# MATTERMOST_ALLOWED_CHANNELS=channel-id-1,channel-id-2
 ```
 
 Optional behavior settings in `~/.hermes/config.yaml`:
@@ -164,6 +167,7 @@ group_sessions_per_user: true
 ```
 
 - `group_sessions_per_user: true` keeps each participant's context isolated inside shared channels and threads
+- `platforms.mattermost.extra.allowed_channels` is the config-file equivalent of `MATTERMOST_ALLOWED_CHANNELS`
 
 ### Start the Gateway
 

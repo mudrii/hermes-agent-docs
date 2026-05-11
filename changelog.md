@@ -16,10 +16,10 @@ All notable changes to Hermes Agent are documented here.
 - **Persistent goals and session durability** — `/goal` keeps the agent on target across turns; gateway restarts, `/update` restarts, and source reloads can auto-resume interrupted sessions.
 - **Checkpoints v2** — checkpoint persistence was rewritten with real pruning and disk guardrails.
 - **Security and reliability** — secret redaction is on by default; Discord role allowlists are guild-scoped; WhatsApp rejects strangers by default; TOCTOU windows were closed in auth and MCP OAuth flows; browser SSRF protections and debug-share redaction were tightened.
-- **Messaging expansion** — Google Chat joins as the 20th platform, LINE docs and platform-plugin behavior are documented, platform allowlists expand across Slack/Telegram/Mattermost/Matrix/DingTalk, and Teams meeting pipeline docs cover Microsoft Graph delivery.
+- **Messaging expansion** — Google Chat joins as the 20th platform, platform-plugin behavior is documented, and platform allowlists expand across Slack/Telegram/Mattermost/Matrix/DingTalk.
 - **Plugin and provider expansion** — `ctx.llm` gives plugins host-owned one-shot LLM calls, model-provider plugins and image-generation provider plugins are documented, and dashboard plugin API routes are covered by dashboard auth.
 - **Tools and runtime** — SearXNG support and split web-tool backend selection are documented; browser console eval uses the persistent CDP supervisor fast path when available; Kanban list/unblock tools are included in the reference.
-- **Localization** — static gateway, CLI, and dashboard messages now cover 16 locales: `af`, `de`, `en`, `es`, `fr`, `ga`, `hu`, `it`, `ja`, `ko`, `pt`, `ru`, `tr`, `uk`, `zh`, and `zh-hant`.
+- **Localization** — static gateway and CLI messages add seven release locales: Chinese, Japanese, German, Spanish, French, Ukrainian, and Turkish. The docs site gains a Chinese (`zh-Hans`) locale.
 
 ### Delivery notes
 
