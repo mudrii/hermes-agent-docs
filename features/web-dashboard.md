@@ -47,7 +47,7 @@ pip install 'hermes-agent[web,pty]'
 
 The `web` extra pulls in FastAPI/Uvicorn; `pty` pulls in `ptyprocess` (POSIX) or `pywinpty` (native Windows — note that the embedded TUI itself still requires WSL). `pip install hermes-agent[all]` includes both extras and is the easiest path if you also want messaging/voice/etc.
 
-When you run `hermes dashboard` without the dependencies, it will tell you what to install. If the frontend hasn't been built yet and `npm` is available, it builds automatically on first launch.
+When you run `hermes dashboard` without the dependencies, it will tell you what to install. If the frontend hasn't been built yet and `npm` is available, it builds automatically on first launch. Current `main` retries a failed frontend build once; if a previous `hermes_cli/web_dist` build exists, the dashboard serves that stale build as a fallback. Use `hermes dashboard --skip-build` to require and serve an existing build without invoking npm.
 
 ## Pages
 
@@ -321,7 +321,7 @@ The frontend is built with React 19, TypeScript, Tailwind CSS v4, and shadcn/ui-
 
 ## Automatic Build on Update
 
-When you run `hermes update`, the web frontend is automatically rebuilt if `npm` is available. This keeps the dashboard in sync with code updates. If `npm` isn't installed, the update skips the frontend build and `hermes dashboard` will build it on first launch.
+When you run `hermes update`, the web frontend is automatically rebuilt if `npm` is available. This keeps the dashboard in sync with code updates. If `npm` isn't installed, the update skips the frontend build and `hermes dashboard` will build it on first launch. Current `main` can also serve a prebuilt frontend with `hermes dashboard --skip-build`, which is useful in packaged or CI-style environments.
 
 ## Themes & plugins
 

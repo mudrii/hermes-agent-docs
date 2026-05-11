@@ -685,6 +685,22 @@ Plugin engines are **never auto-activated** — you must explicitly set `context
 
 See [Memory Providers](/docs/user-guide/features/memory-providers) for the analogous single-select system for memory plugins.
 
+## Prompt Caching
+
+Prompt caching is enabled automatically for supported Claude routes. In v0.13,
+Hermes uses the short-lived `system_and_3` strategy. Current `main` after v0.13
+also supports a long-lived stable-prefix strategy for Claude models on
+Anthropic, OpenRouter, and Nous Portal.
+
+```yaml
+prompt_caching:
+  cache_ttl: "5m"             # Short-lived rolling message TTL
+  long_lived_prefix: true     # Current-main stable prefix caching
+  long_lived_ttl: "1h"        # Long-lived tools/system prefix TTL
+```
+
+See [Context Compression and Caching](/docs/developer-guide/context-compression-and-caching#prompt-caching-anthropic) for implementation details.
+
 ## Iteration Budget Pressure
 
 When the agent is working on a complex task with many tool calls, it can burn through its iteration budget (default: 90 turns) without realizing it's running low. Budget pressure automatically warns the model as it approaches the limit:
@@ -1466,11 +1482,11 @@ Environment scrubbing (strips `*_API_KEY`, `*_TOKEN`, `*_SECRET`, `*_PASSWORD`, 
 
 ## Web Search Backends
 
-The `web_search` and `web_extract` tools support five backend providers. Configure the backend in `config.yaml` or via `hermes tools`:
+The `web_search` and `web_extract` tools support seven backend providers. Configure the backend in `config.yaml` or via `hermes tools`:
 
 ```yaml
 web:
-  backend: firecrawl    # firecrawl | searxng | parallel | tavily | exa
+  backend: firecrawl    # firecrawl | searxng | brave-free | ddgs | parallel | tavily | exa
 
   # Or use per-capability keys to mix providers (e.g. free search + paid extract):
   search_backend: "searxng"
@@ -1481,11 +1497,13 @@ web:
 |---------|---------|--------|---------|-------|
 | **Firecrawl** (default) | `FIRECRAWL_API_KEY` | ✔ | ✔ | ✔ |
 | **SearXNG** | `SEARXNG_URL` | ✔ | — | — |
+| **Brave Search free** | `BRAVE_SEARCH_API_KEY` | ✔ | — | — |
+| **DDGS** | Python `ddgs` package | ✔ | — | — |
 | **Parallel** | `PARALLEL_API_KEY` | ✔ | ✔ | — |
 | **Tavily** | `TAVILY_API_KEY` | ✔ | ✔ | ✔ |
 | **Exa** | `EXA_API_KEY` | ✔ | ✔ | — |
 
-**Backend selection:** If `web.backend` is not set, the backend is auto-detected from available API keys. If only `SEARXNG_URL` is set, SearXNG is used. If only `EXA_API_KEY` is set, Exa is used. If only `TAVILY_API_KEY` is set, Tavily is used. If only `PARALLEL_API_KEY` is set, Parallel is used. Otherwise Firecrawl is the default.
+**Backend selection:** If `web.backend` is not set, the backend is auto-detected from available API keys and packages. If only `SEARXNG_URL` is set, SearXNG is used. If only `BRAVE_SEARCH_API_KEY` is set, Brave Search free is used. If the `ddgs` package is importable and no API-backed provider is configured, DDGS can be selected. If only `EXA_API_KEY` is set, Exa is used. If only `TAVILY_API_KEY` is set, Tavily is used. If only `PARALLEL_API_KEY` is set, Parallel is used. Otherwise Firecrawl is the default.
 
 **SearXNG** is a free, self-hosted, privacy-respecting metasearch engine that queries 70+ search engines. No API key needed — just set `SEARXNG_URL` to your instance (e.g., `http://localhost:8080`). SearXNG is search-only; `web_extract` and recursive extraction require a separate extract provider (set `web.extract_backend`). See the [Web Search setup guide](/docs/user-guide/features/web-search) for Docker setup instructions.
 

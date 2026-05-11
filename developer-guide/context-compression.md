@@ -276,16 +276,26 @@ Source: `agent/prompt_caching.py`
 Reduces input token costs by ~75% on multi-turn conversations by caching the
 conversation prefix. Uses Anthropic's `cache_control` breakpoints.
 
-### Strategy: system_and_3
+### Strategies: `system_and_3` and `prefix_and_2`
 
-Anthropic allows a maximum of 4 `cache_control` breakpoints per request. Hermes
-uses the "system_and_3" strategy:
+Anthropic allows a maximum of 4 `cache_control` breakpoints per request. The
+v0.13 release path uses the `system_and_3` strategy:
 
 ```
 Breakpoint 1: System prompt           (stable across all turns)
 Breakpoint 2: 3rd-to-last non-system message  ─┐
 Breakpoint 3: 2nd-to-last non-system message   ├─ Rolling window
 Breakpoint 4: Last non-system message          ─┘
+```
+
+Current `main` after v0.13 also supports a long-lived `prefix_and_2` strategy
+for Claude models on Anthropic, OpenRouter, and Nous Portal. That strategy marks
+the tool list plus stable system prefix with a longer TTL, then marks the last
+two non-system messages with the short TTL:
+
+```
+Long-lived: tools + stable system prefix       (default 1h)
+Rolling:    last 2 non-system messages        (default 5m)
 ```
 
 ### How It Works
@@ -322,19 +332,21 @@ The marker is applied differently based on content type:
    for the compressed region but the system prompt cache survives. The rolling
    3-message window re-establishes caching within 1-2 turns.
 
-4. **TTL selection**: Default is `5m` (5 minutes). Use `1h` for long-running
-   sessions where the user takes breaks between turns.
+4. **TTL selection**: Default short TTL is `5m` (5 minutes). Current `main`
+   defaults the long-lived prefix TTL to `1h` for supported Claude routes.
 
 ### Enabling Prompt Caching
 
 Prompt caching is automatically enabled when:
 - The model is an Anthropic Claude model (detected by model name)
-- The provider supports `cache_control` (native Anthropic API or OpenRouter)
+- The provider supports `cache_control` (native Anthropic API, OpenRouter, or Nous Portal)
 
 ```yaml
 # config.yaml — TTL is configurable
 prompt_caching:
-  cache_ttl: "5m"   # "5m" or "1h"
+  cache_ttl: "5m"
+  long_lived_prefix: true
+  long_lived_ttl: "1h"
 ```
 
 The CLI shows caching status at startup:

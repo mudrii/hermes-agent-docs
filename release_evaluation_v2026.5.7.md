@@ -9,7 +9,7 @@ Date reviewed: 2026-05-11
 - Release date: May 7, 2026
 - Previous stable baseline: `v0.12.0` / `v2026.4.30`
 - Local tag commit: `498bfc7bc12a937621b4215312049b1000726df3`
-- Local `main` after pull: `7026af4e23030a1c01a388ac60575bbf3b011187`
+- Local `main` after rerun pull: `271883447e7b8a5b9bd95879aca71afadc87616f` (`v2026.5.7-446-g271883447`)
 - Compare range: `v2026.4.30...v2026.5.7`
 
 ## Validation Sources

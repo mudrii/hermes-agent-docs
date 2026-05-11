@@ -514,12 +514,17 @@ Results include a snippet (40 tokens, delimited by `>>>` and `<<<`), surrounding
 
 **File:** `agent/prompt_caching.py`
 
-### Strategy: system_and_3
+### Strategies: `system_and_3` and `prefix_and_2`
 
-Anthropic prompt caching uses up to 4 `cache_control` breakpoints (the Anthropic maximum):
+Anthropic prompt caching uses up to 4 `cache_control` breakpoints (the Anthropic maximum). The v0.13 release path uses `system_and_3`:
 
 1. System prompt (stable across all turns)
 2-4. Last 3 non-system messages (rolling window)
+
+Current `main` after v0.13 can use `prefix_and_2` for Claude models on Anthropic, OpenRouter, and Nous Portal:
+
+1. Long-lived cache marker on tools plus the stable system prefix (`prompt_caching.long_lived_ttl`, default `1h`)
+2-3. Short-lived markers on the last 2 non-system messages (`prompt_caching.cache_ttl`, default `5m`)
 
 This reduces input token costs by approximately 75% on multi-turn conversations by caching the conversation prefix.
 
@@ -530,7 +535,7 @@ This reduces input token costs by approximately 75% on multi-turn conversations 
 - The base URL contains `openrouter` and the model name contains `claude`, OR
 - `self.api_mode == "anthropic_messages"` (native Anthropic provider)
 
-Default cache TTL is `"5m"` (5 minutes, 1.25x write cost). A `"1h"` TTL option is also supported.
+Default short cache TTL is `"5m"` (5 minutes, 1.25x write cost). Current `main` also defaults the stable prefix TTL to `"1h"` where the long-lived strategy is supported.
 
 ### Implementation
 
@@ -542,6 +547,8 @@ Default cache TTL is `"5m"` (5 minutes, 1.25x write cost). A `"1h"` TTL option i
 4. For string content, wraps it in `[{"type": "text", "text": ..., "cache_control": ...}]`
 5. For list content, adds `cache_control` to the last item
 6. For tool messages, adds `cache_control` at the message level
+
+`apply_anthropic_cache_control_long_lived(...)` handles the current-main `prefix_and_2` variant by placing the long-lived marker on the reusable prefix and short-lived markers on the rolling tail.
 
 ---
 

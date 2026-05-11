@@ -77,6 +77,8 @@ For example: `agent:main:telegram:private:123456789`
 
 Thread-aware platforms (Telegram forum topics, Discord threads, Slack threads) may include thread IDs in the chat_id portion. **Never construct session keys manually** — always use `build_session_key()` from `gateway/session.py`.
 
+Current `main` after v0.13 also mirrors the active Hermes session ID into the session ContextVar environment as `HERMES_SESSION_ID`. Gateway and tool-dispatch code should read that value through `gateway.session_context.get_session_env(...)` so concurrent sessions do not depend on process-global environment state.
+
 ### Two-Level Message Guard
 
 When an agent is actively running, incoming messages pass through two sequential guards:

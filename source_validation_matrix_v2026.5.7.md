@@ -28,4 +28,4 @@ GitHub Releases was checked during the audit and listed `Hermes Agent v0.13.0 (2
 
 ## Current-Main Documentation Sync
 
-The standalone docs also track post-release `main` where source docs already exist. Current-main-only updates include LINE platform docs, `/handoff`, slash-command access control, Telegram native draft streaming, Kanban worker lanes, and computer-use pages. These are intentionally not treated as v0.13.0 release claims.
+The standalone docs also track post-release `main` where source docs already exist or where current source behavior needs explicit labeling. Current-main-only updates include LINE platform docs, `/handoff`, slash-command access control, Telegram native draft streaming, Kanban worker lanes, computer-use pages, long-lived prompt caching, `HERMES_SESSION_ID` tool environment propagation, dashboard `--skip-build`/stale-dist fallback behavior, Brave/DDGS web-search backend consistency, generated release skill pages, and CLI/TUI markdown table alignment. These are intentionally not treated as v0.13.0 release claims.

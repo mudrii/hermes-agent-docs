@@ -107,6 +107,8 @@ When resuming a previous session (`hermes -c` or `hermes --resume <id>`), a "Pre
 
 **Markdown stripping in final responses.** The CLI strips the most verbose markdown fences and `**bold**` / `*italic*` wrappers from *final* agent replies so they render as readable terminal prose rather than raw source. Code blocks and lists are preserved. This does not affect gateway platforms or tool results — they keep their markdown for native rendering.
 
+Current `main` after v0.13 also realigns markdown pipe tables in streaming and final CLI output using display-cell widths, so CJK and emoji content stay aligned in terminal columns.
+
 ## Slash Commands
 
 Type `/` to see the autocomplete dropdown. Hermes supports a large set of CLI slash commands, dynamic skill commands, and user-defined quick commands.

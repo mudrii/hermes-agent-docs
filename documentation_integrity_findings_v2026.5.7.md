@@ -21,6 +21,10 @@ Date reviewed: 2026-05-11
 15. **Second-pass release audit found post-release references in release pages.** Removed `/sessions`, `/handoff`, and unreleased Kanban `list`/`unblock` claims from release-facing references, and labeled slash-command access control plus Telegram draft streaming as current-main/post-v0.13 where retained.
 16. **Skills catalogs were partially post-release and partially stale.** Re-aligned the released bundled catalog by removing post-release computer-use and Teams meeting-pipeline entries, adding released MLOps skills, and adding the released `searxng-search` optional skill page/catalog entry.
 17. **Hook/tool/env references missed released v0.13 details.** Added `transform_llm_output` hook docs, `SEARXNG_URL` to `web_search` requirements, and released Teams bot environment variables.
+18. **Rerun against current `main` found post-release docs drift.** Updated audit metadata to source `271883447e7b8a5b9bd95879aca71afadc87616f`, labeled long-lived prompt caching and `HERMES_SESSION_ID` runtime propagation as current-main behavior, and documented dashboard `--skip-build` plus stale-dist fallback behavior.
+19. **Web-search backend docs were inconsistent.** Added Brave Search free and DDGS references to configuration, env-var, and user-guide web-search docs while keeping SearXNG as the released v0.13 headline.
+20. **Released optional skill catalog links were incomplete.** Added generated docs for the released finance bundle, Shopify/here.now/shop-app productivity skills, kanban video orchestrator, and the bundled Kanban worker skill page.
+21. **CLI/TUI display docs missed current-main markdown table alignment.** Added current-main notes for display-cell-width alignment of markdown pipe tables with CJK and emoji content.
 
 ## Deferred / Watch Items
 

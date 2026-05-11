@@ -127,6 +127,8 @@ display:
 Session IDs follow the format `YYYYMMDD_HHMMSS_<hex>` — CLI/TUI sessions use a 6-char hex suffix (e.g. `20250305_091523_a1b2c3`), gateway sessions use an 8-char suffix (e.g. `20250305_091523_a1b2c3d4`). You can resume by ID (full or unique prefix) or by title — both work with `-c` and `-r`.
 :::
 
+Current `main` after v0.13 also exposes the active session ID to tool subprocesses as `HERMES_SESSION_ID`. When compression continues a conversation under a new active session ID, Hermes updates that runtime value so tools can correlate logs and handoff data with the current session.
+
 ## Cross-Platform Handoff
 
 Use `/handoff <platform>` from a CLI session to transfer the live conversation to a messaging platform's home channel. The agent picks up exactly where the CLI left off — same session id, full role-aware transcript, tool calls and all.

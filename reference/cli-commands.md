@@ -1081,6 +1081,7 @@ Launch the web dashboard — a browser-based UI for managing configuration, API 
 | `--port` | `9119` | Port to run the web server on |
 | `--host` | `127.0.0.1` | Bind address |
 | `--no-open` | — | Don't auto-open the browser |
+| `--skip-build` | — | Serve an existing `hermes_cli/web_dist` frontend without running the npm build step |
 
 ```bash
 # Default — opens browser to http://127.0.0.1:9119
@@ -1088,6 +1089,9 @@ hermes dashboard
 
 # Custom port, no browser
 hermes dashboard --port 8080 --no-open
+
+# Use an already-built frontend
+hermes dashboard --skip-build
 ```
 
 ## `hermes profile`

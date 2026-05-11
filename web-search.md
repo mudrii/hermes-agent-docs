@@ -280,7 +280,7 @@ Set one provider for all web capabilities:
 ```yaml
 # ~/.hermes/config.yaml
 web:
-  backend: "searxng"   # firecrawl | searxng | tavily | exa | parallel
+  backend: "searxng"   # firecrawl | searxng | brave-free | ddgs | tavily | exa | parallel
 ```
 
 ### Per-capability configuration
