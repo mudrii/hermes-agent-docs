@@ -20,28 +20,27 @@ This page is the top-level map of Hermes Agent internals. Use it to orient yours
            │              │                       │
            ▼              ▼                       ▼
 ┌─────────────────────────────────────────────────────────────────────┐
-│                     AIAgent (run_agent.py)                           │
-│                                                                      │
-│  ┌──────────────┐ ┌──────────────┐ ┌──────────────┐                │
-│  │ Prompt        │ │ Provider     │ │ Tool         │                │
-│  │ Builder       │ │ Resolution   │ │ Dispatch     │                │
-│  │ (prompt_      │ │ (runtime_    │ │ (model_      │                │
-│  │  builder.py)  │ │  provider.py)│ │  tools.py)   │                │
-│  └──────┬───────┘ └──────┬───────┘ └──────┬───────┘                │
-│         │                │                │                          │
-│  ┌──────┴───────┐ ┌──────┴───────┐ ┌──────┴───────┐                │
-│  │ Compression  │ │ Transport ABC│ │ Tool Registry│                │
-│  │ & Caching    │ │ Anthropic /  │ │ (registry.py)│                │
-│  │              │ │ ChatCompl. / │ │ 47 tools     │                │
-│  │              │ │ Responses /  │ │ 19 toolsets  │                │
-│  │              │ │ Bedrock      │ │              │                │
-│  └──────────────┘ └──────────────┘ └──────────────┘                │
-└─────────────────────────────────────────────────────────────────────┘
+│                     AIAgent (run_agent.py)                          │
+│                                                                     │
+│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐               │
+│  │ Prompt       │  │ Provider     │  │ Tool         │               │
+│  │ Builder      │  │ Resolution   │  │ Dispatch     │               │
+│  │ (prompt_     │  │ (runtime_    │  │ (model_      │               │
+│  │  builder.py) │  │  provider.py)│  │  tools.py)   │               │
+│  └──────┬───────┘  └──────┬───────┘  └──────┬───────┘               │
+│         │                 │                 │                       │
+│  ┌──────┴───────┐  ┌──────┴───────┐  ┌──────┴───────┐               │
+│  │ Compression  │  │ 3 API Modes  │  │ Tool Registry│               │
+│  │ & Caching    │  │ chat_compl.  │  │ (registry.py)│               │
+│  │              │  │ codex_resp.  │  │ 70+ tools    │               │
+│  │              │  │ anthropic    │  │ 28 toolsets  │               │
+│  └──────────────┘  └──────────────┘  └──────────────┘               │
+└─────────┴─────────────────┴─────────────────┴───────────────────────┘
            │                                    │
            ▼                                    ▼
 ┌───────────────────┐              ┌──────────────────────┐
 │ Session Storage   │              │ Tool Backends         │
-│ (SQLite + FTS5)   │              │ Terminal (6 backends) │
+│ (SQLite + FTS5)   │              │ Terminal (7 backends) │
 │ hermes_state.py   │              │ Browser (5 backends)  │
 │ gateway/session.py│              │ Web (4 backends)      │
 └───────────────────┘              │ MCP (dynamic)         │
@@ -53,8 +52,8 @@ This page is the top-level map of Hermes Agent internals. Use it to orient yours
 
 ```text
 hermes-agent/
-├── run_agent.py              # AIAgent — core conversation loop (~10,700 lines)
-├── cli.py                    # HermesCLI — interactive terminal UI (~10,000 lines)
+├── run_agent.py              # AIAgent — core conversation loop (large file)
+├── cli.py                    # HermesCLI — interactive terminal UI (large file)
 ├── model_tools.py            # Tool discovery, schema collection, dispatch
 ├── toolsets.py               # Tool groupings and platform presets
 ├── hermes_state.py           # SQLite session/state database with FTS5
@@ -77,14 +76,14 @@ hermes-agent/
 │   └── trajectory.py         # Trajectory saving helpers
 │
 ├── hermes_cli/               # CLI subcommands and setup
-│   ├── main.py               # Entry point — all `hermes` subcommands (~6,000 lines)
+│   ├── main.py               # Entry point — all `hermes` subcommands (large file)
 │   ├── config.py             # DEFAULT_CONFIG, OPTIONAL_ENV_VARS, migration
 │   ├── commands.py           # COMMAND_REGISTRY — central slash command definitions
 │   ├── auth.py               # PROVIDER_REGISTRY, credential resolution
 │   ├── runtime_provider.py   # Provider → api_mode + credentials
 │   ├── models.py             # Model catalog, provider model lists
 │   ├── model_switch.py       # /model command logic (CLI + gateway shared)
-│   ├── setup.py              # Interactive setup wizard (~3,100 lines)
+│   ├── setup.py              # Interactive setup wizard (large file)
 │   ├── skin_engine.py        # CLI theming engine
 │   ├── skills_config.py      # hermes skills — enable/disable per platform
 │   ├── skills_hub.py         # /skills slash command
@@ -103,25 +102,26 @@ hermes-agent/
 │   ├── browser_tool.py       # 10 browser automation tools
 │   ├── code_execution_tool.py # execute_code sandbox
 │   ├── delegate_tool.py      # Subagent delegation
-│   ├── mcp_tool.py           # MCP client (~2,200 lines)
+│   ├── mcp_tool.py           # MCP client (large file)
 │   ├── credential_files.py   # File-based credential passthrough
 │   ├── env_passthrough.py    # Env var passthrough for sandboxes
 │   ├── ansi_strip.py         # ANSI escape stripping
 │   └── environments/         # Terminal backends (local, docker, ssh, modal, daytona, singularity)
 │
 ├── gateway/                  # Messaging platform gateway
-│   ├── run.py                # GatewayRunner — message dispatch (~9,000 lines)
+│   ├── run.py                # GatewayRunner — message dispatch (large file)
 │   ├── session.py            # SessionStore — conversation persistence
 │   ├── delivery.py           # Outbound message delivery
 │   ├── pairing.py            # DM pairing authorization
 │   ├── hooks.py              # Hook discovery and lifecycle events
 │   ├── mirror.py             # Cross-session message mirroring
 │   ├── status.py             # Token locks, profile-scoped process tracking
-│   ├── builtin_hooks/        # Always-registered hooks
-│   └── platforms/            # 18 adapters: telegram, discord, slack, whatsapp,
+│   ├── builtin_hooks/        # Extension point for always-registered hooks (none shipped)
+│   └── platforms/            # 20 adapters: telegram, discord, slack, whatsapp,
 │                             #   signal, matrix, mattermost, email, sms,
 │                             #   dingtalk, feishu, wecom, wecom_callback, weixin,
-│                             #   bluebubbles, qqbot, homeassistant, webhook, api_server
+│                             #   bluebubbles, qqbot, homeassistant, webhook, api_server,
+│                             #   yuanbao
 │
 ├── acp_adapter/              # ACP server (VS Code / Zed / JetBrains)
 ├── cron/                     # Scheduler (jobs.py, scheduler.py)
@@ -143,7 +143,7 @@ User input → HermesCLI.process_input()
   → AIAgent.run_conversation()
     → prompt_builder.build_system_prompt()
     → runtime_provider.resolve_runtime_provider()
-    → API call dispatched via `ProviderTransport` (Anthropic / ChatCompletions / Responses / Bedrock)
+    → API call (chat_completions / codex_responses / anthropic_messages)
     → tool_calls? → model_tools.handle_function_call() → loop
     → final response → display → save to SessionDB
 ```
@@ -179,22 +179,21 @@ If you are new to the codebase:
 2. **[Agent Loop Internals](./agent-loop.md)** — how AIAgent works
 3. **[Prompt Assembly](./prompt-assembly.md)** — system prompt construction
 4. **[Provider Runtime Resolution](./provider-runtime.md)** — how providers are selected
-5. **[Transport Layer](./transport-layer.md)** — `ProviderTransport` ABC and concrete subclasses
-6. **[Adding Providers](./adding-providers.md)** — practical guide to adding a new provider
-7. **[Tools Runtime](./tools-runtime.md)** — tool registry, dispatch, environments
-8. **[Session Storage](./session-storage.md)** — SQLite schema, FTS5, session lineage
-9. **[Gateway Internals](./gateway-internals.md)** — messaging platform gateway
-10. **[Context Compression & Prompt Caching](./context-compression-and-caching.md)** — compression and caching
-11. **[ACP Internals](./acp-internals.md)** — IDE integration
-12. **[Environments, Benchmarks & Data Generation](./environments.md)** — RL training
+5. **[Adding Providers](./adding-providers.md)** — practical guide to adding a new provider
+6. **[Tools Runtime](./tools-runtime.md)** — tool registry, dispatch, environments
+7. **[Session Storage](./session-storage.md)** — SQLite schema, FTS5, session lineage
+8. **[Gateway Internals](./gateway-internals.md)** — messaging platform gateway
+9. **[Context Compression & Prompt Caching](./context-compression-and-caching.md)** — compression and caching
+10. **[ACP Internals](./acp-internals.md)** — IDE integration
+11. **[Environments, Benchmarks & Data Generation](./environments.md)** — RL training
 
 ## Major Subsystems
 
 ### Agent Loop
 
-The synchronous orchestration engine (`AIAgent` in `run_agent.py`). Handles provider selection, prompt construction, tool execution, retries, fallback, callbacks, compression, and persistence. Provider-specific request/response shaping is delegated to a pluggable [Transport Layer](./transport-layer.md) — concrete subclasses are `AnthropicTransport`, `ChatCompletionsTransport`, `ResponsesApiTransport`, and `BedrockTransport`. Streaming, retries, cache stat aggregation, and credential refresh remain owned by the agent loop, not the transport.
+The synchronous orchestration engine (`AIAgent` in `run_agent.py`). Handles provider selection, prompt construction, tool execution, retries, fallback, callbacks, compression, and persistence. Supports three API modes for different provider backends.
 
-→ [Agent Loop Internals](./agent-loop.md), [Transport Layer](./transport-layer.md)
+→ [Agent Loop Internals](./agent-loop.md)
 
 ### Prompt System
 
@@ -208,13 +207,13 @@ Prompt construction and maintenance across the conversation lifecycle:
 
 ### Provider Resolution
 
-A shared runtime resolver used by CLI, gateway, cron, ACP, and auxiliary calls. Maps `(provider, model)` tuples to `(api_mode, api_key, base_url)`. Handles 20+ providers, OAuth flows, credential pools, and alias resolution. The resolved `api_mode` then selects the concrete `ProviderTransport` (Anthropic / ChatCompletions / Responses / Bedrock) used to shape the wire request and normalize the response.
+A shared runtime resolver used by CLI, gateway, cron, ACP, and auxiliary calls. Maps `(provider, model)` tuples to `(api_mode, api_key, base_url)`. Handles 18+ providers, OAuth flows, credential pools, and alias resolution.
 
-→ [Provider Runtime Resolution](./provider-runtime.md), [Transport Layer](./transport-layer.md)
+→ [Provider Runtime Resolution](./provider-runtime.md)
 
 ### Tool System
 
-Central tool registry (`tools/registry.py`) with 47 registered tools across 19 toolsets. Each tool file self-registers at import time. The registry handles schema collection, dispatch, availability checking, and error wrapping. Terminal tools support 6 backends (local, Docker, SSH, Daytona, Modal, Singularity).
+Central tool registry (`tools/registry.py`) with 70+ registered tools across ~28 toolsets. Each tool file self-registers at import time. The registry handles schema collection, dispatch, availability checking, and error wrapping. Terminal tools support 7 backends (local, Docker, SSH, Daytona, Modal, Singularity, Vercel Sandbox).
 
 → [Tools Runtime](./tools-runtime.md)
 
@@ -226,7 +225,7 @@ SQLite-based session storage with FTS5 full-text search. Sessions have lineage t
 
 ### Messaging Gateway
 
-Long-running process with 18 platform adapters, unified session routing, user authorization (allowlists + DM pairing), slash command dispatch, hook system, cron ticking, and background maintenance.
+Long-running process with 20 platform adapters, unified session routing, user authorization (allowlists + DM pairing), slash command dispatch, hook system, cron ticking, and background maintenance.
 
 → [Gateway Internals](./gateway-internals.md)
 

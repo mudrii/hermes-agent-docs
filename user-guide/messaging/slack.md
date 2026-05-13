@@ -298,10 +298,6 @@ In channels, always @mention the bot to start a conversation. Once the bot is ac
 
 Beyond the required environment variables from Step 8, you can customize Slack bot behavior through `~/.hermes/config.yaml`.
 
-### Channel allowlist
-
-Set `SLACK_ALLOWED_CHANNELS` or `platforms.slack.extra.allowed_channels` to a comma-separated/list of channel IDs. When set, Hermes ignores Slack messages outside those channels and their threads, even if the user is otherwise authorized.
-
 ### Thread & Reply Behavior
 
 ```yaml

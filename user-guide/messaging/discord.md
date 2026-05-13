@@ -114,7 +114,7 @@ This is the most critical step in the entire setup. Without the correct intents 
 On the **Bot** page, scroll down to **Privileged Gateway Intents**. You'll see three toggles:
 
 | Intent | Purpose | Required? |
-|--------|---------|-----------|
+|--------|---------|-----------| 
 | **Presence Intent** | See user online/offline status | Optional |
 | **Server Members Intent** | Access the member list, resolve usernames | **Required** |
 | **Message Content Intent** | Read the text content of messages | **Required** |
@@ -464,8 +464,6 @@ display:
 
 ## Slash Command Access Control
 
-This section documents current `main` after v0.13.0; it is not part of the v2026.5.7 release command surface.
-
 By default, every allowed user can run every slash command. To split your allowlist into **admins** (full slash command access) and **regular users** (only commands you explicitly enable), add `allow_admin_from` and `user_allowed_commands` to the Discord platform's `extra` block:
 
 ```yaml
@@ -699,3 +697,5 @@ Leave `everyone` and `roles` at `false` unless you know exactly why you need the
 :::
 
 For more information on securing your Hermes Agent deployment, see the [Security Guide](../security.md).
+
+

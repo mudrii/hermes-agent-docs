@@ -307,17 +307,6 @@ hermes chat --provider arcee --model trinity-large-thinking
 # Use the exact model ID returned by GMI's /v1/models endpoint.
 hermes chat --provider gmi --model zai-org/GLM-5.1-FP8
 # Requires: GMI_API_KEY in ~/.hermes/.env
-
-# StepFun (Step Plan API)
-hermes chat --provider stepfun --model step-3.5-flash
-# Requires: STEPFUN_API_KEY in ~/.hermes/.env
-# Region auto-detected: api.stepfun.ai (intl) or api.stepfun.com (CN).
-# Override via STEPFUN_BASE_URL.
-
-# Azure AI Foundry (Bring-Your-Own deployment endpoint)
-hermes chat --provider azure-foundry --model <your-foundry-model-id>
-# Requires: AZURE_FOUNDRY_API_KEY and AZURE_FOUNDRY_BASE_URL in ~/.hermes/.env
-# AZURE_FOUNDRY_BASE_URL must point at your tenant's Foundry inference endpoint.
 ```
 
 Or set the provider permanently in `config.yaml`:
@@ -327,7 +316,7 @@ model:
   default: "zai-org/GLM-5.1-FP8"
 ```
 
-Base URLs can be overridden with `GLM_BASE_URL`, `KIMI_BASE_URL`, `MINIMAX_BASE_URL`, `MINIMAX_CN_BASE_URL`, `DASHSCOPE_BASE_URL`, `XIAOMI_BASE_URL`, `GMI_BASE_URL`, `TOKENHUB_BASE_URL`, `STEPFUN_BASE_URL`, or `AZURE_FOUNDRY_BASE_URL` environment variables.
+Base URLs can be overridden with `GLM_BASE_URL`, `KIMI_BASE_URL`, `MINIMAX_BASE_URL`, `MINIMAX_CN_BASE_URL`, `DASHSCOPE_BASE_URL`, `XIAOMI_BASE_URL`, `GMI_BASE_URL`, or `TOKENHUB_BASE_URL` environment variables.
 
 :::note Z.AI Endpoint Auto-Detection
 When using the Z.AI / GLM provider, Hermes automatically probes multiple endpoints (global, China, coding variants) to find one that accepts your API key. You don't need to set `GLM_BASE_URL` manually — the working endpoint is detected and cached automatically.
@@ -389,8 +378,8 @@ bedrock:
   # profile: "myprofile"       # or set AWS_PROFILE
   # discovery: true            # auto-discover region from IAM
   # guardrail:                 # optional Bedrock Guardrails
-  #   id: "your-guardrail-id"
-  #   version: "DRAFT"
+  #   guardrail_identifier: "your-guardrail-id"
+  #   guardrail_version: "DRAFT"
 ```
 
 Authentication uses the standard boto3 chain: explicit `AWS_ACCESS_KEY_ID`/`AWS_SECRET_ACCESS_KEY`, `AWS_PROFILE` from `~/.aws/credentials`, IAM role on EC2/ECS/Lambda, IMDS, or SSO. No env var is required if you're already authenticated with the AWS CLI.
@@ -420,10 +409,6 @@ model:
 ```
 
 Set `HERMES_QWEN_BASE_URL` only if the portal endpoint relocates (default: `https://portal.qwen.ai/v1`).
-
-:::info Display label rename (current-main, post-v0.13.0)
-On `main` after v0.13.0 (PR [#24835](https://github.com/NousResearch/hermes-agent/pull/24835)), the picker label for the `alibaba` provider was renamed from "Alibaba Cloud (DashScope)" to "Qwen Cloud" and reordered to position 6 in `hermes model`. The provider slug (`alibaba`), env var (`DASHSCOPE_API_KEY`), and base URL are unchanged. v0.13.0 binaries still show the old label.
-:::
 
 :::tip Qwen OAuth vs DashScope (Alibaba)
 `qwen-oauth` uses the consumer-facing Qwen Portal with OAuth login — ideal for individual users. The `alibaba` provider uses DashScope's enterprise API with a `DASHSCOPE_API_KEY` — ideal for programmatic / production workloads. Both route to Qwen-family models but live at different endpoints.
@@ -499,7 +484,7 @@ For on-prem deployments (DGX Spark, local GPU), set `NVIDIA_BASE_URL=http://loca
 
 ### GMI Cloud
 
-Open and reasoning models via [GMI Cloud](https://inference.gmi.ai) — OpenAI-compatible API, API key authentication.
+Open and reasoning models via [GMI Cloud](https://www.gmicloud.ai/) — OpenAI-compatible API, API key authentication.
 
 ```bash
 # GMI Cloud
@@ -514,7 +499,7 @@ model:
   default: "deepseek-ai/DeepSeek-R1"
 ```
 
-The base URL can be overridden with `GMI_BASE_URL` (default: `https://api.gmi.ai/v1`).
+The base URL can be overridden with `GMI_BASE_URL` (default: `https://api.gmi-serving.com/v1`).
 
 ### StepFun
 
@@ -1387,24 +1372,55 @@ provider_routing:
 
 **Shortcuts:** Append `:nitro` to any model name for throughput sorting (e.g., `anthropic/claude-sonnet-4:nitro`), or `:floor` for price sorting.
 
-## Fallback Model
+## OpenRouter Pareto Code Router
 
-Configure a backup provider:model that Hermes switches to automatically when your primary model fails (rate limits, server errors, auth failures):
+OpenRouter ships an experimental coding-model router at `openrouter/pareto-code` that auto-routes requests to the cheapest model meeting a coding-quality bar (ranked by [Artificial Analysis](https://artificialanalysis.ai/)). Pick this model and tune the `min_coding_score` knob in `~/.hermes/config.yaml`:
+
+```yaml
+model:
+  provider: openrouter
+  model: openrouter/pareto-code
+
+openrouter:
+  min_coding_score: 0.65   # 0.0–1.0; higher = stronger (more expensive) coders. Default 0.65.
+```
+
+Notes:
+
+- `min_coding_score` is **only** sent when `model.model` is `openrouter/pareto-code`. On any other model the value is a no-op.
+- Set to empty string (or remove the line) to let OpenRouter pick the strongest available coder — its documented behavior when the plugins block is omitted.
+- Selection is deterministic per score on a given day, but the actual model chosen can shift as the Pareto frontier moves (new models, benchmark updates).
+- See OpenRouter's [Pareto Router docs](https://openrouter.ai/docs/guides/routing/routers/pareto-router) for the full router behavior.
+- To use the Pareto Code router for a specific **auxiliary task** (compression, vision, etc.) instead of the main agent, set `extra_body.plugins` under that task — see [Auxiliary Models → OpenRouter routing & Pareto Code for auxiliary tasks](/docs/user-guide/configuration#openrouter-routing--pareto-code-for-auxiliary-tasks).
+
+## Fallback Providers
+
+Configure a chain of backup providers Hermes tries in order when the primary model fails (rate limits, server errors, auth failures). The canonical format is a top-level `fallback_providers:` list:
+
+```yaml
+fallback_providers:
+  - provider: openrouter
+    model: anthropic/claude-sonnet-4
+  - provider: anthropic
+    model: claude-sonnet-4
+    # base_url: http://localhost:8000/v1    # optional, for custom endpoints
+    # api_mode: chat_completions           # optional override
+```
+
+The legacy single-pair `fallback_model:` dict is still accepted for back-compat:
 
 ```yaml
 fallback_model:
-  provider: openrouter                    # required
-  model: anthropic/claude-sonnet-4        # required
-  # base_url: http://localhost:8000/v1    # optional, for custom endpoints
-  # key_env: MY_CUSTOM_KEY               # optional, env var name for custom endpoint API key
+  provider: openrouter
+  model: anthropic/claude-sonnet-4
 ```
 
-When activated, the fallback swaps the model and provider mid-session without losing your conversation. It fires **at most once** per session.
+When activated, the fallback swaps the model and provider mid-session without losing your conversation. The chain is tried entry-by-entry; activation is one-shot per session.
 
-Supported providers: `openrouter`, `nous`, `openai-codex`, `copilot`, `copilot-acp`, `anthropic`, `gemini`, `google-gemini-cli`, `qwen-oauth`, `huggingface`, `zai`, `kimi-coding`, `kimi-coding-cn`, `minimax`, `minimax-cn`, `minimax-oauth`, `deepseek`, `nvidia`, `xai`, `ollama-cloud`, `bedrock`, `ai-gateway`, `opencode-zen`, `opencode-go`, `kilocode`, `xiaomi`, `arcee`, `gmi`, `stepfun`, `alibaba`, `tencent-tokenhub`, `custom`.
+Supported providers: `openrouter`, `nous`, `openai-codex`, `copilot`, `copilot-acp`, `anthropic`, `gemini`, `google-gemini-cli`, `qwen-oauth`, `huggingface`, `zai`, `kimi-coding`, `kimi-coding-cn`, `minimax`, `minimax-cn`, `minimax-oauth`, `deepseek`, `nvidia`, `xai`, `ollama-cloud`, `bedrock`, `ai-gateway`, `azure-foundry`, `opencode-zen`, `opencode-go`, `kilocode`, `xiaomi`, `arcee`, `gmi`, `stepfun`, `lmstudio`, `alibaba`, `alibaba-coding-plan`, `tencent-tokenhub`, `custom`.
 
 :::tip
-Fallback is configured exclusively through `config.yaml` — there are no environment variables for it. For full details on when it triggers, supported providers, and how it interacts with auxiliary tasks and delegation, see [Fallback Providers](/docs/user-guide/features/fallback-providers).
+Fallback is configured exclusively through `config.yaml` — or interactively via `hermes fallback`. For full details on when it triggers, how the chain advances, and how it interacts with auxiliary tasks and delegation, see [Fallback Providers](/docs/user-guide/features/fallback-providers).
 :::
 
 ---

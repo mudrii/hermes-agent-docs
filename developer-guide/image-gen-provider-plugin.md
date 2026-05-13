@@ -6,7 +6,7 @@ description: "How to build an image-generation backend plugin for Hermes Agent"
 
 # Building an Image Generation Provider Plugin
 
-Image-gen provider plugins register an opt-in backend for `image_generate` — DALL·E, gpt-image, Grok, Flux, Imagen, Stable Diffusion, Replicate, a local ComfyUI rig, anything. Built-in providers (OpenAI, OpenAI-Codex, xAI) ship as plugins. If `image_gen.provider` is unset or explicitly `fal`, Hermes keeps the legacy in-tree FAL path. Set `image_gen.provider` to a non-`fal` provider name to dispatch through the plugin registry.
+Image-gen provider plugins register a backend that services every `image_generate` tool call — DALL·E, gpt-image, Grok, Flux, Imagen, Stable Diffusion, fal, Replicate, a local ComfyUI rig, anything. Built-in providers (OpenAI, OpenAI-Codex, xAI) all ship as plugins. You can add a new one, or override a bundled one, by dropping a directory into `plugins/image_gen/<name>/`.
 
 :::tip
 Image-gen is one of several **backend plugins** Hermes supports. The others (with more specialized ABCs) are [Memory Provider Plugins](/docs/developer-guide/memory-provider-plugin), [Context Engine Plugins](/docs/developer-guide/context-engine-plugin), and [Model Provider Plugins](/docs/developer-guide/model-provider-plugin). General tool/hook/CLI plugins live in [Build a Hermes Plugin](/docs/guides/build-a-hermes-plugin).
@@ -22,7 +22,7 @@ Hermes scans for image-gen backends in three places:
 
 Each plugin's `register(ctx)` function calls `ctx.register_image_gen_provider(...)` — that puts it into the registry in `agent/image_gen_registry.py`. The active provider is picked by `image_gen.provider` in `config.yaml`; `hermes tools` walks users through selection.
 
-The `image_generate` tool wrapper asks the registry for the active provider and dispatches there only when `image_gen.provider` is set to a non-`fal` provider. If `image_gen.provider` is unset or `fal`, the released v0.13 path uses the legacy FAL implementation. If a configured plugin provider is unavailable, the tool surfaces a helpful error pointing at `hermes tools`.
+The `image_generate` tool wrapper asks the registry for the active provider and dispatches there. If no provider is registered, the tool surfaces a helpful error pointing at `hermes tools`.
 
 ## Directory structure
 

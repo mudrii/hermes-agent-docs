@@ -119,12 +119,6 @@ The main entry point is `model_tools.get_tool_definitions(enabled_toolsets, disa
 
 Old toolset names with `_tools` suffixes (e.g., `web_tools`, `terminal_tools`) are mapped to their modern tool names via `_LEGACY_TOOLSET_MAP` for backward compatibility.
 
-## Session-scoped runtime environment
-
-Current `main` after v0.13 carries session context through `gateway.session_context` ContextVars. Local tool subprocesses inherit session-scoped environment variables, including `HERMES_SESSION_ID`, so scripts can correlate artifacts with the active Hermes session.
-
-Python code running inside gateway or tool-dispatch paths should prefer `gateway.session_context.get_session_env(...)` over reading process-global `os.environ` when it needs the current session value. This avoids cross-session leakage in concurrent gateway workloads.
-
 ## Dispatch
 
 At runtime, tools are dispatched through the central registry, with agent-loop exceptions for some agent-level tools such as memory/todo/session-search handling.
@@ -219,6 +213,7 @@ The terminal system supports multiple backends:
 - singularity
 - modal
 - daytona
+- vercel_sandbox
 
 It also supports:
 

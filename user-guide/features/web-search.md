@@ -20,17 +20,11 @@ Both are configured through a single backend selection. Providers are chosen via
 |----------|---------|--------|---------|-------|-----------|
 | **Firecrawl** (default) | `FIRECRAWL_API_KEY` | ✔ | ✔ | ✔ | 500 credits/mo |
 | **SearXNG** | `SEARXNG_URL` | ✔ | — | — | ✔ Free (self-hosted) |
-| **Brave Search free** ⚠ | `BRAVE_SEARCH_API_KEY` | ✔ | — | — | ✔ Free tier |
-| **DDGS** ⚠ | Python `ddgs` package | ✔ | — | — | ✔ Free |
 | **Tavily** | `TAVILY_API_KEY` | ✔ | ✔ | ✔ | 1 000 searches/mo |
 | **Exa** | `EXA_API_KEY` | ✔ | ✔ | — | 1 000 searches/mo |
 | **Parallel** | `PARALLEL_API_KEY` | ✔ | ✔ | — | Paid |
 
 **Per-capability split:** you can use different providers for search and extract independently — for example SearXNG (free) for search and Firecrawl for extract. See [Per-capability configuration](#per-capability-configuration) below.
-
-:::info ⚠ marker: current-main only — not in v0.13.0
-The two backends marked with ⚠ above (**Brave Search free** and **DDGS**) ship on `main` after the v0.13.0 (v2026.5.7) release. They are not selectable on the released v0.13.0 build. Use Firecrawl, SearXNG, Tavily, Exa, or Parallel on v0.13.0.
-:::
 
 :::tip Nous Subscribers
 If you have a paid [Nous Portal](https://portal.nousresearch.com) subscription, web search and extract are available through the **[Tool Gateway](tool-gateway.md)** via managed Firecrawl — no API key needed. Run `hermes tools` to enable it.
@@ -47,7 +41,7 @@ Backends return raw page markdown, which can be huge (forum threads, docs sites,
 | Under 5 000 | Returned as-is — no LLM call, full markdown reaches the agent |
 | 5 000 – 500 000 | Single-pass summary via the `web_extract` auxiliary model, capped at ~5 000 chars of output |
 | 500 000 – 2 000 000 | Chunked: split into 100 k-char chunks, summarize each in parallel, then synthesize a final summary (~5 000 chars) |
-| Over 2 000 000 | Refused with a hint to use focused extraction instructions or a more specific source |
+| Over 2 000 000 | Refused with a hint to use `web_crawl` with focused extraction instructions or a more specific source |
 
 The summary keeps quotes, code blocks, and key facts in their original formatting — it's a content compressor, not a paraphraser. If summarization fails or times out, Hermes falls back to the first ~5 000 chars of raw content rather than a useless error.
 
@@ -284,7 +278,7 @@ Set one provider for all web capabilities:
 ```yaml
 # ~/.hermes/config.yaml
 web:
-  backend: "searxng"   # firecrawl | searxng | brave-free | ddgs | tavily | exa | parallel
+  backend: "searxng"   # firecrawl | searxng | tavily | exa | parallel
 ```
 
 ### Per-capability configuration
@@ -316,8 +310,6 @@ If no backend is explicitly configured, Hermes picks the first available one bas
 | `TAVILY_API_KEY` | tavily |
 | `EXA_API_KEY` | exa |
 | `SEARXNG_URL` | searxng |
-| `BRAVE_SEARCH_API_KEY` | brave-free |
-| `ddgs` package importable | ddgs |
 
 ---
 

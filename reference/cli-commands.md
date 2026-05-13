@@ -24,14 +24,8 @@ hermes [global-options] <command> [subcommand/options]
 | `--profile <name>`, `-p <name>` | Select which Hermes profile to use for this invocation. Overrides the sticky default set by `hermes profile use`. |
 | `--resume <session>`, `-r <session>` | Resume a previous session by ID or title. |
 | `--continue [name]`, `-c [name]` | Resume the most recent session, or the most recent session matching a title. |
-| `--oneshot "prompt"`, `-z "prompt"` | Run a scripted one-shot prompt and exit. |
-| `--model <model>`, `-m <model>` | Override the model for this run. |
-| `--provider <provider>` | Force a provider for this run. |
-| `--toolsets <csv>`, `-t <csv>` | Enable a comma-separated set of toolsets. |
-| `--skills <name>`, `-s <name>` | Preload one or more skills. Can be repeated or comma-separated. |
 | `--worktree`, `-w` | Start in an isolated git worktree for parallel-agent workflows. |
 | `--yolo` | Bypass dangerous-command approval prompts. |
-| `--accept-hooks` | Approve configured shell hooks for this invocation. |
 | `--pass-session-id` | Include the session ID in the agent's system prompt. |
 | `--ignore-user-config` | Ignore `~/.hermes/config.yaml` and fall back to built-in defaults. Credentials in `.env` are still loaded. |
 | `--ignore-rules` | Skip auto-injection of `AGENTS.md`, `SOUL.md`, `.cursorrules`, memory, and preloaded skills. |
@@ -46,6 +40,7 @@ hermes [global-options] <command> [subcommand/options]
 | `hermes model` | Interactively choose the default provider and model. |
 | `hermes fallback` | Manage fallback providers tried when the primary model errors. |
 | `hermes gateway` | Run or manage the messaging gateway service. |
+| `hermes lsp` | Manage Language Server Protocol integration (semantic diagnostics for write_file/patch). |
 | `hermes setup` | Interactive setup wizard for all or part of the configuration. |
 | `hermes whatsapp` | Configure and pair the WhatsApp bridge. |
 | `hermes slack` | Slack helpers (currently: generate the app manifest with every command as a native slash). |
@@ -72,6 +67,7 @@ hermes [global-options] <command> [subcommand/options]
 | `hermes mcp` | Manage MCP server configurations and run Hermes as an MCP server. |
 | `hermes plugins` | Manage Hermes Agent plugins (install, enable, disable, remove). |
 | `hermes tools` | Configure enabled tools per platform. |
+| `hermes computer-use` | Install or check the cua-driver backend (macOS Computer Use). |
 | `hermes sessions` | Browse, export, prune, rename, and delete sessions. |
 | `hermes insights` | Show token/cost/activity analytics. |
 | `hermes claw` | OpenClaw migration helpers. |
@@ -210,7 +206,6 @@ Subcommands:
 | Subcommand | Description |
 |------------|-------------|
 | `run` | Run the gateway in the foreground. Recommended for WSL, Docker, and Termux. |
-| `list` | List gateways across profiles. |
 | `start` | Start the installed systemd/launchd background service. |
 | `stop` | Stop the service (or foreground process). |
 | `restart` | Restart the service. |
@@ -218,25 +213,43 @@ Subcommands:
 | `install` | Install as a systemd (Linux) or launchd (macOS) background service. |
 | `uninstall` | Remove the installed service. |
 | `setup` | Interactive messaging-platform setup. |
-| `migrate-legacy` | Migrate legacy gateway configuration. |
 
 Options:
 
 | Option | Description |
 |--------|-------------|
-| `run --replace` | Replace an existing gateway process for the active profile. |
-| `run -v` / `run -q` | Increase or reduce foreground gateway log verbosity. |
 | `--all` | On `start` / `restart` / `stop`: act on **every profile's** gateway, not just the active `HERMES_HOME`. Useful if you run multiple profiles side-by-side and want to restart them all after `hermes update`. |
-| `status --deep` / `status --full` | Include deeper process/runtime diagnostics. |
-| `status --system` | Inspect the system service explicitly. |
-| `install --system` | Install a Linux system service instead of a user service. |
-| `install --force` | Reinstall even when a service already exists. |
-| `install --run-as-user <user>` | For system installs, run the service as the specified user. |
-| `migrate-legacy --dry-run` / `migrate-legacy -y` | Preview or approve legacy config migration. |
 
 :::tip WSL users
 Use `hermes gateway run` instead of `hermes gateway start` — WSL's systemd support is unreliable. Wrap it in tmux for persistence: `tmux new -s hermes 'hermes gateway run'`. See [WSL FAQ](/docs/reference/faq#wsl-gateway-keeps-disconnecting-or-hermes-gateway-start-fails) for details.
 :::
+
+## `hermes lsp`
+
+```bash
+hermes lsp <subcommand>
+```
+
+Manage the Language Server Protocol integration. LSP runs real
+language servers (pyright, gopls, rust-analyzer, …) in the
+background and feeds their diagnostics into the post-write check
+used by `write_file` and `patch`. Gated on git workspace detection
+— LSP only runs when the cwd or edited file is inside a git
+worktree.
+
+Subcommands:
+
+| Subcommand | Description |
+|------------|-------------|
+| `status` | Show service state, configured servers, install status. |
+| `list` | Print the registry of supported servers. Pass `--installed-only` to skip missing ones. |
+| `install <id>` | Eagerly install one server's binary. |
+| `install-all` | Install every server with a known auto-install recipe. |
+| `restart` | Tear down running clients so the next edit re-spawns. |
+| `which <id>` | Print the resolved binary path for one server. |
+
+See [LSP — Semantic Diagnostics](/docs/user-guide/features/lsp) for
+the full guide, supported languages, and configuration knobs.
 
 ## `hermes setup`
 
@@ -891,7 +904,6 @@ Subcommands:
 | `setup` | Interactive provider selection and configuration. |
 | `status` | Show current memory provider config. |
 | `off` | Disable external provider (built-in only). |
-| `reset` | Reset built-in memory stores and/or user profile data. Use `--target all|memory|user`; add `--yes` to skip confirmation. |
 
 :::info Provider-specific subcommands
 When an external memory provider is active, it may register its own top-level `hermes <provider>` command for provider-specific management (e.g. `hermes honcho` when Honcho is active). Inactive providers do not expose their subcommands. Run `hermes --help` to see what's currently wired in.
@@ -973,20 +985,39 @@ See [Plugins](../user-guide/features/plugins.md) and [Build a Hermes Plugin](../
 
 ```bash
 hermes tools [--summary]
-hermes tools list [--platform <name>]
-hermes tools enable <name...> [--platform <name>]
-hermes tools disable <name...> [--platform <name>]
 ```
 
 | Option | Description |
 |--------|-------------|
 | `--summary` | Print the current enabled-tools summary and exit. |
-| `list` | List enabled and available toolsets/tools. |
-| `enable <name...>` | Enable toolsets or individual tools for a platform. MCP tools use `server:tool` notation. |
-| `disable <name...>` | Disable toolsets or individual tools for a platform. MCP tools use `server:tool` notation. |
-| `--platform <name>` | Apply `list`, `enable`, or `disable` to a specific platform config. |
 
 Without `--summary`, this launches the interactive per-platform tool configuration UI.
+
+## `hermes computer-use`
+
+```bash
+hermes computer-use <subcommand>
+```
+
+Subcommands:
+
+| Subcommand | Description |
+|------------|-------------|
+| `install` | Run the upstream cua-driver installer (macOS only). |
+| `install --upgrade` | Re-run the installer even if cua-driver is already on PATH. The upstream script always pulls the latest release, so this performs an in-place upgrade. |
+| `status` | Print whether `cua-driver` is on `$PATH` and which version is installed. |
+
+`hermes computer-use install` is the stable entry point for installing the
+[cua-driver](https://github.com/trycua/cua) binary used by the
+`computer_use` toolset. It runs the same upstream installer that
+`hermes tools` invokes when you first enable Computer Use, so it's safe
+to use for re-running the install if the toolset toggle didn't trigger
+it (for example, on returning-user setups).
+
+`hermes update` automatically re-runs the upstream installer at the end
+of the update if cua-driver is on PATH, so most users will not need to
+call `--upgrade` manually. Use it when upstream ships a fix you want
+right now without waiting for the next Hermes update.
 
 ## `hermes sessions`
 
@@ -1081,7 +1112,6 @@ Launch the web dashboard — a browser-based UI for managing configuration, API 
 | `--port` | `9119` | Port to run the web server on |
 | `--host` | `127.0.0.1` | Bind address |
 | `--no-open` | — | Don't auto-open the browser |
-| `--skip-build` | — | Serve an existing `hermes_cli/web_dist` frontend without running the npm build step |
 
 ```bash
 # Default — opens browser to http://127.0.0.1:9119
@@ -1089,9 +1119,6 @@ hermes dashboard
 
 # Custom port, no browser
 hermes dashboard --port 8080 --no-open
-
-# Use an already-built frontend
-hermes dashboard --skip-build
 ```
 
 ## `hermes profile`

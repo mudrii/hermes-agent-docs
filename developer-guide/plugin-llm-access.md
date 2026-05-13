@@ -6,10 +6,6 @@ description: "Run any LLM call from inside a plugin via ctx.llm — chat or stru
 
 # Plugin LLM Access
 
-:::warning Current-main only — not in v0.13.0
-The `ctx.llm` API documented on this page ships on `main` after the v0.13.0 (v2026.5.7) release. The implementation file (`agent/plugin_llm.py`) and the `ctx.llm` attribute on `PluginContext` are not present in the v0.13.0 tag. If you are building plugins against the released v0.13.0 build, this surface is not available — track [the changelog](/docs/changelog) for the release that ships it. For v0.13.0, plugins should call providers directly through their own dependencies.
-:::
-
 `ctx.llm` is the supported way for a plugin to make an LLM call.
 Chat completion, structured extraction, sync, async, with or without
 images — same surface, same trust gate, same host-owned credentials.
@@ -208,7 +204,7 @@ in the same repo.
 | The same call from async code (gateway adapters, async hooks) | `acomplete()` / `acomplete_structured()` |
 
 Everything else — provider selection, model resolution, auth, fallback,
-timeout, and multimodal message formatting — is the same across all four.
+timeout, vision routing — is the same across all four.
 
 ## API surface
 
@@ -224,7 +220,7 @@ result = ctx.llm.complete(
     temperature=None,
     max_tokens=None,
     timeout=None,          # seconds
-    agent_id=None,         # optional, gated; recorded in audit/result metadata
+    agent_id=None,         # optional, gated
     profile=None,          # optional, gated — explicit auth-profile name
     purpose="optional-audit-string",
 )
@@ -261,7 +257,7 @@ result = ctx.llm.complete_structured(
     temperature=None,
     max_tokens=None,
     timeout=None,
-    agent_id=None,         # optional, gated; recorded in audit/result metadata
+    agent_id=None,
     profile=None,
     purpose=None,
 )
@@ -299,7 +295,7 @@ class PluginLlmCompleteResult:
     text: str                    # the assistant's response
     provider: str                # e.g. "openrouter", "anthropic"
     model: str                   # whatever the provider returned for this call
-    agent_id: str                # audited agent id associated with the call
+    agent_id: str                # whose model/auth was used
     usage: PluginLlmUsage        # tokens + cache + cost estimate
     audit: Dict[str, Any]        # plugin_id, purpose, profile
 
@@ -326,7 +322,7 @@ config block, a plugin can:
   `input`, `json_schema`),
 
 …and that's it. `provider=`, `model=`, `agent_id=`, and `profile=`
-arguments raise `PluginLlmTrustError` until the operator opts in. In v0.13.0, `agent_id` is accepted and audited but does not route the completion to a separate runtime by itself.
+arguments raise `PluginLlmTrustError` until the operator opts in.
 
 **Most plugins never need this section.** A plugin that just calls
 `ctx.llm.complete(messages=...)` with no overrides runs against
@@ -447,7 +443,7 @@ Existing `ctx.*` methods extend an existing Hermes subsystem:
 | `ctx.register_tool` | adds a tool the agent can call |
 | `ctx.register_platform` | wires a new gateway adapter |
 | `ctx.register_image_gen_provider` | replaces an image-gen backend |
-| Memory provider loader | replaces the memory backend through the dedicated memory-provider discovery system |
+| `ctx.register_memory_provider` | replaces the memory backend |
 | `ctx.register_context_engine` | replaces the context compressor |
 | `ctx.register_hook` | observes a lifecycle event |
 

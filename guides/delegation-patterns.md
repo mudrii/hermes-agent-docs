@@ -1,13 +1,14 @@
 ---
-title: "Delegation Patterns"
-description: "Patterns for using Hermes subagent delegation — parallel research, code review, multi-file refactors, and orchestrator-mode nested delegation."
+sidebar_position: 13
+title: "Delegation & Parallel Work"
+description: "When and how to use subagent delegation — patterns for parallel research, code review, and multi-file work"
 ---
 
 # Delegation & Parallel Work
 
 Hermes can spawn isolated child agents to work on tasks in parallel. Each subagent gets its own conversation, terminal session, and toolset. Only the final summary comes back — intermediate tool calls never enter your context window.
 
-For the full feature reference, see [Subagent Delegation](/docs/delegation).
+For the full feature reference, see [Subagent Delegation](/docs/user-guide/features/delegation).
 
 ---
 
@@ -24,6 +25,7 @@ For the full feature reference, see [Subagent Delegation](/docs/delegation).
 - Mechanical multi-step work with logic between steps → `execute_code`
 - Tasks needing user interaction → subagents can't use `clarify`
 - Quick file edits → do them directly
+- Durable long-running work that must outlive the current turn → `cronjob` or `terminal(background=True, notify_on_complete=True)`. `delegate_task` is **synchronous**: if the parent turn is interrupted, active children are cancelled and their work is discarded.
 
 ---
 
@@ -215,39 +217,28 @@ Restricting toolsets keeps the subagent focused and prevents accidental side eff
 
 ## Constraints
 
-- **Default 3 parallel tasks (no hard ceiling)** — batches default to 3 concurrent subagents (configurable via `delegation.max_concurrent_children` in `config.yaml`; you can raise it as high as your provider rate limits and machine resources allow).
-- **Nested delegation is opt-in** — by default subagents are leaf workers and cannot call `delegate_task`. To allow nesting, mark the spawning subagent with the `orchestrator` role and set `delegation.max_spawn_depth > 1` (range `1`–`3`, default `1`). Leaf workers still cannot delegate, regardless of depth.
-- **Disable delegation entirely** — set `delegation.orchestrator_enabled: false` in `config.yaml` to disable the orchestrator role across the agent.
-- **Subagents still cannot use** `clarify`, `memory`, `send_message`, or `execute_code`.
-- **Separate terminals** — each subagent gets its own terminal session with separate working directory and state.
-- **No conversation history** — subagents see only what you put in `goal` and `context`.
-- **Default 50 iterations** — set `max_iterations` lower for simple tasks to save cost.
+- **Default 3 parallel tasks**: batches default to 3 concurrent subagents (configurable via `delegation.max_concurrent_children` in config.yaml, no hard ceiling, only a floor of 1)
+- **Nested delegation is opt-in**: leaf subagents (default) cannot call `delegate_task`, `clarify`, `memory`, `send_message`, or `execute_code`. Orchestrator subagents (`role="orchestrator"`) retain `delegate_task` for further delegation, but only when `delegation.max_spawn_depth` is raised above the default of 1 (1-3 supported); the other four remain blocked. Disable globally via `delegation.orchestrator_enabled: false`.
 
----
+### Tuning Concurrency and Depth
 
-## Tuning Concurrency and Depth
+| Config | Default | Range | Effect |
+|--------|---------|-------|--------|
+| `max_concurrent_children` | 3 | >=1 | Parallel batch size per `delegate_task` call |
+| `max_spawn_depth` | 1 | 1-3 | How many delegation levels can spawn further |
 
-The two knobs that control how delegation expands at runtime live under `delegation:` in `~/.hermes/config.yaml`:
-
-| Key | Default | Range | Effect |
-|---|---|---|---|
-| `delegation.max_concurrent_children` | `3` | `1`+ | Max sibling subagents that run in parallel from a single `delegate_task` batch. No hard ceiling — raise based on rate limits and machine resources. |
-| `delegation.max_spawn_depth` | `1` | `1`–`3` | Max nesting depth. `1` = flat (only the top-level agent can delegate). `2` = orchestrators can spawn workers that themselves spawn leaves. `3` = one more level. |
-| `delegation.orchestrator_enabled` | `true` | bool | Master switch. Set to `false` to disable nested delegation entirely; subagents stay flat regardless of `max_spawn_depth`. |
-
-Example — wider parallel research with one level of nested orchestration:
+Example: running 30 parallel workers with nested subagents:
 
 ```yaml
-# ~/.hermes/config.yaml
 delegation:
-  orchestrator_enabled: true
-  max_concurrent_children: 6
+  max_concurrent_children: 30
   max_spawn_depth: 2
 ```
 
-With this, the top-level agent can spawn up to 6 orchestrator subagents in parallel, and each of those orchestrators can spawn its own batch of leaf workers (which cannot delegate further).
-
-Start with the defaults. Only raise `max_concurrent_children` if you've confirmed your provider can handle the parallel load, and only raise `max_spawn_depth` when a single layer of delegation is genuinely insufficient — most workflows do not need nesting.
+- **Separate terminals** — each subagent gets its own terminal session with separate working directory and state
+- **No conversation history** — subagents see only the `goal` and `context` the parent agent passes when calling `delegate_task`
+- **Default 50 iterations** — set `max_iterations` lower for simple tasks to save cost
+- **Not durable** — `delegate_task` is synchronous and runs inside the parent turn. If the parent is interrupted (new user message, `/stop`, `/new`), all active children are cancelled (`status="interrupted"`) and their work is discarded. For work that must outlive the current turn, use `cronjob` or `terminal(background=True, notify_on_complete=True)`.
 
 ---
 
@@ -263,4 +254,4 @@ Start with the defaults. Only raise `max_concurrent_children` if you've confirme
 
 ---
 
-*For the complete delegation reference — all parameters, ACP integration, and advanced configuration — see [Subagent Delegation](/docs/delegation).*
+*For the complete delegation reference — all parameters, ACP integration, and advanced configuration — see [Subagent Delegation](/docs/user-guide/features/delegation).*

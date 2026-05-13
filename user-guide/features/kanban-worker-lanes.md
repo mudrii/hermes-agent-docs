@@ -1,9 +1,5 @@
 # Kanban worker lanes
 
-:::info Current-main only — not in v0.13.0
-The full worker-lane abstraction described on this page (lane identity, multi-lane spawn contracts, non-Hermes lane integration) describes behavior on `main` after the v0.13.0 (v2026.5.7) release. The v0.13.0 tag ships the underlying kanban dispatcher, durable board, and `kanban-worker` skill — but the named "lane" surface area and its contract are evolving on main. For v0.13.0 stable use, treat the [Kanban](./kanban.md) and [Kanban tutorial](./kanban-tutorial.md) pages as the source of truth.
-:::
-
 A **worker lane** is a class of process that the kanban dispatcher can route tasks to. Each lane has an identity (the assignee string), a spawn mechanism, and a contract for what it must do with the task once spawned.
 
 This page is the contract. It exists for two audiences:

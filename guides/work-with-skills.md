@@ -94,21 +94,11 @@ hermes skills install official/research/arxiv
 
 # Install from the hub in a chat session
 /skills install official/creative/songwriting-and-ai-music
-```
 
-### Installing from a direct HTTPS URL
-
-You can also install a skill from any web-served `SKILL.md` file. Hermes downloads the file, treats it as the entry point of a single-file skill, and registers it under `~/.hermes/skills/`:
-
-```bash
-# Install directly from a URL on the CLI
+# Install a single-file SKILL.md directly from any HTTP(S) URL
 hermes skills install https://sharethis.chat/SKILL.md
-
-# Install from a URL inside a chat session, with an explicit local name
 /skills install https://example.com/SKILL.md --name my-skill
 ```
-
-Use `--name` when the URL doesn't already encode a clean skill name, or when you want to install the same skill under a different label.
 
 What happens:
 1. The skill directory is copied to `~/.hermes/skills/`

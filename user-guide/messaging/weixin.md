@@ -170,7 +170,7 @@ The default group policy is `disabled` for Weixin (unlike WeCom where it default
 The adapter receives media attachments from users, downloads them from the WeChat CDN, decrypts them, and caches them locally for agent processing:
 
 | Type | How it's handled |
-|------|-----------------|
+|------|-----------------| 
 | **Images** | Downloaded, AES-decrypted, and cached as JPEG. |
 | **Video** | Downloaded, AES-decrypted, and cached as MP4. |
 | **Files** | Downloaded, AES-decrypted, and cached. Original filename is preserved. |
@@ -193,7 +193,7 @@ No configuration is needed — encryption and decryption happen automatically.
 
 | Method | What it sends |
 |--------|--------------|
-| `send` | Text messages with Markdown formatting |
+| `send` | Text messages with Markdown formatting | 
 | `send_image` / `send_image_file` | Native image messages (via CDN upload) |
 | `send_document` | File attachments (via CDN upload) |
 | `send_video` | Video messages (via CDN upload) |

@@ -6,10 +6,6 @@ description: "Set up Hermes Agent as a LINE Messaging API bot"
 
 # LINE Setup
 
-:::info Current-main only — not in v0.13.0
-The LINE platform plugin (`plugins/platforms/line/`) ships on `main` after the v0.13.0 (v2026.5.7) release. It is not present in the v0.13.0 tag. If you are on the released v0.13.0 build, the LINE adapter is not available; track [the changelog](/docs/changelog) for the release that ships it.
-:::
-
 Run Hermes Agent as a [LINE](https://line.me/) bot via the official LINE Messaging API. The adapter lives as a bundled platform plugin under `plugins/platforms/line/` — no core edits, just enable it like any other platform.
 
 LINE is the dominant messaging app in Japan, Taiwan, and Thailand. If your users live there, this is how they reach you.
