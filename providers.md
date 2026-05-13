@@ -423,6 +423,10 @@ Set `HERMES_QWEN_BASE_URL` only if the portal endpoint relocates (default: `http
 `qwen-oauth` uses the consumer-facing Qwen Portal with OAuth login — ideal for individual users. The `alibaba` provider uses DashScope's enterprise API with a `DASHSCOPE_API_KEY` — ideal for programmatic / production workloads. Both route to Qwen-family models but live at different endpoints.
 :::
 
+:::info Display label rename (current-main, post-v0.13.0)
+On `main` after v0.13.0 (PR [#24835](https://github.com/NousResearch/hermes-agent/pull/24835)), the picker label for the `alibaba` provider was renamed from "Alibaba Cloud (DashScope)" to "Qwen Cloud" and reordered to position 6 in `hermes model`. The provider slug (`alibaba`), env var (`DASHSCOPE_API_KEY`), and base URL are unchanged. v0.13.0 binaries still show the old label.
+:::
+
 ### Alibaba Coding Plan
 
 If you're subscribed to Alibaba's **Coding Plan** (a pricing SKU separate from standard DashScope API access), Hermes exposes it as its own first-class provider: `alibaba-coding-plan`. Endpoint: `https://coding-intl.dashscope.aliyuncs.com/v1`. It's OpenAI-compatible like the regular `alibaba` provider but with a different base URL and billing surface.
