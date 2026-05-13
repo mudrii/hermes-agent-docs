@@ -59,7 +59,7 @@ After the full resync of the docs repo from `/Users/mudrii/src/hermes/hermes-age
 |---|---|---|
 | `HERMES_REDACT_SECRETS` env var documented | `reference/environment-variables.md` | Present at expected path |
 | `MESSAGING_CWD` env var documented | `reference/environment-variables.md` | Present at expected path |
-| Provider rename "Qwen Cloud" applied | `reference/model-catalog.md` (manifest schema) + `configuring-models.md` (user-facing) | Applied in both locations |
+| Provider rename "Qwen Cloud" (PR #24835) | Source: `hermes_cli/models.py:911`, `hermes_cli/auth.py:287` (`ProviderEntry.name = "Qwen Cloud"`). Display label only — config provider key remains `alibaba` (`user-guide/configuration.md` provider registry list unchanged). No user-facing doc rename required. | Verified (display-only rename in interactive picker) |
 | `cli.md` covers Shift+Enter / Kitty terminal keybindings | `cli.md` | 6 hits confirmed in the page |
 | 26 messaging platform pages present | `messaging/` directory tree | All 26 platform pages confirmed present |
 | New skill: `apple-macos-computer-use` | `skills/optional/apple-macos-computer-use/` | Path confirmed |
