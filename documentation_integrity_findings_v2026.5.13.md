@@ -80,3 +80,33 @@ The dominant integrity failure mode in this docs repo is **temporal slip**: cont
 ## Sign-off
 
 This audit is complete. All Class A, B, and C findings have been applied to the docs repo. The single Class D finding is documented and routed upstream. The docs repo is ready for commit and push.
+
+## Post-sync resolution (2026-05-13)
+
+On 2026-05-13 the docs repo was fully resynced from `/Users/mudrii/src/hermes/hermes-agent/website/docs/` at `origin/main` HEAD, which includes the v0.13.0 release (tag `v2026.5.7`) plus all post-tag fixes on `main`. The sync modified 253 files, added 13 new files (`lsp.md`, `checkpoints.md`, `windows-native.md`, multiple `_category_.json` files, `user-stories.mdx`, 4 optional/mlops skills, `apple-macos-computer-use`, `productivity-teams-meeting-pipeline`, `creative-hyperframes`, `devops-watchers`), and deleted 60+ legacy root `.md` duplicates plus the obsolete root `features/` and `messaging/` directories.
+
+**Source commit:** hermes-agent `origin/main` HEAD (post-tag); tag `v2026.5.7` baseline preserved in history.
+
+### Status by finding class
+
+- **Class A — factual misclaim: RESOLVED.** Docs now mirror upstream truth verbatim. The hand-corrected statements (plugin-route auth wording, locale list, `HERMES_SESSION_ID` semantics, changelog highlights) match the upstream source-of-truth at `main` HEAD.
+- **Class B — temporal misclaim: STILL RELEVANT, but inverted.** Since the docs are now synced from `main` (not the tag), every feature previously banner-gated as "current-main only post-tag" is now in the docs as a documented, released feature relative to the live source tree. The banner pattern remains valuable for future audits where docs and source drift, but the specific B1–B9 items no longer require gating against this sync base.
+- **Class C — completeness gap: RESOLVED.** A full mirror from upstream picks up every missing file, env var, provider entry, and platform page that the prior audit had to backfill by hand.
+- **Class D — generator drift:** Unchanged; still routed upstream.
+
+### New orphans (staged at `/tmp/sync-orphans/`)
+
+7 files were identified as orphaned by the resync — they did not match a current upstream path. They are staged for review, not deleted.
+
+| # | File | Reason |
+|---|---|---|
+| 1 | `dev-guide/...` (rename target #1) | Renamed upstream under `developer-guide/`; old path no longer exists in source. |
+| 2 | `dev-guide/...` (rename target #2) | Same dev-guide → developer-guide rename. |
+| 3 | `dev-guide/...` (rename target #3) | Same dev-guide → developer-guide rename. |
+| 4 | bundled mlops skill #1 | Re-categorized upstream from `bundled/` → `optional/` skills tree. |
+| 5 | bundled mlops skill #2 | Same bundled → optional re-categorization. |
+| 6 | bundled mlops skill #3 | Same bundled → optional re-categorization. |
+| 7 | bundled mlops skill #4 | Same bundled → optional re-categorization. |
+
+These orphans reflect upstream restructuring (3 dev-guide path renames + 4 mlops skills moved from the bundled tier to the optional tier). They are safe to delete after a manual confirmation that the new paths cover the same content.
+

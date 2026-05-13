@@ -321,3 +321,49 @@ Five files, all dated `v2026.5.13`, following the established naming convention.
 ## Execution handoff
 
 This plan is **release-bounded**, **file-oriented**, **parallel-friendly**, and **artifact-preserving**. After the human reviews and approves, execution proceeds Phase 1 → Phase 7. Phase 2 is the single parallel-dispatch step; everything else is sequential.
+
+---
+
+## Execution record (2026-05-13)
+
+### 1. Sync scope
+
+Full mirror from `/Users/mudrii/src/hermes/hermes-agent/website/docs/` at `origin/main` HEAD. Baseline tag **v2026.5.7 (v0.13.0)**, plus all post-tag fixes documented in commits through **2026-05-13**.
+
+### 2. Workers run
+
+Five parallel `general-purpose` subagents synced canonical subtrees:
+
+| Worker | Scope | Files | Notable changes |
+|--------|-------|-------|-----------------|
+| **A** | `getting-started/` + `integrations/` + root | 11 | 2 added |
+| **B** | `user-guide/` top + `features/` | ~55 | 2 added (`windows-native.md`, `lsp.md`, `checkpoints.md`) |
+| **C** | `messaging/` + `skills/` | ~190 | 4 mlops moved bundled→optional; 4 new optional skills |
+| **D** | `developer-guide/` | 26 | 3 orphans (`context-compression.md`, `extending-cli.md` renamed; `transport-layer.md` removed upstream) |
+| **E** | `reference/` + `guides/` | 38 | 2 `_category_.json` added |
+
+### 3. Deletions
+
+60+ legacy root `.md` duplicates plus 2 duplicate top-level dirs (`features/`, `messaging/`) removed.
+
+### 4. Orphans archived
+
+Archived to `/tmp/sync-orphans/` (to be cleaned in step 8).
+
+### 5. Findings
+
+- Earlier audit's reported drift in `architecture.md` / `agent-loop.md` (Transport ABC, Transport Dispatch) **NOT present** in upstream — superseded by current text.
+- `model-catalog.md` is **schema-only** (manifest URL); not a provider list.
+- All **26 messaging platforms** present; **7 i18n locales** (zh, ja, de, es, fr, tr, uk).
+
+### 6. Commits planned
+
+1. `sync` — canonical content
+2. `cleanup` — legacy removal
+3. `audit refresh` — v2026.5.13 set
+
+Pushed to branch `sync/v2026.5.7`; PR opened.
+
+### 7. Verification status
+
+Mechanical diff and spot-check both **PASS**. Further factual validation queued in step 6 of plan.

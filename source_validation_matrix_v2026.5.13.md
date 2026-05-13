@@ -50,3 +50,28 @@ For *correction* claims (locale list, plugin-route auth, `HERMES_SESSION_ID` sem
 - Doc commit base: `0007eb8f15ee54538f7fda1b123038635c06e63e`
 - Source tag: `v2026.5.7` (annotated → commit `498bfc7bc1...`)
 - Audit performed entirely against the tag tree; `main` HEAD `486b692ddd...` consulted only to confirm features were on `main` but absent at the tag.
+
+## Post-sync validation (2026-05-13)
+
+After the full resync of the docs repo from `/Users/mudrii/src/hermes/hermes-agent/website/docs/` at `origin/main` HEAD, the following claims were re-validated against the new docs tree to confirm the mirror is faithful.
+
+| Claim | Verified location | Status |
+|---|---|---|
+| `HERMES_REDACT_SECRETS` env var documented | `reference/environment-variables.md` | Present at expected path |
+| `MESSAGING_CWD` env var documented | `reference/environment-variables.md` | Present at expected path |
+| Provider rename "Qwen Cloud" applied | `reference/model-catalog.md` (manifest schema) + `configuring-models.md` (user-facing) | Applied in both locations |
+| `cli.md` covers Shift+Enter / Kitty terminal keybindings | `cli.md` | 6 hits confirmed in the page |
+| 26 messaging platform pages present | `messaging/` directory tree | All 26 platform pages confirmed present |
+| New skill: `apple-macos-computer-use` | `skills/optional/apple-macos-computer-use/` | Path confirmed |
+| New skill: `productivity-teams-meeting-pipeline` | `skills/optional/productivity-teams-meeting-pipeline/` | Path confirmed |
+| New skill: `creative-hyperframes` | `skills/optional/creative-hyperframes/` | Path confirmed |
+| New skill: `devops-watchers` | `skills/optional/devops-watchers/` | Path confirmed |
+| New skill: `mlops-inference-outlines` | `skills/optional/mlops-inference-outlines/` | Path confirmed |
+| New skill: `mlops-training-axolotl` | `skills/optional/mlops-training-axolotl/` | Path confirmed |
+| New skill: `mlops-training-trl-fine-tuning` | `skills/optional/mlops-training-trl-fine-tuning/` | Path confirmed |
+| New skill: `mlops-training-unsloth` | `skills/optional/mlops-training-unsloth/` | Path confirmed |
+
+### Verification policy (post-sync addendum)
+
+Because the docs are now a full mirror of upstream `main` (not a hand-curated overlay on the tag), per-claim source-file verification reduces to a single repo-level check: docs-tree equality with `hermes-agent/website/docs/` at the sync commit. Individual env-var, provider, and skill-path checks above are spot-confirmations of that equality rather than independent proofs.
+

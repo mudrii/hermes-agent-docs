@@ -88,3 +88,19 @@ The middleware explicitly **excludes** `/api/plugins/*`. Corrected in:
 ## Sign-off
 
 19-patch set planned → 18 applied (1 deferred to upstream regen). All applied patches are factual and traceable to source files at the tag commit. Banner pattern keeps post-tag content visible without misclaiming it as released.
+
+## Post-sync evaluation (2026-05-13)
+
+- **Latest SemVer overlay:** v0.13.0 remains the most recent SemVer release; no new SemVer published between 2026-05-07 and 2026-05-13.
+- **Latest CalVer tag:** v2026.5.7 is still the most recent upstream weekly tag. v2026.5.13 has **no corresponding upstream tag** — it is a docs-side audit cadence marker only.
+- **Post-tag commits captured:** 412 lines of multi-file commits affecting `hermes-agent/website/docs/` were pulled from origin/main HEAD past the v2026.5.7 tag. Commit list snapshot retained at `/tmp/post-tag-doc-commits.txt` during sync.
+- **Post-tag features now reflected in docs:**
+  - Qwen Cloud rename (#24835)
+  - Camofox externally-managed sessions (#24584, 62fd905)
+  - LINE platform support (50f9fee)
+  - `/handoff` cross-platform transfer (373c4d6)
+  - `ctx.llm` plugin access (5aa755e)
+  - LSP semantic diagnostics + follow-up (#24168, #24709)
+  - Per-turn file-mutation verifier (#24498)
+  - `hermes update` cua-driver refresh (#24063)
+- **Release-banner posture:** unchanged — post-tag content remains gated/labelled rather than represented as part of an existing SemVer release.

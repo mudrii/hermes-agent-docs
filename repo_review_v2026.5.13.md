@@ -71,3 +71,33 @@ These items belong in the source repo, not the docs:
 
 1. Regenerate `reference/skills-catalog.md` upstream and refresh in docs (`kanban-orchestrator` description truncation at line 67).
 2. Consider adding a `RELEASE_NOTES_DOC_SYNC.md` to the source repo enumerating which post-tag features have docs gated and which are tag-released. This would reduce the kind of drift this audit corrected.
+
+## Post-sync repo state (2026-05-13)
+
+**Source:** full resync from `hermes-agent/website/docs/` at origin/main HEAD (post-v2026.5.7 + post-tag fixes through 2026-05-13). 253 files updated, 13 added, 60+ root-level duplicate files deleted, 2 root-level duplicate directories (`features/`, `messaging/`) removed, 7 orphans identified.
+
+**Canonical layout after cleanup:**
+
+- `getting-started/`
+- `user-guide/`
+- `developer-guide/`
+- `reference/`
+- `guides/`
+- `integrations/`
+- Repo root: `README`, `changelog`, `index`, and audit artifacts only (no content pages)
+
+**File counts:** ~330 total markdown files, down from ~488 prior to dedup removal.
+
+**Audit-artifact series at v2026.5.13 (5 documents):**
+
+1. `documentation_integrity_findings_v2026.5.13.md`
+2. `release_evaluation_v2026.5.13.md`
+3. `repo_review_v2026.5.13.md`
+4. `review_plan_v2026.5.13.md`
+5. `source_validation_matrix_v2026.5.13.md`
+
+**Historical audit dates preserved:** v2026.4.8, v2026.4.13, v2026.4.16, v2026.4.23, v2026.4.30, v2026.5.6, v2026.5.7, v2026.5.13 (8 cohorts on disk).
+
+**Branch:** `sync/v2026.5.7` — to be merged via PR per the review plan.
+
+**Build infrastructure:** none in this repo. Docusaurus configuration lives in the consumer site repo; this repo is a content-only mirror.
