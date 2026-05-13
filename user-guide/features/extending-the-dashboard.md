@@ -727,7 +727,11 @@ Routes are mounted under `/api/plugins/<name>/`, so the above becomes:
 - `GET  /api/plugins/my-plugin/data`
 - `POST /api/plugins/my-plugin/action`
 
-Plugin API routes are mounted under the dashboard API and require the same dashboard session-token authentication as other non-public `/api/*` routes. Keep the dashboard bound to localhost unless you have explicitly secured access with a trusted reverse proxy.
+:::warning Plugin routes are NOT session-token gated in v0.13.0
+At v0.13.0 (v2026.5.7) the dashboard's `auth_middleware` ([`hermes_cli/web_server.py`](https://github.com/sst/hermes/blob/v2026.5.7/hermes_cli/web_server.py)) explicitly excludes paths starting with `/api/plugins/` from the session-token check — any request that can reach the dashboard process can reach your plugin's routes. The dashboard binds to `127.0.0.1` by default, which is the only thing protecting plugin routes from network callers. If your plugin exposes destructive actions or sensitive data, add your own auth check inside the route handler (or enforce it in your router); do not rely on the dashboard's auth middleware.
+:::
+
+Plugin API routes are mounted under the dashboard API at `/api/plugins/<name>/`. Keep the dashboard bound to localhost unless you have explicitly secured access with a trusted reverse proxy.
 
 #### Accessing Hermes internals
 

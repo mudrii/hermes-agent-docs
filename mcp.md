@@ -269,6 +269,14 @@ During reconnection, the server's tools remain registered in the tool list but c
 
 Reconnection is skipped if a graceful shutdown has been requested.
 
+### Idle keepalive
+
+Each connected server has a 3-minute idle keepalive (`list_tools` ping) running on its background task. This is shorter than typical load-balancer / NAT idle timeouts (300–600 s) and is what detects stale sockets without waiting for the next tool call. If the keepalive raises, a reconnect is triggered immediately on the same task (`tools/mcp_tool.py`, PR [#17003](https://github.com/NousResearch/hermes-agent/pull/17003)).
+
+## Media content in MCP tool results
+
+Tool results that include image / audio / video parts are surfaced to the LLM with `[MEDIA: image/...]`, `[MEDIA: audio/...]`, `[MEDIA: video/...]` placeholders inside the text body (and the bytes are attached separately for vision-capable models). This keeps tool outputs structured and prevents binary payloads from being inlined as raw bytes into the conversation transcript. See `tests/tools/test_mcp_image_content.py` for the canonical examples.
+
 ## Architecture
 
 Hermes runs a dedicated background event loop (`mcp-event-loop` daemon thread) for all MCP connections. Each MCP server runs as a long-lived `asyncio.Task` on this loop, keeping its transport context alive.

@@ -305,6 +305,17 @@ hermes chat --provider arcee --model trinity-large-thinking
 # Use the exact model ID returned by GMI's /v1/models endpoint.
 hermes chat --provider gmi --model zai-org/GLM-5.1-FP8
 # Requires: GMI_API_KEY in ~/.hermes/.env
+
+# StepFun (Step Plan API)
+hermes chat --provider stepfun --model step-3.5-flash
+# Requires: STEPFUN_API_KEY in ~/.hermes/.env
+# Region auto-detected: api.stepfun.ai (intl) or api.stepfun.com (CN).
+# Override via STEPFUN_BASE_URL.
+
+# Azure AI Foundry (Bring-Your-Own deployment endpoint)
+hermes chat --provider azure-foundry --model <your-foundry-model-id>
+# Requires: AZURE_FOUNDRY_API_KEY and AZURE_FOUNDRY_BASE_URL in ~/.hermes/.env
+# AZURE_FOUNDRY_BASE_URL must point at your tenant's Foundry inference endpoint.
 ```
 
 Or set the provider permanently in `config.yaml`:
@@ -314,7 +325,7 @@ model:
   default: "zai-org/GLM-5.1-FP8"
 ```
 
-Base URLs can be overridden with `GLM_BASE_URL`, `KIMI_BASE_URL`, `MINIMAX_BASE_URL`, `MINIMAX_CN_BASE_URL`, `DASHSCOPE_BASE_URL`, `XIAOMI_BASE_URL`, `GMI_BASE_URL`, or `TOKENHUB_BASE_URL` environment variables.
+Base URLs can be overridden with `GLM_BASE_URL`, `KIMI_BASE_URL`, `MINIMAX_BASE_URL`, `MINIMAX_CN_BASE_URL`, `DASHSCOPE_BASE_URL`, `XIAOMI_BASE_URL`, `GMI_BASE_URL`, `TOKENHUB_BASE_URL`, `STEPFUN_BASE_URL`, or `AZURE_FOUNDRY_BASE_URL` environment variables.
 
 :::note Z.AI Endpoint Auto-Detection
 When using the Z.AI / GLM provider, Hermes automatically probes multiple endpoints (global, China, coding variants) to find one that accepts your API key. You don't need to set `GLM_BASE_URL` manually — the working endpoint is detected and cached automatically.

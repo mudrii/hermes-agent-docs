@@ -444,8 +444,8 @@ Note: most platforms auto-enable when their required credential environment vari
 | Email | `EMAIL_ADDRESS`, `EMAIL_PASSWORD`, `EMAIL_IMAP_HOST`, `EMAIL_SMTP_HOST`, `EMAIL_ALLOWED_USERS` |
 | SMS | `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_PHONE_NUMBER`, `SMS_ALLOWED_USERS` |
 | DingTalk | `DINGTALK_CLIENT_ID`, `DINGTALK_CLIENT_SECRET`, `DINGTALK_ALLOWED_USERS` |
-| Google Chat | Google service-account / app credentials configured by the Google Chat plugin |
-| LINE | `LINE_CHANNEL_ACCESS_TOKEN`, `LINE_CHANNEL_SECRET`, `LINE_PUBLIC_URL` |
+| Google Chat | `GOOGLE_CHAT_PROJECT_ID`, `GOOGLE_CHAT_SUBSCRIPTION_NAME`, `GOOGLE_CHAT_SERVICE_ACCOUNT_JSON`, `GOOGLE_CHAT_ALLOWED_USERS`, `GOOGLE_CHAT_HOME_CHANNEL` |
+| LINE | `LINE_CHANNEL_ACCESS_TOKEN`, `LINE_CHANNEL_SECRET`, `LINE_PUBLIC_URL` (current-main only; LINE plugin ships after v0.13.0) |
 | Microsoft Teams | Plugin-provided Teams credentials / webhook configuration |
 | Yuanbao | Yuanbao platform credentials |
 | Webhook | No credential env vars — authentication is per-route via HMAC `secret` in `config.yaml` |

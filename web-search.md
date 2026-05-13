@@ -20,13 +20,17 @@ Both are configured through a single backend selection. Providers are chosen via
 |----------|---------|--------|---------|-------|-----------|
 | **Firecrawl** (default) | `FIRECRAWL_API_KEY` | ✔ | ✔ | ✔ | 500 credits/mo |
 | **SearXNG** | `SEARXNG_URL` | ✔ | — | — | ✔ Free (self-hosted) |
-| **Brave Search free** | `BRAVE_SEARCH_API_KEY` | ✔ | — | — | ✔ Free tier |
-| **DDGS** | Python `ddgs` package | ✔ | — | — | ✔ Free |
+| **Brave Search free** ⚠ | `BRAVE_SEARCH_API_KEY` | ✔ | — | — | ✔ Free tier |
+| **DDGS** ⚠ | Python `ddgs` package | ✔ | — | — | ✔ Free |
 | **Tavily** | `TAVILY_API_KEY` | ✔ | ✔ | ✔ | 1 000 searches/mo |
 | **Exa** | `EXA_API_KEY` | ✔ | ✔ | — | 1 000 searches/mo |
 | **Parallel** | `PARALLEL_API_KEY` | ✔ | ✔ | — | Paid |
 
 **Per-capability split:** you can use different providers for search and extract independently — for example SearXNG (free) for search and Firecrawl for extract. See [Per-capability configuration](#per-capability-configuration) below.
+
+:::info ⚠ marker: current-main only — not in v0.13.0
+The two backends marked with ⚠ above (**Brave Search free** and **DDGS**) ship on `main` after the v0.13.0 (v2026.5.7) release. They are not selectable on the released v0.13.0 build. Use Firecrawl, SearXNG, Tavily, Exa, or Parallel on v0.13.0.
+:::
 
 :::tip Nous Subscribers
 If you have a paid [Nous Portal](https://portal.nousresearch.com) subscription, web search and extract are available through the **[Tool Gateway](tool-gateway.md)** via managed Firecrawl — no API key needed. Run `hermes tools` to enable it.

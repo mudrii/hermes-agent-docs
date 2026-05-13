@@ -1220,7 +1220,7 @@ display:
   runtime_footer:         # Gateway: append a runtime-context footer to final replies
     enabled: false
     fields: ["model", "context_pct", "cwd"]
-  language: en            # UI language for static messages (approval prompts, some gateway replies). af | de | en | es | fr | ga | hu | it | ja | ko | pt | ru | tr | uk | zh | zh-hant
+  language: en            # UI language for static messages (approval prompts, some gateway replies). en | zh | ja | de | es | fr | tr | uk
 ```
 
 ### UI language for static messages

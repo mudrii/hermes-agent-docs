@@ -177,7 +177,7 @@ Browse, search, and toggle skills and toolsets. Skills are loaded from `~/.herme
 - **Toolsets** — a separate section shows built-in toolsets (file operations, web browsing, etc.) with their active/inactive status, setup requirements, and list of included tools
 
 :::warning Security
-The web dashboard reads and writes your `.env` file, which contains API keys and secrets. It binds to `127.0.0.1` by default — only accessible from your local machine. If you bind to `0.0.0.0`, anyone on your network can view and modify your credentials. The dashboard has no authentication of its own.
+The web dashboard reads and writes your `.env` file, which contains API keys and secrets. It binds to `127.0.0.1` by default — only accessible from your local machine. If you bind to `0.0.0.0`, anyone on your network can reach the dashboard. Non-public `/api/*` routes are guarded by a session-token middleware that the SPA establishes locally (chat WebSocket included), but plugin routes (`/api/plugins/*`) are NOT gated by that middleware. Treat localhost as the security boundary — do not bind to `0.0.0.0` without a trusted reverse proxy in front.
 :::
 
 ## `/reload` Slash Command

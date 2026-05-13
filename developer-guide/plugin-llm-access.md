@@ -6,6 +6,10 @@ description: "Run any LLM call from inside a plugin via ctx.llm — chat or stru
 
 # Plugin LLM Access
 
+:::warning Current-main only — not in v0.13.0
+The `ctx.llm` API documented on this page ships on `main` after the v0.13.0 (v2026.5.7) release. The implementation file (`agent/plugin_llm.py`) and the `ctx.llm` attribute on `PluginContext` are not present in the v0.13.0 tag. If you are building plugins against the released v0.13.0 build, this surface is not available — track [the changelog](/docs/changelog) for the release that ships it. For v0.13.0, plugins should call providers directly through their own dependencies.
+:::
+
 `ctx.llm` is the supported way for a plugin to make an LLM call.
 Chat completion, structured extraction, sync, async, with or without
 images — same surface, same trust gate, same host-owned credentials.

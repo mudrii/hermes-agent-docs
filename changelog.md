@@ -17,7 +17,7 @@ All notable changes to Hermes Agent are documented here.
 - **Checkpoints v2** — checkpoint persistence was rewritten with real pruning and disk guardrails.
 - **Security and reliability** — secret redaction is on by default; Discord role allowlists are guild-scoped; WhatsApp rejects strangers by default; TOCTOU windows were closed in auth and MCP OAuth flows; browser SSRF protections and debug-share redaction were tightened.
 - **Messaging expansion** — Google Chat joins as the 20th platform, platform-plugin behavior is documented, and platform allowlists expand across Slack/Telegram/Mattermost/Matrix/DingTalk.
-- **Plugin and provider expansion** — `ctx.llm` gives plugins host-owned one-shot LLM calls, model-provider plugins and image-generation provider plugins are documented, and dashboard plugin API routes are covered by dashboard auth.
+- **Plugin and provider expansion** — model-provider plugins and image-generation provider plugins are documented, and the dashboard's session-token middleware now guards non-public `/api/*` routes (plugin routes under `/api/plugins/*` remain plugin-owned and are not gated by that middleware — plugin authors must apply their own access checks). `ctx.llm` host-owned one-shot LLM calls land on `main` after the tag.
 - **Tools and runtime** — SearXNG support and split web-tool backend selection are documented; browser console eval uses the persistent CDP supervisor fast path when available; Kanban worker/orchestrator tools are included in the reference.
 - **Localization** — static gateway and CLI messages add seven release locales: Chinese, Japanese, German, Spanish, French, Ukrainian, and Turkish. The docs site gains a Chinese (`zh-Hans`) locale.
 

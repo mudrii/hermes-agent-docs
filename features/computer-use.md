@@ -1,5 +1,9 @@
 # Computer Use (macOS)
 
+:::warning Current-main only — not in v0.13.0
+The `computer_use` toolset, the `cua-driver` integration, and the `hermes computer-use install/status` CLI commands ship on `main` after the v0.13.0 (v2026.5.7) release. They are not present in the v0.13.0 tag — three preparatory PRs landed and were reverted before v0.12 (see `RELEASE_v0.12.0.md`). If you are on the released v0.13.0 build, this page does not apply to you.
+:::
+
 Hermes Agent can drive your Mac's desktop — clicking, typing, scrolling,
 dragging — in the **background**. Your cursor doesn't move, keyboard focus
 doesn't change, and macOS doesn't switch Spaces on you. You and the agent
