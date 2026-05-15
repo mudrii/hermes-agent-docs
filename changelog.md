@@ -782,7 +782,7 @@ Real-time token-by-token delivery in CLI and all gateway platforms. Responses st
 - `min_tokens: 20` threshold prevents premature partial previews
 - WhatsApp, Signal, Email, and Home Assistant fall back to non-streaming automatically (no edit API)
 - `HERMES_STREAMING_ENABLED=true` env var and `streaming.*` config section; master switch defaults to off
-- See [streaming.md](./streaming.md) for full documentation
+- See [CLI Usage](./user-guide/cli.md) and [Messaging Gateway](./user-guide/messaging/index.md) for current streaming documentation.
 
 #### Concurrent Tool Execution
 

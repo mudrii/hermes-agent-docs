@@ -8,6 +8,10 @@ description: "Operate the Teams meeting summary pipeline via Hermes CLI — summ
 
 # Teams Meeting Pipeline
 
+:::warning Current main only
+This generated skill page describes current-main behavior after the v0.13.0 / v2026.5.7 release boundary. It is not part of the stable v0.13.0 released skill set.
+:::
+
 Operate the Teams meeting summary pipeline via Hermes CLI — summarize meetings, inspect pipeline status, replay jobs, manage Microsoft Graph subscriptions.
 
 ## Skill metadata

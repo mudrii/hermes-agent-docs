@@ -27,6 +27,7 @@ hermes [global-options] <command> [subcommand/options]
 | `--worktree`, `-w` | Start in an isolated git worktree for parallel-agent workflows. |
 | `--yolo` | Bypass dangerous-command approval prompts. |
 | `--pass-session-id` | Include the session ID in the agent's system prompt. |
+| `--accept-hooks` | Auto-accept configured shell hooks for this invocation. Intended for trusted non-interactive runs where hooks cannot prompt. |
 | `--ignore-user-config` | Ignore `~/.hermes/config.yaml` and fall back to built-in defaults. Credentials in `.env` are still loaded. |
 | `--ignore-rules` | Skip auto-injection of `AGENTS.md`, `SOUL.md`, `.cursorrules`, memory, and preloaded skills. |
 | `--tui` | Launch the [TUI](../user-guide/tui.md) instead of the classic CLI. Equivalent to `HERMES_TUI=1`. |
@@ -40,7 +41,7 @@ hermes [global-options] <command> [subcommand/options]
 | `hermes model` | Interactively choose the default provider and model. |
 | `hermes fallback` | Manage fallback providers tried when the primary model errors. |
 | `hermes gateway` | Run or manage the messaging gateway service. |
-| `hermes lsp` | Manage Language Server Protocol integration (semantic diagnostics for write_file/patch). |
+| `hermes lsp` | Current main only after v0.13.0: manage Language Server Protocol integration (semantic diagnostics for write_file/patch). |
 | `hermes setup` | Interactive setup wizard for all or part of the configuration. |
 | `hermes whatsapp` | Configure and pair the WhatsApp bridge. |
 | `hermes slack` | Slack helpers (currently: generate the app manifest with every command as a native slash). |
@@ -67,7 +68,7 @@ hermes [global-options] <command> [subcommand/options]
 | `hermes mcp` | Manage MCP server configurations and run Hermes as an MCP server. |
 | `hermes plugins` | Manage Hermes Agent plugins (install, enable, disable, remove). |
 | `hermes tools` | Configure enabled tools per platform. |
-| `hermes computer-use` | Install or check the cua-driver backend (macOS Computer Use). |
+| `hermes computer-use` | Current main only after v0.13.0: install or check the cua-driver backend (macOS Computer Use). |
 | `hermes sessions` | Browse, export, prune, rename, and delete sessions. |
 | `hermes insights` | Show token/cost/activity analytics. |
 | `hermes claw` | OpenClaw migration helpers. |
@@ -225,6 +226,10 @@ Use `hermes gateway run` instead of `hermes gateway start` — WSL's systemd sup
 :::
 
 ## `hermes lsp`
+
+:::warning Current main only
+The `hermes lsp` command landed after the v0.13.0 / v2026.5.7 release boundary. It is not part of the stable v0.13.0 CLI surface.
+:::
 
 ```bash
 hermes lsp <subcommand>
@@ -995,6 +1000,10 @@ Without `--summary`, this launches the interactive per-platform tool configurati
 
 ## `hermes computer-use`
 
+:::warning Current main only
+The `hermes computer-use` command landed after the v0.13.0 / v2026.5.7 release boundary. It is not part of the stable v0.13.0 CLI surface.
+:::
+
 ```bash
 hermes computer-use <subcommand>
 ```
@@ -1007,7 +1016,7 @@ Subcommands:
 | `install --upgrade` | Re-run the installer even if cua-driver is already on PATH. The upstream script always pulls the latest release, so this performs an in-place upgrade. |
 | `status` | Print whether `cua-driver` is on `$PATH` and which version is installed. |
 
-`hermes computer-use install` is the stable entry point for installing the
+`hermes computer-use install` is the current-main entry point for installing the
 [cua-driver](https://github.com/trycua/cua) binary used by the
 `computer_use` toolset. It runs the same upstream installer that
 `hermes tools` invokes when you first enable Computer Use, so it's safe
@@ -1112,6 +1121,8 @@ Launch the web dashboard — a browser-based UI for managing configuration, API 
 | `--port` | `9119` | Port to run the web server on |
 | `--host` | `127.0.0.1` | Bind address |
 | `--no-open` | — | Don't auto-open the browser |
+| `--stop` | — | Stop running dashboard processes and exit |
+| `--status` | — | List running dashboard processes and exit |
 
 ```bash
 # Default — opens browser to http://127.0.0.1:9119
@@ -1119,6 +1130,8 @@ hermes dashboard
 
 # Custom port, no browser
 hermes dashboard --port 8080 --no-open
+hermes dashboard --status
+hermes dashboard --stop
 ```
 
 ## `hermes profile`
@@ -1140,9 +1153,9 @@ Manage profiles — multiple isolated Hermes instances, each with its own config
 | `rename <old> <new>` | Rename a profile. |
 | `export <name> [-o FILE]` | Export a profile to a `.tar.gz` archive (local backup). |
 | `import <archive> [--name NAME]` | Import a profile from a `.tar.gz` archive (local restore). |
-| `install <source> [--name N] [--alias] [--force] [-y]` | Install a profile distribution from a git URL or local directory. |
-| `update <name> [--force-config] [-y]` | Re-pull a distribution; preserves user data (memories, sessions, auth). |
-| `info <name>` | Show a profile's distribution manifest (version, requirements, source). |
+| `install <source> [--name N] [--alias] [--force] [-y]` | Current main only after v0.13.0: install a profile distribution from a git URL or local directory. |
+| `update <name> [--force-config] [-y]` | Current main only after v0.13.0: re-pull a distribution; preserves user data (memories, sessions, auth). |
+| `info <name>` | Current main only after v0.13.0: show a profile's distribution manifest (version, requirements, source). |
 
 Examples:
 
@@ -1153,6 +1166,8 @@ hermes profile use work
 hermes profile alias work --name h-work
 hermes profile export work -o work-backup.tar.gz
 hermes profile import work-backup.tar.gz --name restored
+
+# Current main only after v0.13.0:
 hermes profile install github.com/user/my-distro --alias
 hermes profile update work
 hermes -p work chat -q "Hello from work profile"

@@ -6,6 +6,10 @@ description: "Set up the Microsoft Teams meeting summary pipeline with Microsoft
 
 # Microsoft Teams Meetings
 
+:::warning Current main only
+The Teams meeting summary pipeline depends on Microsoft Graph webhook work that landed after the v0.13.0 / v2026.5.7 release boundary. It is not part of the stable v0.13.0 released messaging workflow.
+:::
+
 Use the Teams meeting pipeline when you want Hermes to ingest Microsoft Graph meeting events, fetch transcripts first, fall back to recordings plus STT when needed, and deliver a structured summary to downstream sinks.
 
 This page focuses on setup and enablement:

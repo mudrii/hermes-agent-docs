@@ -40,7 +40,7 @@ registry.register(
 )
 ```
 
-Each call creates a `ToolEntry` stored in the singleton `ToolRegistry._tools` dict keyed by tool name. If a name collision occurs across toolsets, a warning is logged and the later registration wins.
+Each call creates a `ToolEntry` stored in the singleton `ToolRegistry._tools` dict keyed by tool name. Built-in and plugin tool names must be unique; non-MCP name collisions are rejected instead of silently shadowing an existing tool. MCP refreshes can replace previously registered MCP tools from the same discovery path.
 
 ### Discovery: `discover_builtin_tools()`
 

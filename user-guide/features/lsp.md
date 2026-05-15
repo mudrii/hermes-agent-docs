@@ -6,6 +6,10 @@ description: "Real language servers (pyright, gopls, rust-analyzer, …) wired i
 
 # Language Server Protocol (LSP)
 
+:::warning Current main only
+This page describes current-main behavior after the v0.13.0 / v2026.5.7 release boundary. The `hermes lsp` command and semantic diagnostics integration are not part of the stable v0.13.0 released feature set.
+:::
+
 Hermes runs full language servers — pyright, gopls, rust-analyzer,
 typescript-language-server, clangd, and ~20 more — as background
 subprocesses and feeds their semantic diagnostics into the post-write

@@ -100,7 +100,7 @@ auxiliary:
 | `threshold` | `0.50` | 0.0-1.0 | Compression triggers when prompt tokens ≥ `threshold × context_length` |
 | `target_ratio` | `0.20` | 0.10-0.80 | Controls tail protection token budget: `threshold_tokens × target_ratio` |
 | `protect_last_n` | `20` | ≥1 | Minimum number of recent messages always preserved |
-| `protect_first_n` | `3` | (hardcoded) | System prompt + first exchange always preserved |
+| First-turn protection | `3` | hardcoded | System prompt + first exchange always preserved |
 
 ### Computed Values (for a 200K context model at defaults)
 
@@ -132,7 +132,7 @@ outputs (file contents, terminal output, search results).
 ┌─────────────────────────────────────────────────────────────┐
 │  Message list                                               │
 │                                                             │
-│  [0..2]  ← protect_first_n (system + first exchange)        │
+│  [0..2]  ← hardcoded first-turn protection                  │
 │  [3..N]  ← middle turns → SUMMARIZED                        │
 │  [N..end] ← tail (by token budget OR protect_last_n)        │
 │                                                             │

@@ -22,11 +22,12 @@ Hermes supports multiple AI inference providers out of the box. Use `hermes mode
 
 ## Web Search Backends
 
-The `web_search` and `web_extract` tools support four backend providers, configured via `config.yaml` or `hermes tools`:
+The `web_search` and `web_extract` tools support split backend selection, configured via `config.yaml` or `hermes tools`. Search and extraction can use different providers:
 
 | Backend | Env Var | Search | Extract | Crawl |
 |---------|---------|--------|---------|-------|
 | **Firecrawl** (default) | `FIRECRAWL_API_KEY` | ✔ | ✔ | ✔ |
+| **SearXNG** | `SEARXNG_URL` | ✔ | — | — |
 | **Parallel** | `PARALLEL_API_KEY` | ✔ | ✔ | — |
 | **Tavily** | `TAVILY_API_KEY` | ✔ | ✔ | ✔ |
 | **Exa** | `EXA_API_KEY` | ✔ | ✔ | — |
@@ -35,10 +36,11 @@ Quick setup example:
 
 ```yaml
 web:
-  backend: firecrawl    # firecrawl | parallel | tavily | exa
+  search_backend: searxng
+  extract_backend: firecrawl
 ```
 
-If `web.backend` is not set, the backend is auto-detected from whichever API key is available. Self-hosted Firecrawl is also supported via `FIRECRAWL_API_URL`.
+If `web.search_backend` / `web.extract_backend` are not set, Hermes falls back to `web.backend` and then auto-detects from available API keys. SearXNG is search-only; pair it with Firecrawl, Tavily, Parallel, or Exa for `web_extract`. Self-hosted Firecrawl is supported via `FIRECRAWL_API_URL`.
 
 ## Browser Automation
 

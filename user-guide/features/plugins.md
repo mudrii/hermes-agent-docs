@@ -210,6 +210,7 @@ Plugins can register callbacks for these lifecycle events. See the **[Event Hook
 | [`post_tool_call`](/docs/user-guide/features/hooks#post_tool_call) | After any tool returns |
 | [`pre_llm_call`](/docs/user-guide/features/hooks#pre_llm_call) | Once per turn, before the LLM loop — can return `{"context": "..."}` to [inject context into the user message](/docs/user-guide/features/hooks#pre_llm_call) |
 | [`post_llm_call`](/docs/user-guide/features/hooks#post_llm_call) | Once per turn, after the LLM loop (successful turns only) |
+| [`transform_llm_output`](/docs/user-guide/features/hooks#transform_llm_output) | After the LLM loop, before final delivery. Return replacement text to rewrite the final response |
 | [`on_session_start`](/docs/user-guide/features/hooks#on_session_start) | New session created (first turn only) |
 | [`on_session_end`](/docs/user-guide/features/hooks#on_session_end) | End of every `run_conversation` call + CLI exit handler |
 | [`on_session_finalize`](/docs/user-guide/features/hooks#on_session_finalize) | CLI/gateway tears down an active session (`/new`, GC, CLI quit) |

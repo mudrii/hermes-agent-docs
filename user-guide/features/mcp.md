@@ -52,7 +52,7 @@ List the files in /home/user/projects and summarize the repo structure.
 
 Hermes will discover the MCP server's tools and use them like any other tool.
 
-## Two kinds of MCP servers
+## MCP server transports
 
 ### Stdio servers
 
@@ -89,6 +89,20 @@ Use HTTP servers when:
 - your organization exposes internal MCP endpoints
 - you do not want Hermes spawning a local subprocess for that integration
 
+### SSE servers
+
+Hermes also supports legacy MCP servers that expose an SSE endpoint:
+
+```yaml
+mcp_servers:
+  remote_sse:
+    url: "https://mcp.example.com/sse"
+    transport: sse
+    auth: oauth
+```
+
+Use `transport: sse` only when the server's docs explicitly describe an SSE transport. OAuth works on this path too; Hermes forwards the authorized headers when `auth: oauth` is configured.
+
 ## Basic configuration reference
 
 Hermes reads MCP config from `~/.hermes/config.yaml` under `mcp_servers`.
@@ -101,6 +115,7 @@ Hermes reads MCP config from `~/.hermes/config.yaml` under `mcp_servers`.
 | `args` | list | Arguments for the stdio server |
 | `env` | mapping | Environment variables passed to the stdio server |
 | `url` | string | HTTP MCP endpoint |
+| `transport` | string | Optional transport override. Use `sse` for legacy SSE endpoints |
 | `headers` | mapping | HTTP headers for remote servers |
 | `timeout` | number | Tool call timeout |
 | `connect_timeout` | number | Initial connection timeout |
@@ -143,6 +158,8 @@ Examples:
 | `my-api` | `query.data` | `mcp_my_api_query_data` |
 
 In practice, you usually do not need to call the prefixed name manually — Hermes sees the tool and chooses it during normal reasoning.
+
+MCP tools that return image content are preserved as `MEDIA:` references in the tool result, so the agent and supported clients can keep the media attached instead of dropping it as plain text.
 
 ## MCP utility tools
 

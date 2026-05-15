@@ -13,7 +13,7 @@ The core orchestration engine is `run_agent.py`'s `AIAgent` class — a large fi
 `AIAgent` is responsible for:
 
 - Assembling the effective system prompt and tool schemas via `prompt_builder.py`
-- Selecting the correct provider/API mode (chat_completions, codex_responses, anthropic_messages)
+- Selecting the correct provider/API mode (`chat_completions`, `codex_responses`, `anthropic_messages`, `bedrock_converse`)
 - Making interruptible model calls with cancellation support
 - Executing tool calls (sequentially or concurrently via thread pool)
 - Maintaining conversation history in OpenAI message format
@@ -40,19 +40,20 @@ result = agent.run_conversation(
 
 ## API Modes
 
-Hermes supports three API execution modes, resolved from provider selection, explicit args, and base URL heuristics:
+Hermes supports four released API execution modes, resolved from provider selection, explicit args, and base URL heuristics:
 
 | API mode | Used for | Client type |
 |----------|----------|-------------|
 | `chat_completions` | OpenAI-compatible endpoints (OpenRouter, custom, most providers) | `openai.OpenAI` |
 | `codex_responses` | OpenAI Codex / Responses API | `openai.OpenAI` with Responses format |
 | `anthropic_messages` | Native Anthropic Messages API | `anthropic.Anthropic` via adapter |
+| `bedrock_converse` | Native AWS Bedrock Converse API | Bedrock transport/client |
 
-The mode determines how messages are formatted, how tool calls are structured, how responses are parsed, and how caching/streaming works. All three converge on the same internal message format (OpenAI-style `role`/`content`/`tool_calls` dicts) before and after API calls.
+The mode determines how messages are formatted, how tool calls are structured, how responses are parsed, and how caching/streaming works. All modes converge on the same internal message format (OpenAI-style `role`/`content`/`tool_calls` dicts) before and after API calls.
 
 **Mode resolution order:**
 1. Explicit `api_mode` constructor arg (highest priority)
-2. Provider-specific detection (e.g., `anthropic` provider → `anthropic_messages`)
+2. Provider-specific detection (e.g., `anthropic` provider -> `anthropic_messages`, `bedrock` provider -> `bedrock_converse`)
 3. Base URL heuristics (e.g., `api.anthropic.com` → `anthropic_messages`)
 4. Default: `chat_completions`
 

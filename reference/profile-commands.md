@@ -25,9 +25,9 @@ Top-level command for managing profiles. Running `hermes profile` without a subc
 | `rename` | Rename a profile. |
 | `export` | Export a profile to a tar.gz archive. |
 | `import` | Import a profile from a tar.gz archive. |
-| `install` | Install a profile distribution from a git URL or local directory. See [Profile Distributions](../user-guide/profile-distributions.md). |
-| `update` | Re-pull a distribution-managed profile and re-apply its bundle. |
-| `info` | Show distribution metadata for a profile (origin URL, commit, last update). |
+| `install` | Current main only after v0.13.0: install a profile distribution from a git URL or local directory. See [Profile Distributions](../user-guide/profile-distributions.md). |
+| `update` | Current main only after v0.13.0: re-pull a distribution-managed profile and re-apply its bundle. |
+| `info` | Current main only after v0.13.0: show distribution metadata for a profile (origin URL, commit, last update). |
 
 ## `hermes profile list`
 
@@ -247,6 +247,10 @@ hermes profile import ./work-2026-03-29.tar.gz --name work-restored
 ```
 
 ## Distribution commands
+
+:::warning Current main only
+`hermes profile install`, `hermes profile update`, and `hermes profile info` landed after the v0.13.0 / v2026.5.7 release boundary. They are documented here for current-main users and are not part of the stable v0.13.0 command surface.
+:::
 
 :::tip
 **New to distributions?** Start with the [Profile Distributions user guide](../user-guide/profile-distributions.md) — it covers the why, when, and how with full examples. The sections below are a dry CLI reference for when you know what you want.

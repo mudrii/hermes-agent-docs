@@ -6,6 +6,10 @@ description: "Receive Microsoft Graph change notifications (meetings, calendar, 
 
 # Microsoft Graph Webhook Listener
 
+:::warning Current main only
+The Microsoft Graph webhook platform is current-main behavior after the v0.13.0 / v2026.5.7 release boundary. It is not part of the stable v0.13.0 released messaging platform set.
+:::
+
 The `msgraph_webhook` gateway platform is an inbound event listener. It's how Hermes receives **change notifications** from Microsoft Graph — "a Teams meeting ended," "a new message landed in this chat," "this calendar event was updated." Different from the `teams` platform (which is a chat bot users type to) — this one is M365 telling Hermes something happened, not a person.
 
 Right now the primary consumer is the Teams meeting summary pipeline: Graph notifies when a meeting produces a transcript, the pipeline fetches it, and Hermes posts a summary back into Teams. Other Graph resources (`/chats/.../messages`, `/users/.../events`) use the same listener — the pipeline consumers land with their own PRs.

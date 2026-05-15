@@ -241,6 +241,10 @@ The default profile is simply `~/.hermes` itself. No migration needed — existi
 
 ## Sharing profiles as distributions
 
+:::warning Current main only
+Profile distribution install/update commands landed after the v0.13.0 / v2026.5.7 release boundary. Stable v0.13.0 users should use `hermes profile export` and `hermes profile import` for released backup/restore behavior.
+:::
+
 A profile you built on one machine can be packaged as a **git repository** and installed with one command on another machine — your own workstation, a teammate's laptop, or a community user's environment. The shared package includes the SOUL, config, skills, cron jobs, and MCP connections. Credentials, memories, and sessions stay per-machine.
 
 ```bash

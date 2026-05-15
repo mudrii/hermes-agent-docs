@@ -5,6 +5,10 @@ description: "Azure portal walkthrough for creating the app registration that po
 
 # Register a Microsoft Graph Application
 
+:::warning Current main only
+This guide supports the Teams meeting pipeline and Microsoft Graph webhook listener, which landed after the v0.13.0 / v2026.5.7 release boundary. It is not part of the stable v0.13.0 released workflow.
+:::
+
 The Teams meeting pipeline reads meeting transcripts, recordings, and related artifacts from Microsoft Graph using **app-only** (daemon) authentication — no user sign-in, no interactive consent per meeting. That requires an Azure AD application registration with admin-consented application permissions.
 
 This guide walks through:

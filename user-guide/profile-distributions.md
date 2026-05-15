@@ -4,6 +4,10 @@ sidebar_position: 3
 
 # Profile Distributions: Share a Whole Agent
 
+:::warning Current main only
+Profile distribution commands are current-main behavior after the v0.13.0 / v2026.5.7 release boundary. They are not part of the stable v0.13.0 released command surface.
+:::
+
 A **profile distribution** packages a complete Hermes agent — personality, skills, cron jobs, MCP connections, config — as a git repository. Anyone with access to the repo can install the whole agent with one command, update it in place, and keep their own memories, sessions, and API keys untouched.
 
 If a [profile](./profiles.md) is a local agent, a distribution is that agent made shareable.

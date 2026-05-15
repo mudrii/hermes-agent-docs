@@ -14,7 +14,7 @@ This page is the top-level map of Hermes Agent internals. Use it to orient yours
 ┌─────────────────────────────────────────────────────────────────────┐
 │                        Entry Points                                  │
 │                                                                      │
-│  CLI (cli.py)    Gateway (gateway/run.py)    ACP (acp_adapter/)     │
+│  CLI (hermes_cli/main.py)  Gateway (gateway/run.py)  ACP            │
 │  Batch Runner    API Server                  Python Library          │
 └──────────┬──────────────┬───────────────────────┬───────────────────┘
            │              │                       │
@@ -30,10 +30,11 @@ This page is the top-level map of Hermes Agent internals. Use it to orient yours
 │  └──────┬───────┘  └──────┬───────┘  └──────┬───────┘               │
 │         │                 │                 │                       │
 │  ┌──────┴───────┐  ┌──────┴───────┐  ┌──────┴───────┐               │
-│  │ Compression  │  │ 3 API Modes  │  │ Tool Registry│               │
+│  │ Compression  │  │ 4 API Modes  │  │ Tool Registry│               │
 │  │ & Caching    │  │ chat_compl.  │  │ (registry.py)│               │
 │  │              │  │ codex_resp.  │  │ 70+ tools    │               │
 │  │              │  │ anthropic    │  │ 28 toolsets  │               │
+│  │              │  │ bedrock      │  │              │               │
 │  └──────────────┘  └──────────────┘  └──────────────┘               │
 └─────────┴─────────────────┴─────────────────┴───────────────────────┘
            │                                    │
@@ -53,7 +54,7 @@ This page is the top-level map of Hermes Agent internals. Use it to orient yours
 ```text
 hermes-agent/
 ├── run_agent.py              # AIAgent — core conversation loop (large file)
-├── cli.py                    # HermesCLI — interactive terminal UI (large file)
+├── cli.py                    # Legacy/direct classic CLI implementation
 ├── model_tools.py            # Tool discovery, schema collection, dispatch
 ├── toolsets.py               # Tool groupings and platform presets
 ├── hermes_state.py           # SQLite session/state database with FTS5
@@ -117,11 +118,13 @@ hermes-agent/
 │   ├── mirror.py             # Cross-session message mirroring
 │   ├── status.py             # Token locks, profile-scoped process tracking
 │   ├── builtin_hooks/        # Extension point for always-registered hooks (none shipped)
-│   └── platforms/            # 20 adapters: telegram, discord, slack, whatsapp,
+│   └── platforms/            # Core adapters: telegram, discord, slack, whatsapp,
 │                             #   signal, matrix, mattermost, email, sms,
 │                             #   dingtalk, feishu, wecom, wecom_callback, weixin,
 │                             #   bluebubbles, qqbot, homeassistant, webhook, api_server,
 │                             #   yuanbao
+├── plugins/platforms/        # Bundled platform plugins such as Google Chat,
+│                             # Teams, and IRC
 │
 ├── acp_adapter/              # ACP server (VS Code / Zed / JetBrains)
 ├── cron/                     # Scheduler (jobs.py, scheduler.py)
@@ -191,7 +194,7 @@ If you are new to the codebase:
 
 ### Agent Loop
 
-The synchronous orchestration engine (`AIAgent` in `run_agent.py`). Handles provider selection, prompt construction, tool execution, retries, fallback, callbacks, compression, and persistence. Supports three API modes for different provider backends.
+The synchronous orchestration engine (`AIAgent` in `run_agent.py`). Handles provider selection, prompt construction, tool execution, retries, fallback, callbacks, compression, and persistence. Supports four released API modes for different provider backends: `chat_completions`, `codex_responses`, `anthropic_messages`, and `bedrock_converse`.
 
 → [Agent Loop Internals](./agent-loop.md)
 
@@ -225,7 +228,7 @@ SQLite-based session storage with FTS5 full-text search. Sessions have lineage t
 
 ### Messaging Gateway
 
-Long-running process with 20 platform adapters, unified session routing, user authorization (allowlists + DM pairing), slash command dispatch, hook system, cron ticking, and background maintenance.
+Long-running process with 20 platform adapters, unified session routing, user authorization (allowlists + DM pairing), slash command dispatch, hook system, cron ticking, and background maintenance. Some released platforms are provided as bundled platform plugins under `plugins/platforms/` rather than core files under `gateway/platforms/`.
 
 → [Gateway Internals](./gateway-internals.md)
 
@@ -273,7 +276,7 @@ tools/*.py  (each calls registry.register() at import time)
        ↑
 model_tools.py  (imports tools/registry + triggers tool discovery)
        ↑
-run_agent.py, cli.py, batch_runner.py, environments/
+run_agent.py, hermes_cli/main.py, cli.py, batch_runner.py, environments/
 ```
 
 This chain means tool registration happens at import time, before any agent instance is created. Any `tools/*.py` file with a top-level `registry.register()` call is auto-discovered — no manual import list needed.

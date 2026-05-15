@@ -129,6 +129,10 @@ Session IDs follow the format `YYYYMMDD_HHMMSS_<hex>` — CLI/TUI sessions use a
 
 ## Cross-Platform Handoff
 
+:::warning Current main only
+`/handoff` landed after the v0.13.0 / v2026.5.7 release boundary. Stable v0.13.0 users can still resume sessions locally, but should not rely on cross-platform handoff as released behavior.
+:::
+
 Use `/handoff <platform>` from a CLI session to transfer the live conversation to a messaging platform's home channel. The agent picks up exactly where the CLI left off — same session id, full role-aware transcript, tool calls and all.
 
 ```bash

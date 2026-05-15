@@ -122,11 +122,11 @@ Claude Code-style `@file` and `@url` context injection with tab completions in t
 
 ### Nix Flake (v0.5.0)
 
-Full uv2nix build, NixOS module with persistent container mode, auto-generated config keys from Python source, and suffix PATHs for agent-friendliness. See [installation.md](installation.md) for Nix installation details. Contributed by @alt-glitch.
+Full uv2nix build, NixOS module with persistent container mode, auto-generated config keys from Python source, and suffix PATHs for agent-friendliness. See [Installation](getting-started/installation.md) for Nix installation details. Contributed by @alt-glitch.
 
 ### Profiles — Multi-Instance Hermes (v0.6.0)
 
-Run multiple isolated Hermes instances from the same installation. Each profile gets its own config, memory, sessions, skills, and gateway service. Create with `hermes profile create`, target a single command with `hermes -p <name> ...`, or set the sticky default with `hermes profile use <name>`. Token locks prevent credential collisions between profiles. See [configuration.md](configuration.md) for details.
+Run multiple isolated Hermes instances from the same installation. Each profile gets its own config, memory, sessions, skills, and gateway service. Create with `hermes profile create`, target a single command with `hermes -p <name> ...`, or set the sticky default with `hermes profile use <name>`. Token locks prevent credential collisions between profiles. See [Configuration](user-guide/configuration.md) for details.
 
 ### MCP Server Mode (v0.6.0)
 
@@ -146,7 +146,7 @@ Multiple independent tool calls run in parallel via `ThreadPoolExecutor` (max 8 
 
 ### Context Compression
 
-`ContextCompressor` monitors token usage and compresses context when approaching the model's context limit (default threshold: 50% of the context window). The algorithm protects the first `protect_first_n` turns (default: 3) and at least the last `protect_last_n` messages (default: 20), summarizes the middle section via an auxiliary model call (`call_llm(task="compression")`), and sanitizes orphaned tool-call/result pairs. Session lineage is preserved via `parent_session_id` chains in the SQLite state store.
+`ContextCompressor` monitors token usage and compresses context when approaching the model's context limit (default threshold: 50% of the context window). The released v0.13.0 implementation hardcodes the first-turn protection internally and exposes `compression.protect_last_n` (default: 20) for the recent-message floor. It summarizes the middle section via an auxiliary model call (`call_llm(task="compression")`) and sanitizes orphaned tool-call/result pairs. Session lineage is preserved via `parent_session_id` chains in the SQLite state store.
 
 ### Six Terminal Backends
 
@@ -193,7 +193,7 @@ Batch trajectory generation, trajectory compression for training datasets (`traj
 ## Requirements
 
 - **Python**: 3.11 or newer (`requires-python = ">=3.11"` in `pyproject.toml`)
-- **Operating Systems**: Linux, macOS, WSL2. Windows native is not supported; use WSL2.
+- **Operating Systems**: Linux, macOS, WSL2, and Android via Termux. Native Windows support is current-main early beta work and is not part of the v0.13.0 stable release surface; use WSL2 for the released Windows path.
 - **Git**: Required by the installer
 
 Key Python dependencies (from `pyproject.toml`):
@@ -240,7 +240,7 @@ Optional extras (install with `pip install "hermes-agent[extra]"`):
 curl -fsSL https://raw.githubusercontent.com/NousResearch/hermes-agent/main/scripts/install.sh | bash
 ```
 
-Works on Linux, macOS, and WSL2. The installer handles Python, Node.js, dependencies, and the `hermes` command. No prerequisites except Git.
+Works on Linux, macOS, WSL2, and Android via Termux. The installer handles Python, Node.js, dependencies, and the `hermes` command. No prerequisites except Git.
 
 After installation:
 
@@ -300,93 +300,89 @@ Hermes has two entry points: start the terminal UI with `hermes`, or run the gat
 
 | Document | Contents |
 |----------|----------|
-| [architecture.md](architecture.md) | Component diagram, agent loop, context compression, session storage, internal design |
+| [developer-guide/architecture.md](developer-guide/architecture.md) | Component diagram, agent loop, context compression, session storage, internal design |
 | [changelog.md](changelog.md) | Released change history from v0.7.0 back through the earlier v0.x lines |
-| [streaming.md](streaming.md) | Unified streaming infrastructure, token delivery, platform support (v0.3.0) |
+| [user-guide/cli.md](user-guide/cli.md) | CLI streaming behavior, keybindings, sessions, and interface usage |
 
 ### Setup & Configuration
 
 | Document | Contents |
 |----------|----------|
-| [installation.md](installation.md) | Install methods (one-liner, manual, Windows), prerequisites, setup wizard |
-| [configuration.md](configuration.md) | Complete config.yaml reference, env vars, precedence rules |
-| [cli-reference.md](cli-reference.md) | All CLI commands, slash commands, flags, environment variables |
-| [providers.md](providers.md) | LLM providers, credential resolution, routing, OAuth flows, and released provider setup guides |
-| [tool-gateway.md](tool-gateway.md) | Nous Tool Gateway, `use_gateway`, per-tool routing, and subscription-backed tool access (v0.10.0) |
+| [getting-started/installation.md](getting-started/installation.md) | Install methods, prerequisites, setup wizard |
+| [user-guide/configuration.md](user-guide/configuration.md) | Complete config.yaml reference, env vars, precedence rules |
+| [reference/cli-commands.md](reference/cli-commands.md) | All CLI commands, slash commands, flags, environment variables |
+| [integrations/providers.md](integrations/providers.md) | LLM providers, credential resolution, routing, OAuth flows, and released provider setup guides |
+| [user-guide/features/tool-gateway.md](user-guide/features/tool-gateway.md) | Nous Tool Gateway, `use_gateway`, per-tool routing, and subscription-backed tool access (v0.10.0) |
 | [guides/aws-bedrock.md](guides/aws-bedrock.md) | Native AWS Bedrock setup, IAM auth, regions, Guardrails, and troubleshooting (v0.10.0) |
-| [profiles.md](profiles.md) | Multi-instance profiles, creation, switching, gateway per-profile (v0.6.0) |
+| [user-guide/profiles.md](user-guide/profiles.md) | Multi-instance profiles, creation, switching, gateway per-profile (v0.6.0) |
 
 ### Features
 
 | Document | Contents |
 |----------|----------|
-| [plugins.md](plugins.md) | Plugin architecture, discovery, registration, custom tools (v0.3.0) |
-| [extending-the-dashboard.md](extending-the-dashboard.md) | Extend the local web dashboard with custom tabs, bundles, widgets, and backend routes |
-| [hooks.md](hooks.md) | Gateway and plugin lifecycle hooks, event types |
-| [logging.md](logging.md) | Centralized logging to `~/.hermes/logs/`, `hermes logs` command, rotation, and redaction (v0.8.0) |
-| [live-model-switching.md](live-model-switching.md) | `/model` command, mid-session provider and model switching, interactive pickers (v0.8.0) |
-| [notify-on-complete.md](notify-on-complete.md) | `notify_on_complete` parameter, process registry, background task auto-notifications (v0.8.0) |
-| [browser.md](browser.md) | Browser automation, Browserbase, Browser Use, CDP connect |
-| [credential-pools.md](credential-pools.md) | Same-provider credential rotation, pool strategies, fallback interplay |
-| [fallback-providers.md](fallback-providers.md) | Provider failover chains, retry logic, health checks |
-| [context-references.md](context-references.md) | `@file` and `@url` context injection, syntax, constraints |
-| [code-execution.md](code-execution.md) | `execute_code`, sandbox model, and when to prefer it over direct tools |
-| [checkpoints.md](checkpoints.md) | Filesystem checkpoints, rollback, git worktree isolation |
-| [cron.md](cron.md) | Scheduled task system, schedule formats, job management |
-| [voice-mode.md](voice-mode.md) | Voice interaction, STT/TTS providers, Discord voice channels (v0.3.0) |
-| [batch-processing.md](batch-processing.md) | Batch trajectory generation for SFT/RL training data |
-| [delegation.md](delegation.md) | Subagent spawning, task isolation, parallel workstreams |
-| [api-server.md](api-server.md) | OpenAI-compatible HTTP API, endpoints, compatible frontends |
-| [honcho.md](honcho.md) | Honcho-backed user modeling, session mapping, and identity controls |
-| [image-generation.md](image-generation.md) | Image generation providers, prompts, routing, and constraints |
-| [vision.md](vision.md) | Vision analysis, multimodal input, and messaging-platform support |
-| [tts.md](tts.md) | Text-to-speech backends and delivery modes |
-| [personality.md](personality.md) | Personality system, SOUL.md, and identity layering |
-| [provider-routing.md](provider-routing.md) | Provider detection, prefix matching, smart routing, runtime selection |
-| [environments.md](environments.md) | RL and benchmark environments shipped with Hermes |
-| [rl-training.md](rl-training.md) | Training workflows, trajectories, and Atropos integration |
-| [skins.md](skins.md) | CLI themes, custom skins, banner configuration |
+| [user-guide/features/plugins.md](user-guide/features/plugins.md) | Plugin architecture, discovery, registration, custom tools (v0.3.0) |
+| [user-guide/features/extending-the-dashboard.md](user-guide/features/extending-the-dashboard.md) | Extend the local web dashboard with custom tabs, bundles, widgets, and backend routes |
+| [user-guide/features/hooks.md](user-guide/features/hooks.md) | Gateway, plugin, and shell lifecycle hooks |
+| [user-guide/features/provider-routing.md](user-guide/features/provider-routing.md) | Provider detection, prefix matching, smart routing, runtime selection |
+| [user-guide/features/browser.md](user-guide/features/browser.md) | Browser automation, Browserbase, Browser Use, CDP connect |
+| [user-guide/features/credential-pools.md](user-guide/features/credential-pools.md) | Same-provider credential rotation, pool strategies, fallback interplay |
+| [user-guide/features/fallback-providers.md](user-guide/features/fallback-providers.md) | Provider failover chains, retry logic, health checks |
+| [user-guide/features/context-references.md](user-guide/features/context-references.md) | `@file` and `@url` context injection, syntax, constraints |
+| [user-guide/features/code-execution.md](user-guide/features/code-execution.md) | `execute_code`, sandbox model, and when to prefer it over direct tools |
+| [user-guide/checkpoints-and-rollback.md](user-guide/checkpoints-and-rollback.md) | Filesystem checkpoints, rollback, git worktree isolation |
+| [user-guide/features/cron.md](user-guide/features/cron.md) | Scheduled task system, schedule formats, job management |
+| [user-guide/features/voice-mode.md](user-guide/features/voice-mode.md) | Voice interaction, STT/TTS providers, Discord voice channels (v0.3.0) |
+| [user-guide/features/batch-processing.md](user-guide/features/batch-processing.md) | Batch trajectory generation for SFT/RL training data |
+| [user-guide/features/delegation.md](user-guide/features/delegation.md) | Subagent spawning, task isolation, parallel workstreams |
+| [user-guide/features/api-server.md](user-guide/features/api-server.md) | OpenAI-compatible HTTP API, endpoints, compatible frontends |
+| [user-guide/features/honcho.md](user-guide/features/honcho.md) | Honcho-backed user modeling, session mapping, and identity controls |
+| [user-guide/features/image-generation.md](user-guide/features/image-generation.md) | Image generation providers, prompts, routing, and constraints |
+| [user-guide/features/vision.md](user-guide/features/vision.md) | Vision analysis, multimodal input, and messaging-platform support |
+| [user-guide/features/tts.md](user-guide/features/tts.md) | Text-to-speech backends and delivery modes |
+| [user-guide/features/personality.md](user-guide/features/personality.md) | Personality system, SOUL.md, and identity layering |
+| [developer-guide/environments.md](developer-guide/environments.md) | RL and benchmark environments shipped with Hermes |
+| [user-guide/features/rl-training.md](user-guide/features/rl-training.md) | Training workflows, trajectories, and Atropos integration |
+| [user-guide/features/skins.md](user-guide/features/skins.md) | CLI themes, custom skins, banner configuration |
 
 ### Skills & Tools
 
 | Document | Contents |
 |----------|----------|
-| [skills.md](skills.md) | Skills system, SKILL.md format, bundled and optional skills catalogs |
-| [tools.md](tools.md) | Built-in tools reference with activation rules, parameters, and examples |
-| [toolsets.md](toolsets.md) | Toolset definitions, compositions, per-platform configuration |
-| [mcp.md](mcp.md) | MCP client integration, stdio/HTTP transports, sampling, tool filtering |
+| [user-guide/features/skills.md](user-guide/features/skills.md) | Skills system, SKILL.md format, bundled and optional skills catalogs |
+| [user-guide/features/tools.md](user-guide/features/tools.md) | Built-in tools reference with activation rules, parameters, and examples |
+| [reference/toolsets-reference.md](reference/toolsets-reference.md) | Toolset definitions, compositions, per-platform configuration |
+| [user-guide/features/mcp.md](user-guide/features/mcp.md) | MCP client integration, stdio/HTTP/SSE transports, sampling, tool filtering |
 
 ### Security & Memory
 
 | Document | Contents |
 |----------|----------|
-| [security.md](security.md) | Five-layer security model, PII redaction, approvals, tirith scanning, OAuth |
-| [memory.md](memory.md) | Built-in memory files, external memory providers, and write/read behavior |
-| [acp.md](acp.md) | ACP server for IDE integration (VS Code, Zed, JetBrains) |
-| [credential-pools.md](credential-pools.md) | Provider-local key pools and recovery behavior |
+| [user-guide/security.md](user-guide/security.md) | Five-layer security model, PII redaction, approvals, tirith scanning, OAuth |
+| [user-guide/features/memory.md](user-guide/features/memory.md) | Built-in memory files, external memory providers, and write/read behavior |
+| [user-guide/features/acp.md](user-guide/features/acp.md) | ACP server for IDE integration (VS Code, Zed, JetBrains) |
+| [user-guide/features/credential-pools.md](user-guide/features/credential-pools.md) | Provider-local key pools and recovery behavior |
 
 ### Gateway & Messaging
 
 | Document | Contents |
 |----------|----------|
-| [gateway.md](gateway.md) | Gateway architecture, session management, authorization, streaming |
-| [messaging/](messaging/) | Per-platform setup guides for the released messaging adapters plus API/Open WebUI |
-| [messaging/telegram.md](messaging/telegram.md) | Telegram Bot API setup, forum topics, voice notes |
-| [messaging/discord.md](messaging/discord.md) | Discord bot setup, voice channels, threads |
-| [messaging/slack.md](messaging/slack.md) | Slack Bolt + Socket Mode setup |
-| [messaging/whatsapp.md](messaging/whatsapp.md) | WhatsApp Baileys bridge setup |
-| [messaging/signal.md](messaging/signal.md) | Signal via signal-cli-rest-api |
-| [messaging/email.md](messaging/email.md) | Email via IMAP/SMTP |
-| [messaging/matrix.md](messaging/matrix.md) | Matrix with E2E encryption |
-| [messaging/mattermost.md](messaging/mattermost.md) | Mattermost team chat |
-| [messaging/dingtalk.md](messaging/dingtalk.md) | DingTalk enterprise messaging |
-| [messaging/homeassistant.md](messaging/homeassistant.md) | Home Assistant smart home |
-| [messaging/feishu.md](messaging/feishu.md) | Feishu/Lark enterprise messaging (v0.6.0) |
-| [messaging/wecom.md](messaging/wecom.md) | WeCom enterprise messaging (v0.6.0) |
-| [messaging/qqbot.md](messaging/qqbot.md) | QQ Bot via the Official API v2 (v0.10.0) |
-| [messaging/webhooks.md](messaging/webhooks.md) | Webhook adapter |
-| [messaging/open-webui.md](messaging/open-webui.md) | Open WebUI / API server frontend |
-| [messaging/sms.md](messaging/sms.md) | SMS via Twilio |
+| [user-guide/messaging/index.md](user-guide/messaging/index.md) | Gateway architecture, setup flow, authorization, and supported platforms |
+| [user-guide/messaging/telegram.md](user-guide/messaging/telegram.md) | Telegram Bot API setup, forum topics, voice notes |
+| [user-guide/messaging/discord.md](user-guide/messaging/discord.md) | Discord bot setup, voice channels, threads |
+| [user-guide/messaging/slack.md](user-guide/messaging/slack.md) | Slack Bolt + Socket Mode setup |
+| [user-guide/messaging/whatsapp.md](user-guide/messaging/whatsapp.md) | WhatsApp Baileys bridge setup |
+| [user-guide/messaging/signal.md](user-guide/messaging/signal.md) | Signal via signal-cli-rest-api |
+| [user-guide/messaging/email.md](user-guide/messaging/email.md) | Email via IMAP/SMTP |
+| [user-guide/messaging/matrix.md](user-guide/messaging/matrix.md) | Matrix with E2E encryption |
+| [user-guide/messaging/mattermost.md](user-guide/messaging/mattermost.md) | Mattermost team chat |
+| [user-guide/messaging/dingtalk.md](user-guide/messaging/dingtalk.md) | DingTalk enterprise messaging |
+| [user-guide/messaging/homeassistant.md](user-guide/messaging/homeassistant.md) | Home Assistant smart home |
+| [user-guide/messaging/feishu.md](user-guide/messaging/feishu.md) | Feishu/Lark enterprise messaging (v0.6.0) |
+| [user-guide/messaging/wecom.md](user-guide/messaging/wecom.md) | WeCom enterprise messaging (v0.6.0) |
+| [user-guide/messaging/qqbot.md](user-guide/messaging/qqbot.md) | QQ Bot via the Official API v2 (v0.10.0) |
+| [user-guide/messaging/webhooks.md](user-guide/messaging/webhooks.md) | Webhook adapter |
+| [user-guide/messaging/open-webui.md](user-guide/messaging/open-webui.md) | Open WebUI / API server frontend |
+| [user-guide/messaging/sms.md](user-guide/messaging/sms.md) | SMS via Twilio |
 
 ### Getting Started & Operations
 
@@ -405,8 +401,8 @@ Hermes has two entry points: start the terminal UI with `hermes`, or run the gat
 | [developer-guide/adding-tools.md](developer-guide/adding-tools.md) | How to create or extend built-in tools |
 | [developer-guide/adding-providers.md](developer-guide/adding-providers.md) | How to add inference providers and setup flows |
 | [developer-guide/creating-skills.md](developer-guide/creating-skills.md) | SKILL authoring guide, structure, and conventions |
-| [developer-guide/extending-cli.md](developer-guide/extending-cli.md) | CLI command wiring and extension points |
-| [developer-guide/context-compression.md](developer-guide/context-compression.md) | Compression algorithm, session lineage, tuning |
+| [developer-guide/extending-the-cli.md](developer-guide/extending-the-cli.md) | CLI command wiring and extension points |
+| [developer-guide/context-compression-and-caching.md](developer-guide/context-compression-and-caching.md) | Compression algorithm, session lineage, tuning |
 | [developer-guide/session-storage.md](developer-guide/session-storage.md) | SQLite schema, FTS5 search, session lifecycle |
 | [developer-guide/provider-runtime.md](developer-guide/provider-runtime.md) | Runtime resolution and provider selection internals |
 | [developer-guide/prompt-assembly.md](developer-guide/prompt-assembly.md) | Prompt layering and system-prompt composition |
@@ -435,7 +431,7 @@ Hermes has two entry points: start the terminal UI with `hermes`, or run the gat
 
 | Document | Contents |
 |----------|----------|
-| [contributing.md](contributing.md) | Dev setup, contribution guide, PR process, priorities |
+| [developer-guide/contributing.md](developer-guide/contributing.md) | Dev setup, contribution guide, PR process, priorities |
 
 Official documentation: **[hermes-agent.nousresearch.com/docs](https://hermes-agent.nousresearch.com/docs/)**
 

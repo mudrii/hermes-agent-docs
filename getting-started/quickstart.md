@@ -60,7 +60,7 @@ If you're installing on a phone, see the dedicated [Termux guide](./termux.md) f
 :::
 
 :::tip Windows Users
-Install [WSL2](https://learn.microsoft.com/en-us/windows/wsl/install) first, then run the command above inside your WSL2 terminal.
+For the v0.13.0 stable release, install [WSL2](https://learn.microsoft.com/en-us/windows/wsl/install) first, then run the command above inside your WSL2 terminal. Native Windows support exists on current `main` as early beta; see the [native Windows guide](../user-guide/windows-native.md) only if you are intentionally installing from current `main`.
 :::
 
 After it finishes, reload your shell:

@@ -411,6 +411,10 @@ For cloud sandbox backends, persistence is filesystem-oriented. `TERMINAL_LIFETI
 
 ### Microsoft Graph (Teams Meetings)
 
+:::warning Current main only
+The Microsoft Graph Teams meeting pipeline settings landed after the v0.13.0 / v2026.5.7 release boundary. They are not part of the stable v0.13.0 released configuration surface.
+:::
+
 App-only credentials for the Microsoft Graph REST client used by the upcoming Teams meeting summary pipeline. See [Register a Microsoft Graph application](/docs/guides/microsoft-graph-app-registration) for the Azure portal walkthrough and the exact API permissions required.
 
 | Variable | Description |
@@ -423,6 +427,10 @@ App-only credentials for the Microsoft Graph REST client used by the upcoming Te
 
 ### Microsoft Graph Webhook Listener
 
+:::warning Current main only
+The `msgraph_webhook` listener landed after the v0.13.0 / v2026.5.7 release boundary.
+:::
+
 Inbound change-notification listener for Graph events (Teams meetings, calendar, chat, etc.). See [Microsoft Graph Webhook Listener](/docs/user-guide/messaging/msgraph-webhook) for setup and security hardening.
 
 | Variable | Description |
@@ -434,6 +442,10 @@ Inbound change-notification listener for Graph events (Teams meetings, calendar,
 | `MSGRAPH_WEBHOOK_ALLOWED_SOURCE_CIDRS` | Comma-separated CIDR ranges allowed to POST to the listener (e.g. `52.96.0.0/14,52.104.0.0/14`). Empty = allow all (default). Restrict to Microsoft Graph's published egress ranges in production. |
 
 ### Teams Meeting Summary Delivery
+
+:::warning Current main only
+The `teams_pipeline` plugin landed after the v0.13.0 / v2026.5.7 release boundary.
+:::
 
 Only used when the [`teams_pipeline` plugin](/docs/user-guide/messaging/msgraph-webhook) is enabled. Settings are also configurable under `platforms.teams.extra` in `config.yaml` — env vars take priority when both are set. See [Microsoft Teams → Meeting Summary Delivery](/docs/user-guide/messaging/teams#meeting-summary-delivery-teams-meeting-pipeline).
 

@@ -22,6 +22,7 @@ The messaging gateway is the long-running process that connects Hermes to 20+ ex
 | `gateway/status.py` | Token lock management for profile-scoped gateway instances |
 | `gateway/builtin_hooks/` | Extension point for always-registered hooks (none shipped) |
 | `gateway/platforms/` | Platform adapters (one per messaging platform) |
+| `plugins/platforms/` | Bundled platform plugins for released adapters that live outside `gateway/platforms/` |
 
 ## Architecture Overview
 
@@ -143,7 +144,7 @@ Unlike the CLI (which uses `load_cli_config()` with hardcoded defaults), the gat
 
 ## Platform Adapters
 
-Each messaging platform has an adapter in `gateway/platforms/`:
+Core messaging platforms have adapters in `gateway/platforms/`. Released platform plugins such as Google Chat, Teams, and IRC live under `plugins/platforms/` and register through the same gateway lifecycle:
 
 ```text
 gateway/platforms/
@@ -165,11 +166,13 @@ gateway/platforms/
 ├── qqbot/               # QQ Bot (Tencent QQ) via Official API v2 (sub-package: adapter.py, crypto.py, keyboards.py, …)
 ├── yuanbao.py           # Yuanbao (Tencent) DM/group adapter
 ├── feishu_comment.py    # Feishu document/drive comment-reply handler
-├── msgraph_webhook.py   # Microsoft Graph change-notification webhook (Teams, Outlook, etc.)
+├── msgraph_webhook.py   # Current main only after v0.13.0: Microsoft Graph change-notification webhook
 ├── webhook.py           # Inbound/outbound webhook adapter
 ├── api_server.py        # REST API server adapter
 └── homeassistant.py     # Home Assistant conversation integration
 ```
+
+Bundled platform plugins use the plugin registration path rather than a core adapter file, but the gateway still normalizes inbound events to `MessageEvent`, applies the same authorization/session routing, and delivers responses through the adapter interface.
 
 Adapters implement a common interface:
 - `connect()` / `disconnect()` — lifecycle management

@@ -1,7 +1,7 @@
 ---
 sidebar_position: 2
 title: "Installation"
-description: "Install Hermes Agent on Linux, macOS, WSL2, native Windows (early beta), or Android via Termux"
+description: "Install Hermes Agent on Linux, macOS, WSL2, Android via Termux, or current-main native Windows beta"
 ---
 
 # Installation
@@ -19,7 +19,7 @@ curl -fsSL https://raw.githubusercontent.com/NousResearch/hermes-agent/main/scri
 ### Windows (native, PowerShell) — Early Beta
 
 :::warning Early BETA
-Native Windows support is **early beta**. It installs and works for the common paths, but hasn't been road-tested as broadly as our POSIX installers. Please [file issues](https://github.com/NousResearch/hermes-agent/issues) when you hit rough edges. For the most battle-tested setup on Windows today, use the Linux/macOS one-liner above inside **WSL2** instead.
+Native Windows support is **current-main early beta after the v0.13.0 / v2026.5.7 release boundary**. The v0.13.0 stable release docs should still treat WSL2 as the released Windows path. Use this section only if you are installing from current `main`, and please [file issues](https://github.com/NousResearch/hermes-agent/issues) when you hit rough edges.
 :::
 
 Open PowerShell and run:
@@ -52,7 +52,7 @@ The installer detects Termux automatically and switches to a tested Android flow
 - uses Termux `pkg` for system dependencies (`git`, `python`, `nodejs`, `ripgrep`, `ffmpeg`, build tools)
 - creates the virtualenv with `python -m venv`
 - exports `ANDROID_API_LEVEL` automatically for Android wheel builds
-- prefers the broad `.[termux-all]` extra and falls back to the smaller `.[termux]` extra (and finally a base install) if the first attempt fails to compile
+- installs the tested `.[termux]` extra and falls back to a base install if that fails to compile
 - skips the untested browser / WhatsApp bootstrap by default
 
 If you want the fully explicit path, follow the dedicated [Termux guide](./termux.md).
