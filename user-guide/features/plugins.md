@@ -141,6 +141,23 @@ Within each source, Hermes also recognizes sub-category directories that route p
 
 User plugins at `~/.hermes/plugins/model-providers/<name>/` and `~/.hermes/plugins/memory/<name>/` override bundled plugins of the same name — last-writer-wins in `register_provider()` / `register_memory_provider()`. Drop a directory in, and it replaces the built-in without any repo edits.
 
+## Community plugin examples
+
+If you want real plugin repos to inspect before building your own, these are
+useful reference points:
+
+- [hermes-web-search-plus](https://github.com/robbyczgw-cla/hermes-web-search-plus)
+  - Multi-provider web search plugin with provider routing and richer search
+    quality than the default stack.
+- [agent-analytics-hermes-plugin](https://github.com/Agent-Analytics/agent-analytics-hermes-plugin)
+  - Dashboard-oriented plugin that adds read-only analytics views inside the
+    Hermes UI.
+- [hermes-tweet](https://github.com/Xquik-dev/hermes-tweet)
+  - Hermes-native X automation plugin distributed as a Python package. Shows a
+    pip-installable plugin layout, bundled skill metadata, and safe default
+    read and exploration tools with write actions kept disabled unless
+    explicitly enabled.
+
 ## Plugins are opt-in (with a few exceptions)
 
 **General plugins and user-installed backends are disabled by default** — discovery finds them (so they show up in `hermes plugins` and `/plugins`), but nothing with hooks or tools loads until you add the plugin's name to `plugins.enabled` in `~/.hermes/config.yaml`. This stops third-party code from running without your explicit consent.
