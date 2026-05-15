@@ -12,11 +12,11 @@ This guide walks you through connecting Hermes Agent to GitHub so it automatical
 When a PR is opened or updated, GitHub sends a webhook POST to your Hermes instance. Hermes runs the agent with a prompt that instructs it to retrieve the diff via the `gh` CLI, and the response is posted back to the PR thread.
 
 :::tip Want a simpler setup without a public endpoint?
-If you don't have a public URL or just want to get started quickly, check out [Build a GitHub PR Review Agent](github-pr-review-agent.md) — uses cron jobs to poll for PRs on a schedule, works behind NAT and firewalls.
+If you don't have a public URL or just want to get started quickly, check out [Build a GitHub PR Review Agent](./github-pr-review-agent.md) — uses cron jobs to poll for PRs on a schedule, works behind NAT and firewalls.
 :::
 
 :::info Reference docs
-For the full webhook platform reference (all config options, delivery types, dynamic subscriptions, security model) see [Webhooks](../messaging/webhooks.md).
+For the full webhook platform reference (all config options, delivery types, dynamic subscriptions, security model) see [Webhooks](/docs/user-guide/messaging/webhooks).
 :::
 
 :::warning Prompt injection risk
@@ -196,7 +196,7 @@ The "stop here" instruction prevents a meaningful review, but the agent still ru
 
 ## Using a skill for consistent review style
 
-Load a [Hermes skill](../skills.md) to give the agent a consistent review persona. Add `skills` to your route inside `platforms.webhook.extra.routes` in `config.yaml`:
+Load a [Hermes skill](/docs/user-guide/features/skills) to give the agent a consistent review persona. Add `skills` to your route inside `platforms.webhook.extra.routes` in `config.yaml`:
 
 ```yaml
 platforms:
@@ -323,7 +323,7 @@ platforms:
 
 ## What's Next?
 
-- **[Cron-Based PR Reviews](github-pr-review-agent.md)** — poll for PRs on a schedule, no public endpoint needed
-- **[Webhook Reference](../messaging/webhooks.md)** — full config reference for the webhook platform
-- **[Build a Plugin](build-a-hermes-plugin.md)** — package review logic into a shareable plugin
-- **[Profiles](../profiles.md)** — run a dedicated reviewer profile with its own memory and config
+- **[Cron-Based PR Reviews](./github-pr-review-agent.md)** — poll for PRs on a schedule, no public endpoint needed
+- **[Webhook Reference](/docs/user-guide/messaging/webhooks)** — full config reference for the webhook platform
+- **[Build a Plugin](/docs/guides/build-a-hermes-plugin)** — package review logic into a shareable plugin
+- **[Profiles](/docs/user-guide/profiles)** — run a dedicated reviewer profile with its own memory and config

@@ -4,7 +4,7 @@
 
 Hermes Agent is an autonomous AI agent with a built-in learning loop. It creates skills from experience, improves them during use, searches its own past conversations for context, and builds a deepening model of who you are across sessions. It runs on a $5 VPS, a GPU cluster, or serverless infrastructure -- not tied to your laptop.
 
-Current version: **v0.12.0 (v2026.4.30)** -- released April 30, 2026.
+Current version: **v0.13.0 (v2026.5.7)** -- released May 7, 2026.
 
 ---
 
@@ -16,7 +16,7 @@ Hermes Agent is not a coding copilot or a chatbot wrapper. It is a multi-platfor
 - Manages long-running conversations with context compression and session lineage
 - Persists memory, skills, and session history in SQLite across restarts
 - Streams responses token-by-token from the model to the user interface (v0.3.0)
-- Runs as a CLI (with an Ink-based TUI invoked via `hermes --tui`), a messaging gateway across 18 built-in platforms (Telegram, Discord, Slack, WhatsApp, Signal, DingTalk, SMS, Mattermost, Matrix, Webhook, Email, Home Assistant, Feishu/Lark, WeCom, Weixin, BlueBubbles iMessage, QQBot, Yuanbao), a plugin-shipped Microsoft Teams platform, or an IDE integration (VS Code, Zed, JetBrains via ACP)
+- Runs as a CLI (with an Ink-based TUI invoked via `hermes --tui`), a messaging gateway across 20+ platforms (Telegram, Discord, Slack, WhatsApp, Signal, DingTalk, SMS, Mattermost, Matrix, Webhook, Email, Home Assistant, Feishu/Lark, WeCom, Weixin, BlueBubbles iMessage, QQBot, Yuanbao, Microsoft Teams, Google Chat, and post-release LINE support on current `main`), or an IDE integration (VS Code, Zed, JetBrains via ACP)
 - Exposes an OpenAI-compatible `/v1/chat/completions` API server with REST cron job management (v0.4.0)
 - Delegates work to isolated subagents and spawns scheduled cron jobs
 - Exports training trajectories for SFT data generation and RL fine-tuning
@@ -37,17 +37,17 @@ Real-time token-by-token delivery in the CLI and all gateway platforms. Response
 - **Pluggable memory providers** -- the built-in memory layer can now be extended with released memory-provider plugins such as Honcho and other provider backends (v0.7.0)
 - **Autonomous skill creation** -- after complex tasks (5+ tool calls), the agent creates reusable skill documents
 - **Skill self-improvement** -- skills are patched during use when they are outdated, incomplete, or wrong
-- **Autonomous Curator** -- v0.12.0 adds `hermes curator`, a background auxiliary-model task that reviews agent-created skills, consolidates overlap, archives stale entries, writes per-run reports, and protects pinned skills from both the curator and `skill_manage`
+- **Autonomous Curator** -- `hermes curator` reviews agent-created skills, consolidates overlap, archives stale entries, writes per-run reports, protects pinned skills, and in v0.13.0 adds archive/prune/list-archived workflows plus synchronous manual runs by default
 - **FTS5 session search** -- full-text search across all past sessions with LLM summarization for cross-session recall
 - **Honcho integration** -- dialectic user modeling that builds a persistent model of who you are across sessions
 
 ### Multi-Platform Messaging Gateway
 
-Telegram, Discord, Slack, WhatsApp, Signal, DingTalk, SMS (Twilio), Mattermost, Matrix, Webhook, Email (IMAP/SMTP), Home Assistant, Feishu/Lark, WeCom, Weixin, BlueBubbles (iMessage), QQBot, and Yuanbao -- 18 built-in platforms from a single gateway process. Microsoft Teams ships as the first plugin-provided platform in v0.12.0. Unified session management, media attachments, voice transcription, and per-platform tool configuration are shared across adapters. v0.12.0 also adds native multi-image sending across Telegram, Discord, Slack, Mattermost, Email, and Signal plus centralized audio routing with FLAC support.
+Telegram, Discord, Slack, WhatsApp, Signal, DingTalk, SMS (Twilio), Mattermost, Matrix, Webhook, Email (IMAP/SMTP), Home Assistant, Feishu/Lark, WeCom, Weixin, BlueBubbles (iMessage), QQBot, Yuanbao, Microsoft Teams, Google Chat, and post-release LINE support on current `main` run from one gateway process. Unified session management, media attachments, voice transcription, and per-platform tool configuration are shared across adapters. v0.13.0 adds Google Chat as the 20th platform, broader platform allowlists, restart auto-resume, and per-platform restart notification controls.
 
-### Plugin Architecture (v0.3.0, expanded in v0.11.0-v0.12.0)
+### Plugin Architecture (v0.3.0, expanded in v0.11.0-v0.13.0)
 
-Drop Python files into `~/.hermes/plugins/` to extend Hermes with custom tools, commands, hooks, dashboard tabs, and gateway platforms. No forking required. v0.12.0 adds auto-loaded backend/platform plugin kinds, the Spotify backend toolset, Microsoft Teams as a platform plugin, Google Meet and Langfuse standalone plugins, and dashboard-only achievements.
+Drop Python files into `~/.hermes/plugins/` to extend Hermes with custom tools, commands, hooks, dashboard tabs, gateway platforms, provider backends, and host-owned LLM calls. No forking required. v0.13.0 documents `ctx.llm`, model-provider plugins, image-generation provider plugins, durable Kanban's dashboard plugin, and plugin API route authentication.
 
 ### Ink-based TUI (v0.11.0)
 
@@ -186,7 +186,7 @@ Batch trajectory generation, trajectory compression for training datasets (`traj
 
 ### Skills Ecosystem
 
-131 skills (72 bundled + 59 optional) across 26+ categories. Compatible with the [agentskills.io](https://agentskills.io) open standard. Skills support per-platform enable/disable, conditional activation based on tool availability, and prerequisite validation. The Skills Hub integrates with both ClawHub and skills.sh (v0.3.0).
+166 tracked skills (87 bundled + 79 optional) across 26+ categories in the current source tree. Compatible with the [agentskills.io](https://agentskills.io) open standard. Skills support per-platform enable/disable, conditional activation based on tool availability, and prerequisite validation. The Skills Hub integrates with both ClawHub and skills.sh (v0.3.0).
 
 ---
 
@@ -351,7 +351,7 @@ Hermes has two entry points: start the terminal UI with `hermes`, or run the gat
 
 | Document | Contents |
 |----------|----------|
-| [skills.md](skills.md) | Skills system, SKILL.md format, 72 bundled + 59 optional skills catalog |
+| [skills.md](skills.md) | Skills system, SKILL.md format, bundled and optional skills catalogs |
 | [tools.md](tools.md) | Built-in tools reference with activation rules, parameters, and examples |
 | [toolsets.md](toolsets.md) | Toolset definitions, compositions, per-platform configuration |
 | [mcp.md](mcp.md) | MCP client integration, stdio/HTTP transports, sampling, tool filtering |
@@ -443,6 +443,11 @@ Hermes has two entry points: start the terminal UI with `hermes`, or run the gat
 | [release_evaluation_v2026.4.16.md](release_evaluation_v2026.4.16.md) | Local-release validation plus public-release-surface discrepancy notes |
 | [repo_review_v2026.4.16.md](repo_review_v2026.4.16.md) | Docs-gap review and correction summary for v0.10.0 |
 | [source_validation_matrix_v2026.4.16.md](source_validation_matrix_v2026.4.16.md) | Source-to-doc mapping for the v2026.4.13..v2026.4.16 sync window |
+| [review_plan_v2026.5.7.md](review_plan_v2026.5.7.md) | Release-bounded review plan for the May 7, 2026 audit |
+| [release_evaluation_v2026.5.7.md](release_evaluation_v2026.5.7.md) | v0.13.0 release validation, source boundary, and online release confirmation |
+| [repo_review_v2026.5.7.md](repo_review_v2026.5.7.md) | Source-tree review findings and documentation changes for v0.13.0 |
+| [source_validation_matrix_v2026.5.7.md](source_validation_matrix_v2026.5.7.md) | Claim-to-source matrix for the v2026.4.30..v2026.5.7 sync window |
+| [documentation_integrity_findings_v2026.5.7.md](documentation_integrity_findings_v2026.5.7.md) | Documentation integrity gaps found and resolved during the v0.13.0 sync |
 
 ### Contributing
 

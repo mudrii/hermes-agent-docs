@@ -1,6 +1,16 @@
+---
+sidebar_position: 8
+title: "MCP Config Reference"
+description: "Reference for Hermes Agent MCP configuration keys, filtering semantics, and utility-tool policy"
+---
+
 # MCP Config Reference
 
 This page is the compact reference companion to the main MCP docs.
+
+For conceptual guidance, see:
+- [MCP (Model Context Protocol)](/docs/user-guide/features/mcp)
+- [Use MCP with Hermes](/docs/guides/use-mcp-with-hermes)
 
 ## Root config shape
 
@@ -28,7 +38,7 @@ mcp_servers:
 ## Server keys
 
 | Key | Type | Applies to | Meaning |
-|-----|------|------------|---------|
+|---|---|---|---|
 | `command` | string | stdio | Executable to launch |
 | `args` | list | stdio | Arguments for the subprocess |
 | `env` | mapping | stdio | Environment passed to the subprocess |
@@ -39,12 +49,12 @@ mcp_servers:
 | `connect_timeout` | number | both | Initial connection timeout |
 | `tools` | mapping | both | Filtering and utility-tool policy |
 | `auth` | string | HTTP | Authentication method. Set to `oauth` to enable OAuth 2.1 with PKCE |
-| `sampling` | mapping | both | Server-initiated LLM request policy |
+| `sampling` | mapping | both | Server-initiated LLM request policy (see MCP guide) |
 
 ## `tools` policy keys
 
 | Key | Type | Meaning |
-|-----|------|---------|
+|---|---|---|
 | `include` | string or list | Whitelist server-native MCP tools |
 | `exclude` | string or list | Blacklist server-native MCP tools |
 | `resources` | bool-like | Enable/disable `list_resources` + `read_resource` |
@@ -112,7 +122,12 @@ tools:
 
 ### Capability-aware registration
 
-Even when `resources: true` or `prompts: true`, Hermes only registers those utility tools if the MCP session actually exposes the corresponding capability. So it's normal for prompts to be enabled but no prompt utilities to appear because the server does not support prompts.
+Even when `resources: true` or `prompts: true`, Hermes only registers those utility tools if the MCP session actually exposes the corresponding capability.
+
+So this is normal:
+- you enable prompts
+- but no prompt utilities appear
+- because the server does not support prompts
 
 ## `enabled: false`
 
@@ -123,7 +138,11 @@ mcp_servers:
     enabled: false
 ```
 
-Behavior: no connection attempt, no discovery, no tool registration. Config remains in place for later reuse.
+Behavior:
+- no connection attempt
+- no discovery
+- no tool registration
+- config remains in place for later reuse
 
 ## Empty result behavior
 
@@ -174,7 +193,7 @@ mcp_servers:
 
 After changing MCP config, reload servers with:
 
-```
+```text
 /reload-mcp
 ```
 
@@ -182,7 +201,7 @@ After changing MCP config, reload servers with:
 
 Server-native MCP tools become:
 
-```
+```text
 mcp_<server>_<tool>
 ```
 
@@ -203,13 +222,13 @@ Hyphens (`-`) and dots (`.`) in both server names and tool names are replaced wi
 
 For example, a server named `my-api` exposing a tool called `list-items.v2` becomes:
 
-```
+```text
 mcp_my_api_list_items_v2
 ```
 
-Keep this in mind when writing `include` / `exclude` filters -- use the original MCP tool name (with hyphens/dots), not the sanitized version.
+Keep this in mind when writing `include` / `exclude` filters — use the **original** MCP tool name (with hyphens/dots), not the sanitized version.
 
-## OAuth 2.1 authentication (v0.8.0)
+## OAuth 2.1 authentication
 
 For HTTP servers that require OAuth, set `auth: oauth` on the server entry:
 
@@ -220,38 +239,9 @@ mcp_servers:
     auth: oauth
 ```
 
-For servers that do not support Dynamic Client Registration (DCR), supply pre-registered credentials via the optional `oauth` block:
-
-```yaml
-mcp_servers:
-  slack:
-    url: "https://mcp.slack.com/sse"
-    auth: oauth
-    oauth:
-      client_id: "your-client-id"
-      client_secret: "your-client-secret"   # confidential client only
-      scope: "channels:read chat:write"      # overrides server-advertised scope
-```
-
 Behavior:
-- Hermes uses `tools/mcp_oauth.py` — a full OAuth 2.1 PKCE adapter over the MCP SDK's `OAuthClientProvider`
-- Flow: metadata discovery → DCR (or pre-registered client) → PKCE code exchange → token storage
+- Hermes uses the MCP SDK's OAuth 2.1 PKCE flow (metadata discovery, dynamic client registration, token exchange, and refresh)
 - On first connect, a browser window opens for authorization
-- Tokens are persisted to `~/.hermes/mcp-tokens/<server>.json` (permissions: `0o600`) and reused across sessions
-- Token refresh is automatic; step-up re-authorization triggers on `403 insufficient_scope`
-- Non-interactive environments (gateway, cron) log a warning when cached tokens are absent rather than hanging on a browser prompt
+- Tokens are persisted to `~/.hermes/mcp-tokens/<server>.json` and reused across sessions
+- Token refresh is automatic; re-authorization only happens when refresh fails
 - Only applies to HTTP/StreamableHTTP transport (`url`-based servers)
-
-## `no_mcp` sentinel (v0.8.0)
-
-To exclude all MCP servers from a specific platform's toolset, add `no_mcp` to its `platform_toolsets` list:
-
-```yaml
-platform_toolsets:
-  api_server:
-    - terminal
-    - file
-    - no_mcp   # exclude all MCP servers from this platform
-```
-
-`no_mcp` is a sentinel — it is filtered out and does not appear as an actual toolset. Other platforms are unaffected. Useful for platforms where MCP tool schemas inflate token usage without providing value.

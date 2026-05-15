@@ -72,7 +72,7 @@ The `--from` flag lets you customize the sender display name on outgoing emails.
 $GAPI gmail send --to client@co.com --subject "Research Summary" \
   --from '"Research Agent" <shared@company.com>' --body "..."
 
-# Agent 2
+# Agent 2  
 $GAPI gmail send --to client@co.com --subject "Code Review" \
   --from '"Code Assistant" <shared@company.com>' --body "..."
 ```

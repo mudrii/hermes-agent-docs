@@ -27,14 +27,14 @@ description: "Build an automated AI code reviewer that monitors your repos, revi
 This guide uses **cron jobs** to poll for PRs on a schedule — no server or public endpoint needed. Works behind NAT and firewalls.
 
 :::tip Want real-time reviews instead?
-If you have a public endpoint available, check out [Automated GitHub PR Comments with Webhooks](webhook-github-pr-review.md) — GitHub pushes events to Hermes instantly when PRs are opened or updated.
+If you have a public endpoint available, check out [Automated GitHub PR Comments with Webhooks](./webhook-github-pr-review.md) — GitHub pushes events to Hermes instantly when PRs are opened or updated.
 :::
 
 ---
 
 ## Prerequisites
 
-- **Hermes Agent installed** — see the [Installation guide](../installation.md)
+- **Hermes Agent installed** — see the [Installation guide](/docs/getting-started/installation)
 - **Gateway running** for cron jobs:
   ```bash
   hermes gateway install   # Install as a service
@@ -50,7 +50,7 @@ If you have a public endpoint available, check out [Automated GitHub PR Comments
   # Authenticate
   gh auth login
   ```
-- **Messaging configured** (optional) — [Telegram](../messaging/telegram.md) or [Discord](../messaging/discord.md)
+- **Messaging configured** (optional) — [Telegram](/docs/user-guide/messaging/telegram) or [Discord](/docs/user-guide/messaging/discord)
 
 :::tip No messaging? No problem
 Use `deliver: "local"` to save reviews to `~/.hermes/cron/output/`. Great for testing before wiring up notifications.
@@ -296,7 +296,8 @@ GitHub allows 5,000 API requests/hour for authenticated users. Each PR review us
 
 ## What's Next?
 
-- **[Webhook-Based PR Reviews](webhook-github-pr-review.md)** — get instant reviews when PRs are opened (requires a public endpoint)
-- **[Build a Plugin](build-a-hermes-plugin.md)** — wrap the review logic into a shareable plugin
-- **[Profiles](../profiles.md)** — run a dedicated reviewer profile with its own memory and config
-- **[Fallback Providers](../fallback-providers.md)** — ensure reviews run even when one provider is down
+- **[Webhook-Based PR Reviews](./webhook-github-pr-review.md)** — get instant reviews when PRs are opened (requires a public endpoint)
+- **[Daily Briefing Bot](/docs/guides/daily-briefing-bot)** — combine PR reviews with your morning news digest
+- **[Build a Plugin](/docs/guides/build-a-hermes-plugin)** — wrap the review logic into a shareable plugin
+- **[Profiles](/docs/user-guide/profiles)** — run a dedicated reviewer profile with its own memory and config
+- **[Fallback Providers](/docs/user-guide/features/fallback-providers)** — ensure reviews run even when one provider is down

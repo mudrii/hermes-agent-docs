@@ -18,9 +18,9 @@ Hermes Agent works with any OpenAI-compatible API. Supported providers include:
 
 - **[OpenRouter](https://openrouter.ai/)** — access hundreds of models through one API key (recommended for flexibility)
 - **Nous Portal** — Nous Research's own inference endpoint
-- **OpenAI** — GPT-4o, o1, o3, etc.
-- **Anthropic** — Claude models (via OpenRouter or compatible proxy)
-- **Google** — Gemini models (via OpenRouter or compatible proxy)
+- **OpenAI** — GPT-5.4, GPT-5-codex, GPT-4.1, GPT-4o, etc.
+- **Anthropic** — Claude models (direct API, OAuth via `hermes login anthropic`, OpenRouter, or any compatible proxy)
+- **Google** — Gemini models (direct API via `gemini` provider, the `google-gemini-cli` OAuth provider, OpenRouter, or compatible proxy)
 - **z.ai / ZhipuAI** — GLM models
 - **Kimi / Moonshot AI** — Kimi models
 - **MiniMax** — global and China endpoints
@@ -632,6 +632,7 @@ No. Each profile has its own memory store, session database, and skills director
 
 `hermes update` pulls the latest code and reinstalls dependencies **once** (not per-profile). It then syncs updated skills to all profiles automatically. You only need to run `hermes update` once — it covers every profile on the machine.
 
+
 ### How many profiles can I run?
 
 There is no hard limit. Each profile is just a directory under `~/.hermes/profiles/`. The practical limit depends on your disk space and how many concurrent gateways your system can handle (each gateway is a lightweight Python process). Running dozens of profiles is fine; each idle profile uses no resources.
@@ -742,7 +743,7 @@ Skills with very long descriptions are truncated to 40 characters in the Telegra
 
 3. **Use a Discord channel.** Discord sessions are keyed by channel, so all users in the same channel share context. Use a dedicated channel for the shared conversation.
 
-### Move Hermes Agent to a different machine
+### Exporting Hermes to another machine
 
 **Scenario:** You've built up skills, cron jobs, and memories on one machine and want to move everything to a new dedicated Linux box.
 
@@ -768,7 +769,7 @@ Skills with very long descriptions are truncated to 40 characters in the Telegra
    hermes import ~/hermes-backup-<timestamp>.zip
    ```
 
-4. On the new machine, run `hermes setup` to verify API keys and provider config are working. Re-authenticate any messaging platforms (especially WhatsApp, which uses QR pairing).
+4. On the new machine, run `hermes setup` to verify API keys and provider config are working.
 
 ### Moving a single profile to another machine
 

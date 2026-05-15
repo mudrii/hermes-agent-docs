@@ -2,7 +2,32 @@
 
 All notable changes to Hermes Agent are documented here.
 
-**Current stable release: v0.12.0** (v2026.4.30, April 30, 2026)
+**Current stable release: v0.13.0** (v2026.5.7, May 7, 2026)
+
+---
+
+## v0.13.0 -- May 7, 2026
+
+> The Tenacity release — Hermes Agent focuses on durable execution: multi-agent Kanban, persistent `/goal`, Checkpoints v2, gateway auto-resume, stronger security defaults, Google Chat as the 20th platform, pluggable provider surfaces, and expanded i18n.
+
+### Highlights
+
+- **Durable multi-agent Kanban** — multi-board collaboration with shared workspaces, worker heartbeats, reclaim/zombie detection, retry budgets, hallucination recovery, task distress diagnostics, and dashboard management.
+- **Persistent goals and session durability** — `/goal` keeps the agent on target across turns; gateway restarts, `/update` restarts, and source reloads can auto-resume interrupted sessions.
+- **Checkpoints v2** — checkpoint persistence was rewritten with real pruning and disk guardrails.
+- **Security and reliability** — secret redaction is on by default; Discord role allowlists are guild-scoped; WhatsApp rejects strangers by default; TOCTOU windows were closed in auth and MCP OAuth flows; browser SSRF protections and debug-share redaction were tightened.
+- **Messaging expansion** — Google Chat joins as the 20th platform, platform-plugin behavior is documented, and platform allowlists expand across Slack/Telegram/Mattermost/Matrix/DingTalk.
+- **Plugin and provider expansion** — model-provider plugins and image-generation provider plugins are documented, and the dashboard's session-token middleware now guards non-public `/api/*` routes (plugin routes under `/api/plugins/*` remain plugin-owned and are not gated by that middleware — plugin authors must apply their own access checks). `ctx.llm` host-owned one-shot LLM calls land on `main` after the tag.
+- **Tools and runtime** — SearXNG support and split web-tool backend selection are documented; browser console eval uses the persistent CDP supervisor fast path when available; Kanban worker/orchestrator tools are included in the reference.
+- **Localization** — static gateway and CLI messages add seven release locales: Chinese, Japanese, German, Spanish, French, Ukrainian, and Turkish. The docs site gains a Chinese (`zh-Hans`) locale.
+
+### Delivery notes
+
+- 864 commits, 588 merged PRs, 829 files changed, 128,366 insertions, and 282 issues closed since v0.12.0.
+- The upstream source tree includes a `RELEASE_v0.13.0.md` artifact and the `v2026.5.7` tag.
+- v2026.5.7 / v0.13.0 is published on GitHub Releases as the latest release.
+
+**Full Changelog:** [v2026.4.30...v2026.5.7](https://github.com/NousResearch/hermes-agent/compare/v2026.4.30...v2026.5.7)
 
 ---
 
@@ -90,7 +115,7 @@ All notable changes to Hermes Agent are documented here.
 ### Delivery notes
 
 - The upstream source tree includes a `RELEASE_v0.10.0.md` artifact and `v2026.4.16` tag.
-- v2026.4.16 / v0.10.0 is [published on GitHub Releases](https://github.com/NousResearch/hermes-agent/releases/tag/v2026.4.16) as the latest release.
+- v2026.4.16 / v0.10.0 is [published on GitHub Releases](https://github.com/NousResearch/hermes-agent/releases/tag/v2026.4.16).
 
 **Full Changelog:** [v2026.4.13...v2026.4.16](https://github.com/NousResearch/hermes-agent/compare/v2026.4.13...v2026.4.16)
 

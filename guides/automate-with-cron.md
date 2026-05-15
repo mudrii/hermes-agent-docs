@@ -1,6 +1,7 @@
 ---
+sidebar_position: 11
 title: "Automate Anything with Cron"
-description: "Five real-world cron automation patterns for Hermes — daily briefings, log audits, system checks, content monitoring, and more."
+description: "Real-world automation patterns using Hermes cron — monitoring, reports, pipelines, and multi-skill workflows"
 ---
 
 # Automate Anything with Cron

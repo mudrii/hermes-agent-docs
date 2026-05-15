@@ -1,7 +1,12 @@
+---
+sidebar_position: 3
+title: "Agent Loop Internals"
+description: "Detailed walkthrough of AIAgent execution, API modes, tools, callbacks, and fallback behavior"
+---
 
 # Agent Loop Internals
 
-The core orchestration engine is `run_agent.py`'s `AIAgent` class — roughly 10,700 lines that handle everything from prompt assembly to tool dispatch to provider failover.
+The core orchestration engine is `run_agent.py`'s `AIAgent` class — a large file (15k+ lines) that handles everything from prompt assembly to tool dispatch to provider failover.
 
 ## Core Responsibilities
 
@@ -33,33 +38,21 @@ result = agent.run_conversation(
 
 `chat()` is a thin wrapper around `run_conversation()` that extracts the `final_response` field from the result dict.
 
-## Transport Dispatch
+## API Modes
 
-In v0.11.0, format conversion and response normalization were extracted from `run_agent.py` into the [Transport Layer](./transport-layer.md). The agent loop no longer carries inline `if api_mode == ...` branches for each protocol; instead it looks up a `ProviderTransport` from `agent/transports/` keyed by the resolved `api_mode`:
+Hermes supports three API execution modes, resolved from provider selection, explicit args, and base URL heuristics:
 
-```python
-from agent.transports import get_transport
+| API mode | Used for | Client type |
+|----------|----------|-------------|
+| `chat_completions` | OpenAI-compatible endpoints (OpenRouter, custom, most providers) | `openai.OpenAI` |
+| `codex_responses` | OpenAI Codex / Responses API | `openai.OpenAI` with Responses format |
+| `anthropic_messages` | Native Anthropic Messages API | `anthropic.Anthropic` via adapter |
 
-transport = get_transport(api_mode)
-kwargs = transport.build_kwargs(model, messages, tools, **params)
-raw = client.create(**kwargs)            # streaming or non-streaming
-nr = transport.normalize_response(raw)   # → NormalizedResponse
-```
-
-The four shipped `api_mode`s and their transport classes:
-
-| `api_mode` | Used for | Transport |
-|------------|----------|-----------|
-| `chat_completions` | OpenAI-compatible endpoints (OpenRouter, Nous Portal, NVIDIA NIM, Step Plan, ai-gateway, xAI chat, Qwen, etc.) | `ChatCompletionsTransport` |
-| `codex_responses` | OpenAI Codex / Responses API (incl. GPT-5.5 over Codex OAuth, xAI Grok Responses) | `ResponsesApiTransport` |
-| `anthropic_messages` | Native Anthropic Messages API | `AnthropicTransport` |
-| `bedrock_converse` | AWS Bedrock Converse API (v0.11.0) | `BedrockTransport` |
-
-The transport owns format conversion, kwargs assembly, and normalization. Streaming, retries, prompt caching, credential refresh, and client construction stay on `AIAgent`.
+The mode determines how messages are formatted, how tool calls are structured, how responses are parsed, and how caching/streaming works. All three converge on the same internal message format (OpenAI-style `role`/`content`/`tool_calls` dicts) before and after API calls.
 
 **Mode resolution order:**
 1. Explicit `api_mode` constructor arg (highest priority)
-2. Provider-specific detection (e.g., `anthropic` provider → `anthropic_messages`, `bedrock` provider → `bedrock_converse`)
+2. Provider-specific detection (e.g., `anthropic` provider → `anthropic_messages`)
 3. Base URL heuristics (e.g., `api.anthropic.com` → `anthropic_messages`)
 4. Default: `chat_completions`
 
@@ -79,37 +72,11 @@ run_conversation()
      - anthropic_messages: convert via anthropic_adapter.py
   6. Inject ephemeral prompt layers (budget warnings, context pressure)
   7. Apply prompt caching markers if on Anthropic
-  8. Make interruptible API call (_api_call_with_interrupt)
+  8. Make interruptible API call (_interruptible_api_call)
   9. Parse response:
      - If tool_calls: execute them, append results, loop back to step 5
      - If text response: persist session, flush memory if needed, return
 ```
-
-### Mid-Run Steering (v0.11.0)
-
-Between turns, a user can call `/steer <prompt>` (CLI or any gateway platform) to inject a note that the running agent sees after its next tool call, without interrupting the current turn or breaking prompt cache. The pending steer message is queued by the CLI / gateway adapter, then merged into the next user-role message the loop sees in step 5 of the turn lifecycle. Because the injection lands between turns, prompt-cache markers stay aligned and no streaming response is discarded.
-
-### Auto-Continue Interrupted Work (v0.11.0)
-
-When the gateway restarts (or the CLI is relaunched against a session that was mid-turn), the agent loop detects the interrupted state — a session whose last persisted message is an assistant tool-call without matching tool results — and automatically re-issues a "continue" turn so work in progress is resumed instead of dropped. This is paired with **activity heartbeats**: the agent emits periodic activity pings during long-running tool execution so platform-side gateways do not falsely classify the session as inactive and tear down the connection.
-
-### Orchestrator Role and `max_spawn_depth` (v0.11.0)
-
-`delegate_task` now distinguishes two subagent roles:
-
-- **Worker** (default, leaf) — executes a focused task; cannot itself call `delegate_task`.
-- **Orchestrator** — can spawn workers (and, transitively, more orchestrators) up to a configurable depth.
-
-Three knobs control the interaction with the agent loop:
-
-```yaml
-delegation:
-  orchestrator_enabled: true        # global on/off; default true
-  max_spawn_depth: 1                # 1-3; default 1 (flat — only the top-level agent delegates)
-  max_concurrent_children: 3        # default 3 parallel siblings
-```
-
-At depth 1 (the default), only the top-level agent retains `delegate_task` in its tool list — child workers cannot delegate. At depth 2-3, intermediate orchestrators retain the tool until the leaf level. Concurrent siblings share filesystem state through a cross-agent file-coordination layer so they do not clobber each other's edits.
 
 ### Message Format
 
@@ -138,16 +105,17 @@ Providers validate these sequences and will reject malformed histories.
 
 ## Interruptible API Calls
 
-API requests are wrapped in `_api_call_with_interrupt()` which runs the actual HTTP call in a background thread while monitoring an interrupt event:
+API requests are wrapped in `_interruptible_api_call()` which runs the actual HTTP call in a background thread while monitoring an interrupt event:
 
 ```text
-┌──────────────────────┐     ┌──────────────┐
-│  Main thread         │     │  API thread   │
-│  wait on:            │────▶│  HTTP POST    │
-│  - response ready    │     │  to provider  │
-│  - interrupt event   │     └──────────────┘
-│  - timeout           │
-└──────────────────────┘
+┌────────────────────────────────────────────────────┐
+│  Main thread                  API thread           │
+│                                                    │
+│   wait on:                     HTTP POST           │
+│    - response ready     ───▶   to provider         │
+│    - interrupt event                               │
+│    - timeout                                       │
+└────────────────────────────────────────────────────┘
 ```
 
 When interrupted (user sends new message, `/stop` command, or signal):
@@ -228,10 +196,6 @@ When the primary model fails (429 rate limit, 5xx server error, 401/403 auth err
 
 The fallback system also covers auxiliary tasks independently — vision, compression, web extraction, and session search each have their own fallback chain configurable via the `auxiliary.*` config section.
 
-### Auxiliary Fallback to Main on 503/404 (v0.11.0)
-
-Auxiliary tasks (compression, title generation, summarization) auto-fall back to the **main** model when the configured auxiliary provider returns a permanent 503 or 404 — for example, when an auxiliary model has been deprovisioned or the auxiliary endpoint is unreachable. The fallback applies per-task and is logged once per session so the user can see why the main model is being used for what would normally be an aux call. Transient 5xx errors still go through the normal retry loop before this fallback fires.
-
 ## Compression and Persistence
 
 ### When Compression Triggers
@@ -258,7 +222,7 @@ After each turn:
 
 | File | Purpose |
 |------|---------|
-| `run_agent.py` | AIAgent class — the complete agent loop (~10,700 lines) |
+| `run_agent.py` | AIAgent class — the complete agent loop |
 | `agent/prompt_builder.py` | System prompt assembly from memory, skills, context files, personality |
 | `agent/context_engine.py` | ContextEngine ABC — pluggable context management |
 | `agent/context_compressor.py` | Default engine — lossy summarization algorithm |
@@ -268,7 +232,6 @@ After each turn:
 
 ## Related Docs
 
-- [Transport Layer](./transport-layer.md)
 - [Provider Runtime Resolution](./provider-runtime.md)
 - [Prompt Assembly](./prompt-assembly.md)
 - [Context Compression & Prompt Caching](./context-compression-and-caching.md)

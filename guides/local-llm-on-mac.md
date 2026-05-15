@@ -1,6 +1,7 @@
 ---
+sidebar_position: 2
 title: "Run Local LLMs on Mac"
-description: "Run a local LLM server on macOS with an OpenAI-compatible API using llama.cpp or LM Studio, then point Hermes at it."
+description: "Set up a local OpenAI-compatible LLM server on macOS with llama.cpp or MLX, including model selection, memory optimization, and real benchmarks on Apple Silicon"
 ---
 
 # Run Local LLMs on Mac

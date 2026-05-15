@@ -1,11 +1,12 @@
 ---
+sidebar_position: 8
 title: "Use Voice Mode with Hermes"
-description: "Practical guide to enabling voice mode in the Hermes CLI, Telegram, Discord, and Discord voice channels."
+description: "A practical guide to setting up and using Hermes voice mode across CLI, Telegram, Discord, and Discord voice channels"
 ---
 
 # Use Voice Mode with Hermes
 
-This guide is the practical companion to the [Voice Mode feature reference](/docs/voice-mode).
+This guide is the practical companion to the [Voice Mode feature reference](/docs/user-guide/features/voice-mode).
 
 If the feature page explains what voice mode can do, this guide shows how to actually use it well.
 
