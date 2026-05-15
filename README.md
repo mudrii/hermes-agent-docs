@@ -431,24 +431,6 @@ Hermes has two entry points: start the terminal UI with `hermes`, or run the gat
 | [reference/mcp-config-reference.md](reference/mcp-config-reference.md) | MCP config schema and transport options |
 | [reference/faq.md](reference/faq.md) | Common operational questions and troubleshooting |
 
-### Audit & Validation
-
-| Document | Contents |
-|----------|----------|
-| [review_plan_v2026.4.13.md](review_plan_v2026.4.13.md) | Release-bounded review plan for the April 13, 2026 audit |
-| [release_evaluation_v2026.4.13.md](release_evaluation_v2026.4.13.md) | Release validation, diff sizing, and unreleased-main exclusions |
-| [repo_review_v2026.4.13.md](repo_review_v2026.4.13.md) | Source-tree review mapped by subsystem |
-| [source_validation_matrix_v2026.4.13.md](source_validation_matrix_v2026.4.13.md) | Claim-to-source matrix with local and online validation links |
-| [review_plan_v2026.4.16.md](review_plan_v2026.4.16.md) | Release-bounded review plan for the April 16, 2026 audit |
-| [release_evaluation_v2026.4.16.md](release_evaluation_v2026.4.16.md) | Local-release validation plus public-release-surface discrepancy notes |
-| [repo_review_v2026.4.16.md](repo_review_v2026.4.16.md) | Docs-gap review and correction summary for v0.10.0 |
-| [source_validation_matrix_v2026.4.16.md](source_validation_matrix_v2026.4.16.md) | Source-to-doc mapping for the v2026.4.13..v2026.4.16 sync window |
-| [review_plan_v2026.5.7.md](review_plan_v2026.5.7.md) | Release-bounded review plan for the May 7, 2026 audit |
-| [release_evaluation_v2026.5.7.md](release_evaluation_v2026.5.7.md) | v0.13.0 release validation, source boundary, and online release confirmation |
-| [repo_review_v2026.5.7.md](repo_review_v2026.5.7.md) | Source-tree review findings and documentation changes for v0.13.0 |
-| [source_validation_matrix_v2026.5.7.md](source_validation_matrix_v2026.5.7.md) | Claim-to-source matrix for the v2026.4.30..v2026.5.7 sync window |
-| [documentation_integrity_findings_v2026.5.7.md](documentation_integrity_findings_v2026.5.7.md) | Documentation integrity gaps found and resolved during the v0.13.0 sync |
-
 ### Contributing
 
 | Document | Contents |
