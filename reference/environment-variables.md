@@ -446,27 +446,22 @@ Only used when the [`teams_pipeline` plugin](/docs/user-guide/messaging/msgraph-
 | `TEAMS_CHANNEL_ID` | Target channel ID (paired with `TEAMS_TEAM_ID`). |
 | `TEAMS_CHAT_ID` | Target 1:1 or group chat ID (alternative to team+channel for `graph` mode). |
 
-### LINE Messaging API
+### IRC
 
-Used by the bundled LINE platform plugin (`plugins/platforms/line/`). See [Messaging Gateway → LINE](/docs/user-guide/messaging/line) for full setup.
+Used by the bundled IRC platform plugin (`plugins/platforms/irc/`). See [Messaging Gateway -> IRC](/docs/user-guide/messaging/irc) for setup.
 
 | Variable | Description |
 |----------|-------------|
-| `LINE_CHANNEL_ACCESS_TOKEN` | Long-lived channel access token from the LINE Developers Console (Messaging API tab). Required. |
-| `LINE_CHANNEL_SECRET` | Channel secret (Basic settings tab); used for HMAC-SHA256 webhook signature verification. Required. |
-| `LINE_HOST` | Webhook bind host (default: `0.0.0.0`). |
-| `LINE_PORT` | Webhook bind port (default: `8646`). |
-| `LINE_PUBLIC_URL` | Public HTTPS base URL (e.g. `https://my-tunnel.example.com`). Required for image / audio / video sends — LINE only accepts HTTPS-reachable URLs. |
-| `LINE_ALLOWED_USERS` | Comma-separated user IDs allowed to DM the bot (`U`-prefixed). |
-| `LINE_ALLOWED_GROUPS` | Comma-separated group IDs the bot will respond in (`C`-prefixed). |
-| `LINE_ALLOWED_ROOMS` | Comma-separated room IDs the bot will respond in (`R`-prefixed). |
-| `LINE_ALLOW_ALL_USERS` | Dev-only escape hatch — accepts any source. Default: `false`. |
-| `LINE_HOME_CHANNEL` | Default delivery target for cron jobs with `deliver: line`. |
-| `LINE_SLOW_RESPONSE_THRESHOLD` | Seconds before the slow-LLM Template Buttons postback fires (default: `45`). Set `0` to disable and always Push-fallback. |
-| `LINE_PENDING_TEXT` | Bubble text shown alongside the postback button. |
-| `LINE_BUTTON_LABEL` | Postback button label (default: `Get answer`). |
-| `LINE_DELIVERED_TEXT` | Reply when an already-delivered postback is tapped again (default: `Already replied ✅`). |
-| `LINE_INTERRUPTED_TEXT` | Reply when a `/stop`-orphaned postback button is tapped (default: `Run was interrupted before completion.`). |
+| `IRC_SERVER` | IRC server hostname, for example `irc.libera.chat`. Required. |
+| `IRC_CHANNEL` | Channel to join, for example `#hermes`; comma-separate multiple channels. Required. |
+| `IRC_NICKNAME` | Bot nickname on IRC. Required by the plugin setup metadata; adapter default is `hermes-bot`. |
+| `IRC_PORT` | IRC server port. Defaults to `6697` with TLS and `6667` without TLS. |
+| `IRC_USE_TLS` | Use TLS for the IRC connection (`1`/`true`/`yes`). Defaults to true on port `6697`. |
+| `IRC_SERVER_PASSWORD` | Optional server password for the IRC `PASS` command. |
+| `IRC_NICKSERV_PASSWORD` | Optional NickServ password for automatic `IDENTIFY` on connect. |
+| `IRC_ALLOWED_USERS` | Comma-separated IRC nicks allowed to talk to the bot. |
+| `IRC_ALLOW_ALL_USERS` | Dev-only escape hatch; allow anyone in the channel to talk to the bot. |
+| `IRC_HOME_CHANNEL` | Channel for cron / notification delivery; defaults to `IRC_CHANNEL`. |
 
 ### Advanced Messaging Tuning
 

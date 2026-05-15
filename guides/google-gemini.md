@@ -205,7 +205,7 @@ For OAuth quota usage, run this inside a Hermes session:
 
 ## Gateway (Messaging Platforms)
 
-Gemini works with all Hermes gateway platforms (Telegram, Discord, Slack, WhatsApp, LINE, Feishu, etc.). Configure Gemini as your provider, then start the gateway normally:
+Gemini works with all released Hermes gateway platforms (Telegram, Discord, Slack, WhatsApp, Google Chat, Feishu, etc.). Configure Gemini as your provider, then start the gateway normally:
 
 ```bash
 hermes gateway setup
