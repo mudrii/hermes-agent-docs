@@ -1,9 +1,5 @@
 # Computer Use (macOS)
 
-:::warning Current main only
-This page describes current-main behavior after the v0.13.0 / v2026.5.7 release boundary. It is not part of the stable v0.13.0 released feature set.
-:::
-
 Hermes Agent can drive your Mac's desktop — clicking, typing, scrolling,
 dragging — in the **background**. Your cursor doesn't move, keyboard focus
 doesn't change, and macOS doesn't switch Spaces on you. You and the agent

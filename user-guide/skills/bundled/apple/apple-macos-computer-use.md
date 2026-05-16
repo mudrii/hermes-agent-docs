@@ -8,10 +8,6 @@ description: "Drive the macOS desktop in the background — screenshots, mouse, 
 
 # Macos Computer Use
 
-:::warning Current main only
-This generated skill page describes current-main behavior after the v0.13.0 / v2026.5.7 release boundary. It is not part of the stable v0.13.0 released skill set.
-:::
-
 Drive the macOS desktop in the background — screenshots, mouse, keyboard,
 scroll, drag — without stealing the user's cursor, keyboard focus, or
 Space. Works with any tool-capable model. Load this skill whenever the

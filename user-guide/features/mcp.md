@@ -52,7 +52,7 @@ List the files in /home/user/projects and summarize the repo structure.
 
 Hermes will discover the MCP server's tools and use them like any other tool.
 
-## MCP server transports
+## Two kinds of MCP servers
 
 ### Stdio servers
 
@@ -89,20 +89,6 @@ Use HTTP servers when:
 - your organization exposes internal MCP endpoints
 - you do not want Hermes spawning a local subprocess for that integration
 
-### SSE servers
-
-Hermes also supports legacy MCP servers that expose an SSE endpoint:
-
-```yaml
-mcp_servers:
-  remote_sse:
-    url: "https://mcp.example.com/sse"
-    transport: sse
-    auth: oauth
-```
-
-Use `transport: sse` only when the server's docs explicitly describe an SSE transport. OAuth works on this path too; Hermes forwards the authorized headers when `auth: oauth` is configured.
-
 ## Basic configuration reference
 
 Hermes reads MCP config from `~/.hermes/config.yaml` under `mcp_servers`.
@@ -115,11 +101,11 @@ Hermes reads MCP config from `~/.hermes/config.yaml` under `mcp_servers`.
 | `args` | list | Arguments for the stdio server |
 | `env` | mapping | Environment variables passed to the stdio server |
 | `url` | string | HTTP MCP endpoint |
-| `transport` | string | Optional transport override. Use `sse` for legacy SSE endpoints |
 | `headers` | mapping | HTTP headers for remote servers |
 | `timeout` | number | Tool call timeout |
 | `connect_timeout` | number | Initial connection timeout |
 | `enabled` | bool | If `false`, Hermes skips the server entirely |
+| `supports_parallel_tool_calls` | bool | If `true`, tools from this server may run concurrently |
 | `tools` | mapping | Per-server tool filtering and utility policy |
 
 ### Minimal stdio example
@@ -158,8 +144,6 @@ Examples:
 | `my-api` | `query.data` | `mcp_my_api_query_data` |
 
 In practice, you usually do not need to call the prefixed name manually — Hermes sees the tool and chooses it during normal reasoning.
-
-MCP tools that return image content are preserved as `MEDIA:` references in the tool result, so the agent and supported clients can keep the media attached instead of dropping it as plain text.
 
 ## MCP utility tools
 
@@ -425,6 +409,23 @@ Because Hermes now only registers those wrappers when both are true:
 2. the server session actually supports the capability
 
 This is intentional and keeps the tool list honest.
+
+## Parallel Tool Calls
+
+By default, MCP tools run sequentially — one at a time. If your MCP server exposes tools that are safe to run concurrently (e.g. read-only queries, independent API calls), you can opt-in to parallel execution:
+
+```yaml
+mcp_servers:
+  docs:
+    command: "docs-server"
+    supports_parallel_tool_calls: true
+```
+
+When `supports_parallel_tool_calls` is `true`, Hermes may execute multiple tools from that server at the same time within a single tool-call batch, just like it does for built-in read-only tools (web_search, read_file, etc.).
+
+:::caution
+Only enable parallel calls for MCP servers whose tools are safe to run at the same time. If tools read and write shared state, files, databases, or external resources, review the read/write race conditions before enabling this setting.
+:::
 
 ## MCP Sampling Support
 

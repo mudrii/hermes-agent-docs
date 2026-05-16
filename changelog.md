@@ -2,7 +2,30 @@
 
 All notable changes to Hermes Agent are documented here.
 
-**Current stable release: v0.13.0** (v2026.5.7, May 7, 2026)
+**Current stable release: v0.14.0** (v2026.5.16, May 16, 2026)
+
+---
+
+## v0.14.0 -- May 16, 2026
+
+> The Foundation release — Hermes Agent installs and runs anywhere now: native Windows enters early beta, the PyPI wheel is available as `pip install hermes-agent`, lazy-deps reduce the default install surface, and the local subscription proxy lets external OpenAI-compatible tools use OAuth-backed providers such as Claude Pro, ChatGPT Pro, and SuperGrok.
+
+### Highlights
+
+- **Install and distribution** — native Windows early beta ships with a PowerShell installer and portable Git Bash bootstrap; `pip install hermes-agent && hermes` now installs the released wheel; dependency pins and the supply-chain advisory checker were tightened.
+- **Performance** — cold start drops by roughly 19 seconds, `hermes tools` All-Platforms drops from about 14s to under 1.5s, and `browser_console` evaluations route through a persistent CDP WebSocket for a large speedup.
+- **Provider and proxy expansion** — `hermes proxy` exposes OAuth-backed providers through an OpenAI-compatible local endpoint; xAI Grok OAuth supports SuperGrok subscription login; OpenRouter Pareto Code routing and the optional Codex app-server runtime are documented.
+- **Messaging expansion** — LINE and SimpleX Chat join the gateway, Microsoft Graph webhook and Teams pipeline foundations land, and gateway reliability improves with per-platform circuit breaker behavior.
+- **Tools and diagnostics** — `x_search`, `computer_use`, write-time LSP diagnostics, pixel-preserving `vision_analyze`, pluggable `video_generate`, and a per-turn file-mutation verifier are now part of the released surface.
+- **Skills and plugins** — nine optional skills were added, the Skills Hub gains `hermes-skills/huggingface` as a trusted default tap, and plugins can call LLMs through `ctx.llm` or override built-in tools through `tool_override`.
+
+### Delivery notes
+
+- 808 commits, 633 merged PRs, 1,393 files changed, 165,061 insertions, and 545 issues closed since v0.13.0.
+- The upstream source tree includes a `RELEASE_v0.14.0.md` artifact and the `v2026.5.16` tag.
+- The Python package metadata declares `hermes-agent` version `0.14.0`.
+
+**Full Changelog:** [v2026.5.7...v2026.5.16](https://github.com/NousResearch/hermes-agent/compare/v2026.5.7...v2026.5.16)
 
 ---
 

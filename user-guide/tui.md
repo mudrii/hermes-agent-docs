@@ -86,7 +86,7 @@ All slash commands work unchanged. A few are TUI-owned — they produce richer o
 | Command | TUI behavior |
 |---------|--------------|
 | `/help` | Overlay with categorized commands, arrow-key navigable |
-| `/sessions` | Current main only after v0.13.0: modal session picker — preview, title, token totals, resume inline |
+| `/sessions` | Modal session picker — preview, title, token totals, resume inline |
 | `/model` | Modal model picker grouped by provider, with cost hints |
 | `/skin` | Live preview — theme change applies as you browse |
 | `/details` | Toggle verbose tool-call details (global or per-section) |

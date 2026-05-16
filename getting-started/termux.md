@@ -52,7 +52,7 @@ curl -fsSL https://raw.githubusercontent.com/NousResearch/hermes-agent/main/scri
 On Termux, the installer automatically:
 - uses `pkg` for system packages
 - creates the venv with `python -m venv`
-- installs the tested `.[termux]` extra and falls back to a base install if needed
+- attempts the broad `.[termux-all]` extra first and falls back to the smaller `.[termux]` extra (then a base install) — the curl installer matches this order automatically
 - links `hermes` into `$PREFIX/bin` so it stays on your Termux PATH
 - skips the untested browser / WhatsApp bootstrap
 
@@ -232,7 +232,7 @@ python -m pip install -e '.[termux]' -c constraints-termux.txt
 - Docker backend is unavailable
 - local voice transcription via `faster-whisper` is unavailable in the tested path
 - browser automation setup is intentionally skipped by the installer
-- some optional extras may work, but only `.[termux]` is part of the v0.13.0 released Android install path; `termux-all` appears only on current main after the release boundary
+- some optional extras may work, but only `.[termux]` and `.[termux-all]` are currently documented as the tested Android bundles
 
 If you hit a new Android-specific issue, please open a GitHub issue with:
 - your Android version

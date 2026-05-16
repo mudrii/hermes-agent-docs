@@ -20,7 +20,7 @@ If a skill is missing from this list but present in the repo, the catalog is reg
 | [`apple-reminders`](/docs/user-guide/skills/bundled/apple/apple-apple-reminders) | Apple Reminders via remindctl: add, list, complete. | `apple/apple-reminders` |
 | [`findmy`](/docs/user-guide/skills/bundled/apple/apple-findmy) | Track Apple devices/AirTags via FindMy.app on macOS. | `apple/findmy` |
 | [`imessage`](/docs/user-guide/skills/bundled/apple/apple-imessage) | Send and receive iMessages/SMS via the imsg CLI on macOS. | `apple/imessage` |
-| [`macos-computer-use`](/docs/user-guide/skills/bundled/apple/apple-macos-computer-use) | Current main only after v0.13.0: drive the macOS desktop in the background — screenshots, mouse, keyboard, scroll, drag — without stealing the user's cursor, keyboard focus, or Space. Works with any tool-capable model. | `apple/macos-computer-use` |
+| [`macos-computer-use`](/docs/user-guide/skills/bundled/apple/apple-macos-computer-use) | Drive the macOS desktop in the background — screenshots, mouse, keyboard, scroll, drag — without stealing the user's cursor, keyboard focus, or Space. Works with any tool-capable model. Load this skill whenever the `computer_use` tool is... | `apple/macos-computer-use` |
 
 ## autonomous-ai-agents
 
@@ -144,7 +144,7 @@ If a skill is missing from this list but present in the repo, the catalog is reg
 | [`linear`](/docs/user-guide/skills/bundled/productivity/productivity-linear) | Linear: manage issues, projects, teams via GraphQL + curl. | `productivity/linear` |
 | [`maps`](/docs/user-guide/skills/bundled/productivity/productivity-maps) | Geocode, POIs, routes, timezones via OpenStreetMap/OSRM. | `productivity/maps` |
 | [`nano-pdf`](/docs/user-guide/skills/bundled/productivity/productivity-nano-pdf) | Edit PDF text/typos/titles via nano-pdf CLI (NL prompts). | `productivity/nano-pdf` |
-| [`notion`](/docs/user-guide/skills/bundled/productivity/productivity-notion) | Notion API via curl: pages, databases, blocks, search. | `productivity/notion` |
+| [`notion`](/docs/user-guide/skills/bundled/productivity/productivity-notion) | Notion API + ntn CLI: pages, databases, markdown, Workers. | `productivity/notion` |
 | [`ocr-and-documents`](/docs/user-guide/skills/bundled/productivity/productivity-ocr-and-documents) | Extract text from PDFs/scans (pymupdf, marker-pdf). | `productivity/ocr-and-documents` |
 | [`powerpoint`](/docs/user-guide/skills/bundled/productivity/productivity-powerpoint) | Create, read, edit .pptx decks, slides, notes, templates. | `productivity/powerpoint` |
 | [`teams-meeting-pipeline`](/docs/user-guide/skills/bundled/productivity/productivity-teams-meeting-pipeline) | Operate the Teams meeting summary pipeline via Hermes CLI — summarize meetings, inspect pipeline status, replay jobs, manage Microsoft Graph subscriptions. | `productivity/teams-meeting-pipeline` |

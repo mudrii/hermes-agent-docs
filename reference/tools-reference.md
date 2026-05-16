@@ -8,7 +8,7 @@ description: "Authoritative reference for Hermes built-in tools, grouped by tool
 
 This page documents Hermes' built-in tools, grouped by toolset. Availability varies by platform, credentials, and enabled toolsets.
 
-**Quick counts (current registry):** ~70 tools — 10 browser tools (core) + 2 CDP-gated browser tools, 4 file tools, 10 RL tools, 4 Home Assistant tools, 2 terminal tools, 2 web tools, 5 Feishu tools, 7 Spotify tools (registered by the bundled `spotify` plugin), 5 Yuanbao tools, 7 kanban tools (registered when the kanban dispatcher spawns the agent), 2 Discord tools, and a handful of standalone tools (`memory`, `clarify`, `delegate_task`, `execute_code`, `cronjob`, `session_search`, `skill_view`/`skill_manage`/`skills_list`, `text_to_speech`, `image_generate`, `vision_analyze`, `video_analyze`, `mixture_of_agents`, `send_message`, `todo`, `process`). `computer_use` is current-main only after v0.13.0.
+**Quick counts (current registry):** ~70 tools — 10 browser tools (core) + 2 CDP-gated browser tools, 4 file tools, 10 RL tools, 4 Home Assistant tools, 2 terminal tools, 2 web tools, 5 Feishu tools, 7 Spotify tools (registered by the bundled `spotify` plugin), 5 Yuanbao tools, 7 kanban tools (registered when the kanban dispatcher spawns the agent), 2 Discord tools, and a handful of standalone tools (`memory`, `clarify`, `delegate_task`, `execute_code`, `cronjob`, `session_search`, `skill_view`/`skill_manage`/`skills_list`, `text_to_speech`, `image_generate`, `vision_analyze`, `video_analyze`, `mixture_of_agents`, `send_message`, `todo`, `computer_use`, `process`).
 
 :::tip MCP Tools
 In addition to built-in tools, Hermes can load tools dynamically from MCP servers. MCP tools appear with the prefix `mcp_<server>_` (e.g., `mcp_github_create_issue` for the `github` MCP server). See [MCP Integration](/docs/user-guide/features/mcp) for configuration.
@@ -101,10 +101,6 @@ Scoped to the Feishu document-comment handler. Drives comment read/write operati
 
 ## `computer_use` toolset
 
-:::warning Current main only
-The `computer_use` toolset landed after the v0.13.0 / v2026.5.7 release boundary. It is not part of the stable v0.13.0 built-in tool registry.
-:::
-
 | Tool | Description | Requires environment |
 |------|-------------|----------------------|
 | `computer_use` | Background macOS desktop control via cua-driver — screenshots (SOM / vision / AX), click / drag / scroll / type / key / wait, list_apps, focus_app. Does NOT steal the user's cursor or keyboard focus. Works with any tool-capable model. macOS only. | `cua-driver` on `$PATH` (install via `hermes tools`). |
@@ -152,21 +148,6 @@ Registered only when the agent is spawned by the kanban dispatcher (`HERMES_KANB
 |------|-------------|----------------------|
 | `mixture_of_agents` | Route a hard problem through multiple frontier LLMs collaboratively. Makes 5 API calls (4 reference models + 1 aggregator) with maximum reasoning effort — use sparingly for genuinely difficult problems. Best for: complex math, advanced alg… | OPENROUTER_API_KEY |
 
-## `rl` toolset
-
-| Tool | Description | Requires environment |
-|------|-------------|----------------------|
-| `rl_check_status` | Get status and metrics for a training run. RATE LIMITED: enforces 30-minute minimum between checks for the same run. Returns WandB metrics: step, state, reward_mean, loss, percent_correct. | TINKER_API_KEY, WANDB_API_KEY |
-| `rl_edit_config` | Update a configuration field. Use rl_get_current_config() first to see all available fields for the selected environment. Each environment has different configurable options. Infrastructure settings (tokenizer, URLs, lora_rank, learning_ra… | TINKER_API_KEY, WANDB_API_KEY |
-| `rl_get_current_config` | Get the current environment configuration. Returns only fields that can be modified: group_size, max_token_length, total_steps, steps_per_eval, use_wandb, wandb_name, max_num_workers. | TINKER_API_KEY, WANDB_API_KEY |
-| `rl_get_results` | Get final results and metrics for a completed training run. Returns final metrics and path to trained weights. | TINKER_API_KEY, WANDB_API_KEY |
-| `rl_list_environments` | List all available RL environments. Returns environment names, paths, and descriptions. TIP: Read the file_path with file tools to understand how each environment works (verifiers, data loading, rewards). | TINKER_API_KEY, WANDB_API_KEY |
-| `rl_list_runs` | List all training runs (active and completed) with their status. | TINKER_API_KEY, WANDB_API_KEY |
-| `rl_select_environment` | Select an RL environment for training. Loads the environment's default configuration. After selecting, use rl_get_current_config() to see settings and rl_edit_config() to modify them. | TINKER_API_KEY, WANDB_API_KEY |
-| `rl_start_training` | Start a new RL training run with the current environment and config. Most training parameters (lora_rank, learning_rate, etc.) are fixed. Use rl_edit_config() to set group_size, batch_size, wandb_project before starting. WARNING: Training… | TINKER_API_KEY, WANDB_API_KEY |
-| `rl_stop_training` | Stop a running training job. Use if metrics look bad, training is stagnant, or you want to try different settings. | TINKER_API_KEY, WANDB_API_KEY |
-| `rl_test_inference` | Quick inference test for any environment. Runs a few steps of inference + scoring using OpenRouter. Default: 3 steps x 16 completions = 48 rollouts per model, testing 3 models = 144 total. Tests environment loading, prompt construction, in… | TINKER_API_KEY, WANDB_API_KEY |
-
 ## `session_search` toolset
 
 | Tool | Description | Requires environment |
@@ -212,8 +193,14 @@ Opt-in toolset (not loaded in the default `hermes-cli` set). Add via `--toolsets
 
 | Tool | Description | Requires environment |
 |------|-------------|----------------------|
-| `web_search` | Search the web for information. Returns up to 5 results by default with titles, URLs, and descriptions. Accepts an optional `limit` (1-100, default 5). The query is passed through to the configured backend, so operators such as `site:domain`, `filetype:pdf`, `intitle:word`, `-term`, and `"exact phrase"` may work when the backend supports them. | EXA_API_KEY or PARALLEL_API_KEY or FIRECRAWL_API_KEY or TAVILY_API_KEY or SEARXNG_URL |
-| `web_extract` | Extract content from web page URLs. Returns page content in markdown format. Also works with PDF URLs — pass the PDF link directly and it converts to markdown text. Pages under 5000 chars return full markdown; larger pages are LLM-summarized. SearXNG is search-only, so extraction requires Exa, Parallel, Firecrawl, or Tavily. | EXA_API_KEY or PARALLEL_API_KEY or FIRECRAWL_API_KEY or TAVILY_API_KEY or FIRECRAWL_API_URL |
+| `web_search` | Search the web for information. Returns up to 5 results by default with titles, URLs, and descriptions. Accepts an optional `limit` (1-100, default 5). The query is passed through to the configured backend, so operators such as `site:domain`, `filetype:pdf`, `intitle:word`, `-term`, and `"exact phrase"` may work when the backend supports them. | EXA_API_KEY or PARALLEL_API_KEY or FIRECRAWL_API_KEY or TAVILY_API_KEY |
+| `web_extract` | Extract content from web page URLs. Returns page content in markdown format. Also works with PDF URLs — pass the PDF link directly and it converts to markdown text. Pages under 5000 chars return full markdown; larger pages are LLM-summarized. | EXA_API_KEY or PARALLEL_API_KEY or FIRECRAWL_API_KEY or TAVILY_API_KEY |
+
+## `x_search` toolset
+
+| Tool | Description | Requires environment |
+|------|-------------|----------------------|
+| `x_search` | Search X (Twitter) posts, profiles, and threads using xAI's built-in `x_search` Responses tool. Use this for current discussion, reactions, or claims on X rather than general web pages. Off by default — opt in via `hermes tools` → 🐦 X (Twitter) Search. Schema is only registered when xAI credentials are configured (check_fn-gated). | XAI_API_KEY **or** xAI Grok OAuth (SuperGrok Subscription) login |
 
 ## `tts` toolset
 

@@ -168,10 +168,6 @@ Clicking a button resolves the approval inline and replaces the card with the de
 
 ### Meeting Summary Delivery (Teams Meeting Pipeline)
 
-:::warning Current main only
-The Teams meeting summary pipeline depends on Microsoft Graph webhook work that landed after the v0.13.0 / v2026.5.7 release boundary. It is not part of the stable v0.13.0 Teams adapter workflow.
-:::
-
 When the [Teams meeting pipeline plugin](/docs/user-guide/messaging/msgraph-webhook) is enabled, this adapter also handles outbound delivery of meeting summaries — one Teams integration surface, not two. After a meeting's transcript is summarized, the writer posts the summary into your chosen Teams target.
 
 Pipeline summary delivery is configured under the `teams` platform entry alongside the bot config:

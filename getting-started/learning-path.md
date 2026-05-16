@@ -6,7 +6,7 @@ description: 'Choose your learning path through the Hermes Agent documentation b
 
 # Learning Path
 
-Hermes Agent can do a lot — CLI assistant, Telegram/Discord bot, task automation, RL training, and more. This page helps you figure out where to start and what to read based on your experience level and what you're trying to accomplish.
+Hermes Agent can do a lot — CLI assistant, Telegram/Discord bot, task automation, trajectory generation, and more. This page helps you figure out where to start and what to read based on your experience level and what you're trying to accomplish.
 
 :::tip Start Here
 If you haven't installed Hermes Agent yet, begin with the [Installation guide](/docs/getting-started/installation) and then run through the [Quickstart](/docs/getting-started/quickstart). Everything below assumes you have a working installation.
@@ -24,7 +24,7 @@ If you haven't installed Hermes Agent yet, begin with the [Installation guide](/
 |---|---|---|---|
 | **Beginner** | Get up and running, have basic conversations, use built-in tools | [Installation](/docs/getting-started/installation) → [Quickstart](/docs/getting-started/quickstart) → [CLI Usage](/docs/user-guide/cli) → [Configuration](/docs/user-guide/configuration) | ~1 hour |
 | **Intermediate** | Set up messaging bots, use advanced features like memory, cron jobs, and skills | [Sessions](/docs/user-guide/sessions) → [Messaging](/docs/user-guide/messaging) → [Tools](/docs/user-guide/features/tools) → [Skills](/docs/user-guide/features/skills) → [Memory](/docs/user-guide/features/memory) → [Cron](/docs/user-guide/features/cron) | ~2–3 hours |
-| **Advanced** | Build custom tools, create skills, train models with RL, contribute to the project | [Architecture](/docs/developer-guide/architecture) → [Adding Tools](/docs/developer-guide/adding-tools) → [Creating Skills](/docs/developer-guide/creating-skills) → [RL Training](/docs/user-guide/features/rl-training) → [Contributing](/docs/developer-guide/contributing) | ~4–6 hours |
+| **Advanced** | Build custom tools, create skills, generate trajectory data, contribute to the project | [Architecture](/docs/developer-guide/architecture) → [Adding Tools](/docs/developer-guide/adding-tools) → [Creating Skills](/docs/developer-guide/creating-skills) → [Batch Processing](/docs/user-guide/features/batch-processing) → [Contributing](/docs/developer-guide/contributing) | ~4–6 hours |
 
 ## By Use Case
 
@@ -94,18 +94,19 @@ For most custom tool creation, start with plugins. The [Adding Tools](/docs/deve
 page is for built-in Hermes core development, not the usual user/custom-tool path.
 :::
 
-### "I want to train models"
+### "I want to generate training data"
 
-Use reinforcement learning to fine-tune model behavior with Hermes Agent's built-in RL training pipeline.
+Generate ShareGPT-format trajectory data from Hermes Agent sessions for training data generation, evaluation, or debugging.
 
 1. [Quickstart](/docs/getting-started/quickstart)
 2. [Configuration](/docs/user-guide/configuration)
-3. [RL Training](/docs/user-guide/features/rl-training)
-4. [Provider Routing](/docs/user-guide/features/provider-routing)
-5. [Architecture](/docs/developer-guide/architecture)
+3. [Batch Processing](/docs/user-guide/features/batch-processing)
+4. [Trajectory Format](/docs/developer-guide/trajectory-format)
+5. [Provider Routing](/docs/user-guide/features/provider-routing)
+6. [Architecture](/docs/developer-guide/architecture)
 
 :::tip
-RL training works best when you already understand the basics of how Hermes Agent handles conversations and tool calls. Run through the Beginner path first if you're new.
+Training-data generation works best when you already understand how Hermes Agent handles conversations and tool calls. Run through the Beginner path first if you're new.
 :::
 
 ### "I want to use it as a Python library"
@@ -136,7 +137,7 @@ Not sure what's available? Here's a quick directory of major features:
 | **Browser** | Web browsing and scraping | [Browser](/docs/user-guide/features/browser) |
 | **Hooks** | Event-driven callbacks and middleware | [Hooks](/docs/user-guide/features/hooks) |
 | **Batch Processing** | Process multiple inputs in bulk | [Batch Processing](/docs/user-guide/features/batch-processing) |
-| **RL Training** | Fine-tune models with reinforcement learning | [RL Training](/docs/user-guide/features/rl-training) |
+| **Trajectory Data** | Generate ShareGPT-format traces for training and evaluation | [Batch Processing](/docs/user-guide/features/batch-processing) |
 | **Provider Routing** | Route requests across multiple LLM providers | [Provider Routing](/docs/user-guide/features/provider-routing) |
 
 ## What to Read Next

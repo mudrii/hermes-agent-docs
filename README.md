@@ -4,7 +4,7 @@
 
 Hermes Agent is an autonomous AI agent with a built-in learning loop. It creates skills from experience, improves them during use, searches its own past conversations for context, and builds a deepening model of who you are across sessions. It runs on a $5 VPS, a GPU cluster, or serverless infrastructure -- not tied to your laptop.
 
-Current version: **v0.13.0 (v2026.5.7)** -- released May 7, 2026.
+Current version: **v0.14.0 (v2026.5.16)** -- released May 16, 2026.
 
 ---
 
@@ -16,8 +16,8 @@ Hermes Agent is not a coding copilot or a chatbot wrapper. It is a multi-platfor
 - Manages long-running conversations with context compression and session lineage
 - Persists memory, skills, and session history in SQLite across restarts
 - Streams responses token-by-token from the model to the user interface (v0.3.0)
-- Runs as a CLI (with an Ink-based TUI invoked via `hermes --tui`), a messaging gateway across released platforms (Telegram, Discord, Slack, WhatsApp, Signal, DingTalk, SMS, Mattermost, Matrix, Webhook, Email, Home Assistant, Feishu/Lark, WeCom, Weixin, BlueBubbles iMessage, QQBot, Yuanbao, IRC, Microsoft Teams, and Google Chat), or an IDE integration (VS Code, Zed, JetBrains via ACP)
-- Exposes an OpenAI-compatible `/v1/chat/completions` API server with REST cron job management (v0.4.0)
+- Runs as a CLI (with an Ink-based TUI invoked via `hermes --tui`), a messaging gateway across released platforms (Telegram, Discord, Slack, WhatsApp, Signal, DingTalk, SMS, Mattermost, Matrix, Webhook, Email, Home Assistant, Feishu/Lark, WeCom, Weixin, BlueBubbles iMessage, QQBot, Yuanbao, IRC, Microsoft Teams, Google Chat, LINE, and SimpleX Chat), or an IDE integration (VS Code, Zed, JetBrains via ACP)
+- Exposes an OpenAI-compatible `/v1/chat/completions` API server with REST cron job management (v0.4.0), plus a local subscription proxy for OAuth-backed providers such as Claude Pro, ChatGPT Pro, and SuperGrok (v0.14.0)
 - Delegates work to isolated subagents and spawns scheduled cron jobs
 - Exports training trajectories for SFT data generation and RL fine-tuning
 
@@ -43,11 +43,11 @@ Real-time token-by-token delivery in the CLI and all gateway platforms. Response
 
 ### Multi-Platform Messaging Gateway
 
-Telegram, Discord, Slack, WhatsApp, Signal, DingTalk, SMS (Twilio), Mattermost, Matrix, Webhook, Email (IMAP/SMTP), Home Assistant, Feishu/Lark, WeCom, Weixin, BlueBubbles (iMessage), QQBot, Yuanbao, IRC, Microsoft Teams, and Google Chat run from one gateway process. Unified session management, media attachments, voice transcription, and per-platform tool configuration are shared across adapters. v0.13.0 adds Google Chat as the 20th platform, broader platform allowlists, restart auto-resume, and per-platform restart notification controls.
+Telegram, Discord, Slack, WhatsApp, Signal, DingTalk, SMS (Twilio), Mattermost, Matrix, Webhook, Email (IMAP/SMTP), Home Assistant, Feishu/Lark, WeCom, Weixin, BlueBubbles (iMessage), QQBot, Yuanbao, IRC, Microsoft Teams, Google Chat, LINE, and SimpleX Chat run from one gateway process. Unified session management, media attachments, voice transcription, cron delivery, and per-platform tool configuration are shared across adapters. v0.14.0 adds LINE and SimpleX Chat, plus Microsoft Graph webhook and Teams pipeline foundations.
 
-### Plugin Architecture (v0.3.0, expanded in v0.11.0-v0.13.0)
+### Plugin Architecture (v0.3.0, expanded in v0.11.0-v0.14.0)
 
-Drop Python files into `~/.hermes/plugins/` to extend Hermes with custom tools, commands, hooks, dashboard tabs, gateway platforms, provider backends, and image-generation backends. No forking required. v0.13.0 documents model-provider plugins, image-generation provider plugins, durable Kanban's dashboard plugin, and plugin API route authentication.
+Drop Python files into `~/.hermes/plugins/` to extend Hermes with custom tools, commands, hooks, dashboard tabs, gateway platforms, provider backends, image-generation backends, and video-generation backends. No forking required. v0.14.0 adds plugin-side `ctx.llm` calls through the active provider/credentials and a `tool_override` flag for replacing built-in tools.
 
 ### Ink-based TUI (v0.11.0)
 
@@ -95,6 +95,13 @@ Switch with `hermes model` -- no code changes, no lock-in.
 - **Google Meet** -- bundled plugin for joining calls, transcribing, speaking, and follow-up workflows
 - **Piper TTS** -- native local TTS provider through the new `tts.providers.<name>` registry
 - **ComfyUI and TouchDesigner-MCP** -- promoted to bundled skills by default
+
+### v0.14.0 Foundation Release
+
+- **Native Windows early beta** -- PowerShell installer, native subprocess paths, taskkill-based process management, portable Git Bash bootstrap, and Windows-specific terminal/tooling fixes.
+- **PyPI package** -- `pip install hermes-agent && hermes` now installs the released wheel without cloning the repository.
+- **Subscription proxy** -- `hermes proxy` exposes OAuth-backed providers through an OpenAI-compatible local endpoint for tools such as Codex, Aider, Cline, and VS Code Continue.
+- **New tools and diagnostics** -- `x_search`, `computer_use`, write-time LSP diagnostics, pixel-preserving `vision_analyze`, pluggable `video_generate`, and a per-turn file-mutation verifier.
 
 ### OpenAI-Compatible API Server (v0.4.0)
 
@@ -146,7 +153,7 @@ Multiple independent tool calls run in parallel via `ThreadPoolExecutor` (max 8 
 
 ### Context Compression
 
-`ContextCompressor` monitors token usage and compresses context when approaching the model's context limit (default threshold: 50% of the context window). The released v0.13.0 implementation hardcodes the first-turn protection internally and exposes `compression.protect_last_n` (default: 20) for the recent-message floor. It summarizes the middle section via an auxiliary model call (`call_llm(task="compression")`) and sanitizes orphaned tool-call/result pairs. Session lineage is preserved via `parent_session_id` chains in the SQLite state store.
+`ContextCompressor` monitors token usage and compresses context when approaching the model's context limit (default threshold: 50% of the context window). The released v0.14.0 implementation exposes configurable first-turn protection and `compression.protect_last_n` (default: 20) for the recent-message floor. It summarizes the middle section via an auxiliary model call (`call_llm(task="compression")`) and sanitizes orphaned tool-call/result pairs. Session lineage is preserved via `parent_session_id` chains in the SQLite state store.
 
 ### Six Terminal Backends
 
@@ -193,7 +200,7 @@ Batch trajectory generation, trajectory compression for training datasets (`traj
 ## Requirements
 
 - **Python**: 3.11 or newer (`requires-python = ">=3.11"` in `pyproject.toml`)
-- **Operating Systems**: Linux, macOS, WSL2, and Android via Termux. Native Windows support is current-main early beta work and is not part of the v0.13.0 stable release surface; use WSL2 for the released Windows path.
+- **Operating Systems**: Linux, macOS, WSL2, Android via Termux, and native Windows early beta. The browser dashboard's embedded `/chat` terminal pane remains WSL2-only because it depends on a POSIX PTY.
 - **Git**: Required by the installer
 
 Key Python dependencies (from `pyproject.toml`):
@@ -201,13 +208,13 @@ Key Python dependencies (from `pyproject.toml`):
 | Package | Purpose |
 |---------|---------|
 | `openai` | OpenAI-compatible API client |
-| `anthropic>=0.39.0` | Native Anthropic API client |
+| `anthropic==0.86.0` | Native Anthropic API client (`anthropic` extra) |
 | `prompt_toolkit` | Interactive CLI TUI |
 | `rich` | Terminal output formatting |
 | `pyyaml` | Configuration file parsing |
-| `pydantic>=2.12.5` | Data validation |
-| `firecrawl-py>=4.16.0` | Web content extraction |
-| `edge-tts>=7.2.7` | Free text-to-speech (no API key needed) |
+| `pydantic==2.12.5` | Data validation |
+| `firecrawl-py==4.17.0` | Web content extraction (`firecrawl` extra) |
+| `edge-tts==7.2.7` | Free text-to-speech (`edge-tts` extra) |
 
 Optional extras (install with `pip install "hermes-agent[extra]"`):
 
@@ -218,10 +225,12 @@ Optional extras (install with `pip install "hermes-agent[extra]"`):
 | `mcp` | Model Context Protocol client |
 | `honcho` | Honcho AI user modeling |
 | `modal` / `daytona` | Serverless sandbox backends |
-| `rl` | Atropos RL training integration |
 | `acp` | ACP IDE integration server |
 | `cron` | Cron job scheduler |
 | `tts-premium` | ElevenLabs premium TTS |
+| `web` | Web dashboard API and static UI |
+| `google` / `youtube` | Google Workspace and YouTube skill dependencies |
+| `computer-use` | MCP client support for the cua-driver desktop backend |
 | `slack` | Slack Bolt + SDK (standalone, without full `messaging`) |
 | `matrix` | Matrix with E2E encryption (matrix-nio) |
 | `pty` | PTY terminal backend (ptyprocess / pywinpty) |
@@ -229,7 +238,6 @@ Optional extras (install with `pip install "hermes-agent[extra]"`):
 | `sms` | SMS via Twilio (aiohttp) |
 | `dingtalk` | DingTalk enterprise messaging (dingtalk-stream) |
 | `feishu` | Feishu/Lark enterprise messaging (lark-oapi) |
-| `yc-bench` | YC-Bench evaluation harness (Python 3.12+) |
 | `all` | All of the above |
 
 ---
@@ -240,7 +248,7 @@ Optional extras (install with `pip install "hermes-agent[extra]"`):
 curl -fsSL https://raw.githubusercontent.com/NousResearch/hermes-agent/main/scripts/install.sh | bash
 ```
 
-Works on Linux, macOS, WSL2, and Android via Termux. The installer handles Python, Node.js, dependencies, and the `hermes` command. No prerequisites except Git.
+Works on Linux, macOS, WSL2, and Android via Termux. For native Windows early beta, run the PowerShell installer from the [installation guide](getting-started/installation.md). The installers handle Python, Node.js, dependencies, and the `hermes` command.
 
 After installation:
 
@@ -340,8 +348,7 @@ Hermes has two entry points: start the terminal UI with `hermes`, or run the gat
 | [user-guide/features/vision.md](user-guide/features/vision.md) | Vision analysis, multimodal input, and messaging-platform support |
 | [user-guide/features/tts.md](user-guide/features/tts.md) | Text-to-speech backends and delivery modes |
 | [user-guide/features/personality.md](user-guide/features/personality.md) | Personality system, SOUL.md, and identity layering |
-| [developer-guide/environments.md](developer-guide/environments.md) | RL and benchmark environments shipped with Hermes |
-| [user-guide/features/rl-training.md](user-guide/features/rl-training.md) | Training workflows, trajectories, and Atropos integration |
+| [developer-guide/trajectory-format.md](developer-guide/trajectory-format.md) | Trajectory serialization and training-data format |
 | [user-guide/features/skins.md](user-guide/features/skins.md) | CLI themes, custom skins, banner configuration |
 
 ### Skills & Tools

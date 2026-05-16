@@ -20,6 +20,7 @@ Hermes has several distinct pluggable interfaces — some use Python `register_*
 | A **memory backend** (Honcho/Mem0/Supermemory/etc.) | [Memory Provider Plugins](/docs/developer-guide/memory-provider-plugin) |
 | A **context-compression engine** | [Context Engine Plugins](/docs/developer-guide/context-engine-plugin) |
 | An **image-generation backend** | [Image Generation Provider Plugins](/docs/developer-guide/image-gen-provider-plugin) |
+| A **video-generation backend** | [Video Generation Provider Plugins](/docs/developer-guide/video-gen-provider-plugin) |
 | A **TTS backend** (any CLI — Piper, VoxCPM, Kokoro, voice cloning, …) | [TTS custom command providers](/docs/user-guide/features/tts#custom-command-providers) — config-driven, no Python needed |
 | An **STT backend** (custom whisper / ASR CLI) | [Voice Message Transcription](/docs/user-guide/features/tts#voice-message-transcription-stt) — set `HERMES_LOCAL_STT_COMMAND` to a shell template |
 | **External tools via MCP** (filesystem, GitHub, Linear, any MCP server) | [MCP](/docs/user-guide/features/mcp) — declare `mcp_servers.<name>` in `config.yaml` |
@@ -464,6 +465,30 @@ ctx.register_tool(
 )
 ```
 
+### Overriding a built-in tool
+
+To replace a built-in tool with your own implementation (e.g. swap the
+default browser tool for a headed-Chrome CDP backend, or replace
+`web_search` with a custom corporate index), pass `override=True`:
+
+```python
+def register(ctx):
+    ctx.register_tool(
+        name="browser_navigate",             # same name as the built-in
+        toolset="plugin_my_browser",         # your own toolset namespace
+        schema={...},
+        handler=my_custom_navigate,
+        override=True,                       # explicit opt-in
+    )
+```
+
+Without `override=True`, the registry rejects any registration that would
+shadow an existing tool from a different toolset — this prevents
+accidental overwrites. The override is logged at INFO level so it's
+auditable in `~/.hermes/logs/agent.log`. Plugins load after built-in
+tools, so the registration order is correct: your handler replaces the
+built-in one.
+
 ### Register multiple hooks
 
 ```python
@@ -485,19 +510,18 @@ Each hook is documented in full on the **[Event Hooks reference](/docs/user-guid
 | [`post_tool_call`](/docs/user-guide/features/hooks#post_tool_call) | After any tool returns | `tool_name: str, args: dict, result: str, task_id: str, duration_ms: int` | ignored |
 | [`pre_llm_call`](/docs/user-guide/features/hooks#pre_llm_call) | Once per turn, before the tool-calling loop | `session_id: str, user_message: str, conversation_history: list, is_first_turn: bool, model: str, platform: str` | [context injection](#pre_llm_call-context-injection) |
 | [`post_llm_call`](/docs/user-guide/features/hooks#post_llm_call) | Once per turn, after the tool-calling loop (successful turns only) | `session_id: str, user_message: str, assistant_response: str, conversation_history: list, model: str, platform: str` | ignored |
-| [`transform_llm_output`](/docs/user-guide/features/hooks#transform_llm_output) | After the tool-calling loop, before final delivery | `session_id: str, assistant_response: str, model: str, platform: str` | replacement response text |
 | [`on_session_start`](/docs/user-guide/features/hooks#on_session_start) | New session created (first turn only) | `session_id: str, model: str, platform: str` | ignored |
 | [`on_session_end`](/docs/user-guide/features/hooks#on_session_end) | End of every `run_conversation` call + CLI exit | `session_id: str, completed: bool, interrupted: bool, model: str, platform: str` | ignored |
 | [`on_session_finalize`](/docs/user-guide/features/hooks#on_session_finalize) | CLI/gateway tears down an active session | `session_id: str \| None, platform: str` | ignored |
 | [`on_session_reset`](/docs/user-guide/features/hooks#on_session_reset) | Gateway swaps in a new session key (`/new`, `/reset`) | `session_id: str, platform: str` | ignored |
 
-Most hooks are fire-and-forget observers. The main exceptions are `pre_llm_call`, which can inject context into the conversation, `pre_tool_call`, which can block a tool, and `transform_llm_output`, which can replace the final response text before delivery.
+Most hooks are fire-and-forget observers — their return values are ignored. The exception is `pre_llm_call`, which can inject context into the conversation.
 
 All callbacks should accept `**kwargs` for forward compatibility. If a hook callback crashes, it's logged and skipped. Other hooks and the agent continue normally.
 
 ### `pre_llm_call` context injection
 
-When a `pre_llm_call` callback returns a dict with a `"context"` key (or a plain string), Hermes injects that text into the **current turn's user message**. This is the mechanism for memory plugins, RAG integrations, guardrails, and any plugin that needs to provide the model with additional context.
+This is the only hook whose return value matters. When a `pre_llm_call` callback returns a dict with a `"context"` key (or a plain string), Hermes injects that text into the **current turn's user message**. This is the mechanism for memory plugins, RAG integrations, guardrails, and any plugin that needs to provide the model with additional context.
 
 #### Return format
 

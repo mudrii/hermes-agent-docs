@@ -20,6 +20,7 @@ You need at least one way to connect to an LLM. Use `hermes model` to switch pro
 | **GitHub Copilot ACP** | `hermes model` (spawns local `copilot --acp --stdio`) |
 | **Anthropic** | `hermes model` (Claude Max + extra usage credits via OAuth; also supports Anthropic API key or manual setup-token — see note below) |
 | **OpenRouter** | `OPENROUTER_API_KEY` in `~/.hermes/.env` |
+| **NovitaAI** | `NOVITA_API_KEY` in `~/.hermes/.env` (provider: `novita`, 200+ models, Model API, Agent Sandbox, GPU Cloud) |
 | **AI Gateway** | `AI_GATEWAY_API_KEY` in `~/.hermes/.env` (provider: `ai-gateway`) |
 | **z.ai / GLM** | `GLM_API_KEY` in `~/.hermes/.env` (provider: `zai`) |
 | **Kimi / Moonshot** | `KIMI_API_KEY` in `~/.hermes/.env` (provider: `kimi-coding`) |
@@ -267,6 +268,10 @@ model:
 These providers have built-in support with dedicated provider IDs. Set the API key and use `--provider` to select:
 
 ```bash
+# NovitaAI Model API
+hermes chat --provider novita --model moonshotai/kimi-k2.5
+# Requires: NOVITA_API_KEY in ~/.hermes/.env
+
 # z.ai / ZhipuAI GLM
 hermes chat --provider zai --model glm-5
 # Requires: GLM_API_KEY in ~/.hermes/.env
@@ -316,7 +321,7 @@ model:
   default: "zai-org/GLM-5.1-FP8"
 ```
 
-Base URLs can be overridden with `GLM_BASE_URL`, `KIMI_BASE_URL`, `MINIMAX_BASE_URL`, `MINIMAX_CN_BASE_URL`, `DASHSCOPE_BASE_URL`, `XIAOMI_BASE_URL`, `GMI_BASE_URL`, or `TOKENHUB_BASE_URL` environment variables.
+Base URLs can be overridden with `NOVITA_BASE_URL`, `GLM_BASE_URL`, `KIMI_BASE_URL`, `MINIMAX_BASE_URL`, `MINIMAX_CN_BASE_URL`, `DASHSCOPE_BASE_URL`, `XIAOMI_BASE_URL`, `GMI_BASE_URL`, or `TOKENHUB_BASE_URL` environment variables.
 
 :::note Z.AI Endpoint Auto-Detection
 When using the Z.AI / GLM provider, Hermes automatically probes multiple endpoints (global, China, coding variants) to find one that accepts your API key. You don't need to set `GLM_BASE_URL` manually — the working endpoint is detected and cached automatically.
@@ -326,11 +331,36 @@ When using the Z.AI / GLM provider, Hermes automatically probes multiple endpoin
 
 xAI is wired through the Responses API (`codex_responses` transport) for automatic reasoning support on Grok 4 models — no `reasoning_effort` parameter needed, the server reasons by default. Set `XAI_API_KEY` in `~/.hermes/.env` and pick xAI in `hermes model`, or drop `grok` as a shortcut into `/model grok-4-1-fast-reasoning`.
 
+SuperGrok subscribers can sign in with browser OAuth instead of using an API key — pick **xAI Grok OAuth (SuperGrok Subscription)** in `hermes model`, or run `hermes auth add xai-oauth`. The same OAuth bearer token is automatically reused by direct-to-xAI tools (TTS, image gen, video gen, transcription). See the [xAI Grok OAuth guide](../guides/xai-grok-oauth.md) for the full flow — and if Hermes runs on a remote host, also see [OAuth over SSH / Remote Hosts](../guides/oauth-over-ssh.md) for the required `ssh -L` tunnel.
+
 When using xAI as a provider (any base URL containing `x.ai`), Hermes automatically enables prompt caching by sending the `x-grok-conv-id` header with every API request. This routes requests to the same server within a conversation session, allowing xAI's infrastructure to reuse cached system prompts and conversation history.
 
 No configuration is needed — caching activates automatically when an xAI endpoint is detected and a session ID is available. This reduces latency and cost for multi-turn conversations.
 
 xAI also ships a dedicated TTS endpoint (`/v1/tts`). Select **xAI TTS** in `hermes tools` → Voice & TTS, or see the [Voice & TTS](../user-guide/features/tts.md#text-to-speech) page for config.
+
+### NovitaAI
+
+[NovitaAI](https://novita.ai) is the AI-native cloud for builders and agents. Its three product lines are Model API for 200+ models, Agent Sandbox for building and running AI agents, and GPU Cloud for scalable compute, all available from one platform.
+
+```bash
+# Use any available model
+hermes chat --provider novita --model moonshotai/kimi-k2.5
+# Requires: NOVITA_API_KEY in ~/.hermes/.env
+
+# Short alias
+hermes chat --provider novita-ai --model deepseek/deepseek-v3-0324
+```
+
+Or set it permanently in `config.yaml`:
+```yaml
+model:
+  provider: "novita"
+  default: "moonshotai/kimi-k2.5"
+  base_url: "https://api.novita.ai/openai/v1"
+```
+
+Get your API key at [novita.ai/settings/key-management](https://novita.ai/settings/key-management). The base URL can be overridden with `NOVITA_BASE_URL`.
 
 ### Ollama Cloud — Managed Ollama Models, OAuth + API Key
 
@@ -639,7 +669,7 @@ model:
   default: qwen2.5-coder:32b
   provider: custom
   base_url: http://localhost:11434/v1
-  context_length: 65536   # See warning below
+  context_length: 32768   # See warning below
 ```
 
 :::caution Ollama defaults to very low context lengths
@@ -651,22 +681,22 @@ Ollama does **not** use your model's full context window by default. Depending o
 | 24–48 GB | 32,768 tokens |
 | 48+ GB | 256,000 tokens |
 
-For Hermes agent use with tools, **you need at least 64,000 tokens of context**. At 4k, the system prompt + tool schemas alone can fill the window, leaving no room for conversation.
+For agent use with tools, **you need at least 16k–32k context**. At 4k, the system prompt + tool schemas alone can fill the window, leaving no room for conversation.
 
 **How to increase it** (pick one):
 
 ```bash
 # Option 1: Set server-wide via environment variable (recommended)
-OLLAMA_CONTEXT_LENGTH=65536 ollama serve
+OLLAMA_CONTEXT_LENGTH=32768 ollama serve
 
 # Option 2: For systemd-managed Ollama
 sudo systemctl edit ollama.service
-# Add: Environment="OLLAMA_CONTEXT_LENGTH=65536"
+# Add: Environment="OLLAMA_CONTEXT_LENGTH=32768"
 # Then: sudo systemctl daemon-reload && sudo systemctl restart ollama
 
 # Option 3: Bake it into a custom model (persistent per-model)
-echo -e "FROM qwen2.5-coder:32b\nPARAMETER num_ctx 65536" > Modelfile
-ollama create qwen2.5-coder-64k -f Modelfile
+echo -e "FROM qwen2.5-coder:32b\nPARAMETER num_ctx 32768" > Modelfile
+ollama create qwen2.5-coder-32k -f Modelfile
 ```
 
 **You cannot set context length through the OpenAI-compatible API** (`/v1/chat/completions`). It must be configured server-side or via a Modelfile. This is the #1 source of confusion when integrating Ollama with tools like Hermes.
@@ -768,13 +798,13 @@ If responses seem truncated, add `max_tokens` to your requests or set `--default
 cmake -B build && cmake --build build --config Release
 ./build/bin/llama-server \
   --jinja -fa \
-  -c 65536 \
+  -c 32768 \
   -ngl 99 \
   -m models/qwen2.5-coder-32b-instruct-Q4_K_M.gguf \
   --port 8080 --host 0.0.0.0
 ```
 
-**Context length (`-c`):** Recent builds default to `0` which reads the model's training context from the GGUF metadata. For models with 128k+ training context, this can OOM trying to allocate the full KV cache. Set `-c` explicitly to at least 64K for Hermes agent use. If using parallel slots (`-np`), the total context is divided among slots — with `-c 65536 -np 4`, each slot only gets 16K.
+**Context length (`-c`):** Recent builds default to `0` which reads the model's training context from the GGUF metadata. For models with 128k+ training context, this can OOM trying to allocate the full KV cache. Set `-c` explicitly to what you need (32k–64k is a good range for agent use). If using parallel slots (`-np`), the total context is divided among slots — with `-c 32768 -np 4`, each slot only gets 8k.
 
 Then configure Hermes to point at it:
 
@@ -810,7 +840,7 @@ Start the server from the LM Studio app (Developer tab → Start Server), or use
 
 ```bash
 lms server start                        # Starts on port 1234
-lms load qwen2.5-coder --context-length 64000
+lms load qwen2.5-coder --context-length 32768
 ```
 
 Then configure Hermes:
@@ -992,7 +1022,7 @@ The model outputs something like `{"name": "web_search", "arguments": {...}}` as
 # vLLM: check --max-model-len in startup args
 ```
 
-**Fix:** Set context to at least **64,000 tokens** for Hermes agent use. See each server's section above for the specific flag.
+**Fix:** Set context to at least **32,768 tokens** for agent use. See each server's section above for the specific flag.
 
 #### "Context limit: 2048 tokens" at startup
 
@@ -1005,7 +1035,7 @@ model:
   default: your-model
   provider: custom
   base_url: http://localhost:11434/v1
-  context_length: 65536
+  context_length: 32768
 ```
 
 #### Responses get cut off mid-sentence
@@ -1327,7 +1357,6 @@ You can switch between providers at any time with `hermes model` — no restart 
 | Premium TTS voices | [ElevenLabs](https://elevenlabs.io/) | `ELEVENLABS_API_KEY` |
 | OpenAI TTS + voice transcription | [OpenAI](https://platform.openai.com/api-keys) | `VOICE_TOOLS_OPENAI_KEY` |
 | Mistral TTS + voice transcription | [Mistral](https://console.mistral.ai/) | `MISTRAL_API_KEY` |
-| RL Training | [Tinker](https://tinker-console.thinkingmachines.ai/) + [WandB](https://wandb.ai/) | `TINKER_API_KEY`, `WANDB_API_KEY` |
 | Cross-session user modeling | [Honcho](https://honcho.dev/) | `HONCHO_API_KEY` |
 | Semantic long-term memory | [Supermemory](https://supermemory.ai) | `SUPERMEMORY_API_KEY` |
 
@@ -1417,7 +1446,7 @@ fallback_model:
 
 When activated, the fallback swaps the model and provider mid-session without losing your conversation. The chain is tried entry-by-entry; activation is one-shot per session.
 
-Supported providers: `openrouter`, `nous`, `openai-codex`, `copilot`, `copilot-acp`, `anthropic`, `gemini`, `google-gemini-cli`, `qwen-oauth`, `huggingface`, `zai`, `kimi-coding`, `kimi-coding-cn`, `minimax`, `minimax-cn`, `minimax-oauth`, `deepseek`, `nvidia`, `xai`, `ollama-cloud`, `bedrock`, `ai-gateway`, `azure-foundry`, `opencode-zen`, `opencode-go`, `kilocode`, `xiaomi`, `arcee`, `gmi`, `stepfun`, `lmstudio`, `alibaba`, `alibaba-coding-plan`, `tencent-tokenhub`, `custom`.
+Supported providers: `openrouter`, `nous`, `openai-codex`, `copilot`, `copilot-acp`, `anthropic`, `gemini`, `google-gemini-cli`, `qwen-oauth`, `huggingface`, `zai`, `kimi-coding`, `kimi-coding-cn`, `minimax`, `minimax-cn`, `minimax-oauth`, `deepseek`, `nvidia`, `xai`, `xai-oauth`, `ollama-cloud`, `bedrock`, `ai-gateway`, `azure-foundry`, `opencode-zen`, `opencode-go`, `kilocode`, `xiaomi`, `arcee`, `gmi`, `stepfun`, `lmstudio`, `alibaba`, `alibaba-coding-plan`, `tencent-tokenhub`, `custom`.
 
 :::tip
 Fallback is configured exclusively through `config.yaml` — or interactively via `hermes fallback`. For full details on when it triggers, how the chain advances, and how it interacts with auxiliary tasks and delegation, see [Fallback Providers](/docs/user-guide/features/fallback-providers).

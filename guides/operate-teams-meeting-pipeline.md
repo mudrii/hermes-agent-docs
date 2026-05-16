@@ -5,10 +5,6 @@ description: "Runbook, go-live checklist, and operator worksheet for the Microso
 
 # Operate the Teams Meeting Pipeline
 
-:::warning Current main only
-The Teams meeting pipeline runbook depends on Microsoft Graph webhook work that landed after the v0.13.0 / v2026.5.7 release boundary. It is not part of the stable v0.13.0 released workflow.
-:::
-
 Use this guide after you have already enabled the feature from [Teams Meetings](/docs/user-guide/messaging/teams-meetings).
 
 This page covers:

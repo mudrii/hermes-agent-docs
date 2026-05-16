@@ -48,7 +48,16 @@ Pick the row that matches your goal:
 
 ## 1. Install Hermes Agent
 
-Run the one-line installer:
+**Option A — pip (simplest):**
+
+```bash
+pip install hermes-agent
+hermes postinstall     # optional: installs Node.js, browser, ripgrep, ffmpeg + runs setup
+```
+
+PyPI releases track tagged versions (major/minor releases), not every commit on `main`. For bleeding-edge, use Option B.
+
+**Option B — git installer (tracks main branch):**
 
 ```bash
 # Linux / macOS / WSL2 / Android (Termux)
@@ -60,7 +69,7 @@ If you're installing on a phone, see the dedicated [Termux guide](./termux.md) f
 :::
 
 :::tip Windows Users
-For the v0.13.0 stable release, install [WSL2](https://learn.microsoft.com/en-us/windows/wsl/install) first, then run the command above inside your WSL2 terminal. Native Windows support exists on current `main` as early beta; see the [native Windows guide](../user-guide/windows-native.md) only if you are intentionally installing from current `main`.
+Install [WSL2](https://learn.microsoft.com/en-us/windows/wsl/install) first, then run the command above inside your WSL2 terminal.
 :::
 
 After it finishes, reload your shell:
